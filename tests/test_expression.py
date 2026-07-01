@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bioplatter.core.expression import (
     read_counts_matrix, cpm_normalization, tpm_normalization,
-    differential_expression
+    differential_expression, _benjamini_hochberg
 )
 
 
@@ -141,3 +141,50 @@ class TestDifferentialExpression:
         df = self._make_df(n_genes=10)
         result = differential_expression(df, ['ctrl', 'ctrl', 'treat', 'treat'])
         assert list(result['gene']) == [f'G{i}' for i in range(10)]
+
+    def test_has_padj_column(self):
+        df = self._make_df(n_genes=10)
+        result = differential_expression(df, ['ctrl', 'ctrl', 'treat', 'treat'])
+        assert 'padj' in result.columns
+
+    def test_padj_between_0_and_1(self):
+        df = self._make_df(n_genes=50)
+        result = differential_expression(df, ['ctrl', 'ctrl', 'treat', 'treat'])
+        assert (result['padj'] >= 0).all()
+        assert (result['padj'] <= 1).all()
+
+    def test_padj_greater_or_equal_pvalue(self):
+        """BH correction should produce adjusted p >= raw p."""
+        df = self._make_df(n_genes=100)
+        result = differential_expression(df, ['ctrl', 'ctrl', 'treat', 'treat'])
+        assert (result['padj'] >= result['pvalue'] - 1e-10).all()
+
+
+# ─── Benjamini-Hochberg ──────────────────────────────────────────────────────
+
+class TestBenjaminiHochberg:
+    def test_all_zeros(self):
+        pvals = np.array([0.0, 0.0, 0.0])
+        result = _benjamini_hochberg(pvals)
+        assert np.all(result == 0.0)
+
+    def test_all_ones(self):
+        pvals = np.array([0.5, 0.8, 1.0])
+        result = _benjamini_hochberg(pvals)
+        assert np.all(result <= 1.0)
+
+    def test_monotonicity(self):
+        """Adjusted p-values should not increase when sorted."""
+        pvals = np.array([0.01, 0.05, 0.1, 0.5])
+        result = _benjamini_hochberg(pvals)
+        sorted_result = np.sort(result)
+        assert np.allclose(result, sorted_result)
+
+    def test_length_preserved(self):
+        pvals = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+        result = _benjamini_hochberg(pvals)
+        assert len(result) == len(pvals)
+
+    def test_empty(self):
+        result = _benjamini_hochberg(np.array([]))
+        assert len(result) == 0

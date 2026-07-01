@@ -1230,18 +1230,23 @@ class BioSuiteApp(ctk.CTk):
                 return
             de = differential_expression(counts, conditions)
             self.expr_result.delete("1.0", "end")
-            self.expr_result.insert("end", "DE Results (top 20):\n\n")
+            self.expr_result.insert("end", "DE Results (top 20, BH-corrected):\n\n")
             self.expr_result.insert("end", de.head(20).to_string())
             fig, ax = plt.subplots(figsize=(7, 5))
-            ax.scatter(de['log2FC'], -np.log10(de['pvalue']), s=5, alpha=0.5)
-            ax.axhline(-np.log10(0.05), color='red', linestyle='--')
-            ax.axvline(-1, color='gray', linestyle='--')
-            ax.axvline(1, color='gray', linestyle='--')
-            ax.set_xlabel('log2FC')
-            ax.set_ylabel('-log10(pvalue)')
-            ax.set_title('Volcano Plot (DE Analysis)')
+            sig = de['padj'] < 0.05
+            ax.scatter(de.loc[~sig, 'log2FC'], -np.log10(de.loc[~sig, 'pvalue']),
+                       s=5, alpha=0.3, color='gray', label='Not sig')
+            ax.scatter(de.loc[sig, 'log2FC'], -np.log10(de.loc[sig, 'pvalue']),
+                       s=10, alpha=0.7, color='red', label='FDR < 0.05')
+            ax.axhline(-np.log10(0.05), color='red', linestyle='--', alpha=0.5)
+            ax.axvline(-1, color='gray', linestyle='--', alpha=0.5)
+            ax.axvline(1, color='gray', linestyle='--', alpha=0.5)
+            ax.set_xlabel('log2 Fold Change')
+            ax.set_ylabel('-log10(p-value)')
+            ax.set_title(f'DE Analysis (BH-corrected) — {sig.sum()} significant genes')
+            ax.legend()
             plt.show()
-            self._set_status("DE analysis complete")
+            self._set_status(f"DE complete: {sig.sum()} significant genes (FDR < 0.05)")
         except Exception as e:
             self._msg_error("Error", str(e))
 
