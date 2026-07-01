@@ -3,362 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ساهند · نقشه راه آینده</title>
+    <title>ساهند · نقشه راه آینده — ایران → آلمان → آمریکا</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap');
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif; background: #060d06; color: #c0e8d0; line-height: 2; direction: rtl; }
 
-        body {
-            font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif;
-            background: #060d06;
-            color: #c0e8d0;
-            line-height: 2;
-            direction: rtl;
-        }
-
-        .hero {
-            background: linear-gradient(135deg, #0a0f0a 0%, #0d1a0d 50%, #111c11 100%);
-            border-bottom: 1px solid #1a3a1a;
-            padding: 60px 20px;
-            text-align: center;
-        }
-
-        .hero h1 {
-            font-size: 2.8em;
-            font-weight: 900;
-            color: #00ff88;
-            margin-bottom: 8px;
-        }
-
-        .hero .subtitle {
-            font-size: 1.2em;
-            color: #6b9b7a;
-        }
-
-        .hero .term-badge {
-            display: inline-block;
-            background: #00ff8822;
-            border: 1px solid #00ff8844;
-            color: #00ff88;
-            padding: 6px 20px;
-            border-radius: 24px;
-            font-size: 1em;
-            margin-top: 16px;
-        }
+        /* ── Hero ── */
+        .hero { background: linear-gradient(135deg, #0a0f0a 0%, #0d1a0d 50%, #111c11 100%); border-bottom: 1px solid #1a3a1a; padding: 50px 20px; text-align: center; }
+        .hero h1 { font-size: 2.8em; font-weight: 900; color: #00ff88; margin-bottom: 8px; }
+        .hero .subtitle { font-size: 1.15em; color: #6b9b7a; }
+        .hero .badges { margin-top: 16px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .badge { display: inline-block; background: #00ff8822; border: 1px solid #00ff8844; color: #00ff88; padding: 4px 16px; border-radius: 20px; font-size: 0.9em; }
 
         .container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
-
-        h2 {
-            font-size: 1.6em;
-            font-weight: 700;
-            color: #00ff88;
-            margin: 50px 0 20px;
-            padding-right: 16px;
-            border-right: 4px solid #00ff88;
-        }
-
-        h3 {
-            font-size: 1.2em;
-            font-weight: 700;
-            color: #6bffb0;
-            margin: 24px 0 12px;
-        }
-
+        h2 { font-size: 1.6em; font-weight: 700; color: #00ff88; margin: 50px 0 20px; padding-right: 16px; border-right: 4px solid #00ff88; }
+        h3 { font-size: 1.2em; font-weight: 700; color: #6bffb0; margin: 24px 0 12px; }
         p { font-size: 1.05em; margin-bottom: 12px; }
+        ul { padding-right: 24px; margin-bottom: 12px; }
+        li { margin-bottom: 4px; font-size: 1em; }
+        .highlight { color: #00ff88; font-weight: 700; }
+        .warn { color: #f59e0b; font-weight: 700; }
+        .info { color: #60a5fa; font-weight: 700; }
 
-        .card {
-            background: #111c11;
-            border: 1px solid #1a3a1a;
-            border-radius: 16px;
-            padding: 24px;
-            margin: 16px 0;
-            transition: border-color 0.3s;
-        }
-
+        .card { background: #111c11; border: 1px solid #1a3a1a; border-radius: 16px; padding: 24px; margin: 16px 0; transition: border-color 0.3s; }
         .card:hover { border-color: #00ff8844; }
+        .card-header { font-size: 1.15em; font-weight: 700; color: #00ff88; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .card-header .icon { font-size: 1.4em; }
 
-        .card-header {
-            font-size: 1.15em;
-            font-weight: 700;
-            color: #00ff88;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        .quote { background: #0d1a0d; border-right: 4px solid #00ff88; padding: 16px 24px; margin: 20px 0; font-style: italic; color: #8abf9a; border-radius: 0 12px 12px 0; }
+        .divider { border: none; height: 1px; background: linear-gradient(to left, transparent, #1a3a1a, transparent); margin: 50px 0; }
+        .footer { text-align: center; padding: 40px 20px; color: #3d6b4a; font-size: 0.9em; }
 
-        .card-header .icon {
-            font-size: 1.4em;
-        }
+        /* ── Status Grid ── */
+        .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 24px 0; }
+        .status-item { background: #0d170d; border: 1px solid #1a3a1a; border-radius: 12px; padding: 18px; text-align: center; }
+        .status-item .label { font-size: 0.85em; color: #3d6b4a; margin-bottom: 4px; }
+        .status-item .value { font-size: 1.5em; font-weight: 900; color: #00ff88; }
+        .status-item .detail { font-size: 0.8em; color: #6b9b7a; margin-top: 4px; }
 
-        /* ── Status Dashboard ── */
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin: 24px 0;
-        }
-
-        .status-item {
-            background: #0d170d;
-            border: 1px solid #1a3a1a;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .status-item .label {
-            font-size: 0.85em;
-            color: #3d6b4a;
-            margin-bottom: 4px;
-        }
-
-        .status-item .value {
-            font-size: 1.6em;
-            font-weight: 900;
-            color: #00ff88;
-        }
-
-        .status-item .detail {
-            font-size: 0.85em;
-            color: #6b9b7a;
-            margin-top: 4px;
-        }
+        /* ── Roadmap Visual ── */
+        .roadmap-visual { display: flex; align-items: center; justify-content: center; gap: 0; margin: 30px 0; flex-wrap: wrap; }
+        .roadmap-node { background: #111c11; border: 2px solid #1a3a1a; border-radius: 14px; padding: 16px 20px; text-align: center; min-width: 160px; }
+        .roadmap-node.active { border-color: #00ff88; box-shadow: 0 0 20px #00ff8833; }
+        .roadmap-node.future { border-color: #00ff8844; border-style: dashed; }
+        .roadmap-node .node-title { font-weight: 700; color: #00ff88; font-size: 1.05em; }
+        .roadmap-node .node-detail { font-size: 0.8em; color: #6b9b7a; margin-top: 4px; }
+        .roadmap-arrow { font-size: 1.8em; color: #00ff8844; padding: 0 8px; }
 
         /* ── Timeline ── */
-
-        .timeline {
-            position: relative;
-            padding-right: 40px;
-        }
-
-        .timeline::before {
-            content: '';
-            position: absolute;
-            right: 14px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: linear-gradient(to bottom, #00ff88, #1a3a1a);
-        }
-
-        .timeline-item {
-            position: relative;
-            margin-bottom: 32px;
-            padding: 20px 24px;
-            background: #111c11;
-            border: 1px solid #1a3a1a;
-            border-radius: 12px;
-        }
-
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            right: -33px;
-            top: 24px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #00ff88;
-            border: 3px solid #0a0f0a;
-        }
-
+        .timeline { position: relative; padding-right: 40px; }
+        .timeline::before { content: ''; position: absolute; right: 14px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, #00ff88, #1a3a1a); }
+        .timeline-item { position: relative; margin-bottom: 32px; padding: 20px 24px; background: #111c11; border: 1px solid #1a3a1a; border-radius: 12px; }
+        .timeline-item::before { content: ''; position: absolute; right: -33px; top: 24px; width: 12px; height: 12px; border-radius: 50%; background: #00ff88; border: 3px solid #0a0f0a; }
         .timeline-item.past::before { background: #3d6b4a; }
         .timeline-item.current::before { background: #00ff88; box-shadow: 0 0 12px #00ff8866; }
         .timeline-item.future::before { background: #1a3a1a; border-color: #00ff8844; }
+        .timeline-label { font-size: 0.8em; font-weight: 700; color: #00ff88; background: #00ff8822; padding: 2px 12px; border-radius: 10px; display: inline-block; margin-bottom: 8px; }
+        .timeline-item.past .timeline-label { color: #3d6b4a; background: #3d6b4a22; }
+        .timeline-item.future .timeline-label { color: #6b9b7a; background: #6b9b7a22; }
+        .timeline-title { font-size: 1.15em; font-weight: 700; color: #e0ffe8; margin-bottom: 6px; }
+        .timeline-desc { font-size: 0.95em; color: #6b9b7a; }
+        .timeline-tasks { margin-top: 10px; padding-right: 20px; }
+        .timeline-tasks li { font-size: 0.9em; color: #8abf9a; margin-bottom: 4px; }
 
-        .timeline-label {
-            font-size: 0.8em;
-            font-weight: 700;
-            color: #00ff88;
-            background: #00ff8822;
-            padding: 2px 12px;
-            border-radius: 10px;
-            display: inline-block;
-            margin-bottom: 8px;
-        }
-
-        .timeline-item.past .timeline-label {
-            color: #3d6b4a;
-            background: #3d6b4a22;
-        }
-
-        .timeline-item.future .timeline-label {
-            color: #6b9b7a;
-            background: #6b9b7a22;
-        }
-
-        .timeline-title {
-            font-size: 1.15em;
-            font-weight: 700;
-            color: #e0ffe8;
-            margin-bottom: 6px;
-        }
-
-        .timeline-desc {
-            font-size: 0.95em;
-            color: #6b9b7a;
-        }
-
-        .timeline-tasks {
-            margin-top: 10px;
-            padding-right: 20px;
-        }
-
-        .timeline-tasks li {
-            font-size: 0.9em;
-            color: #8abf9a;
-            margin-bottom: 4px;
-        }
-
-        /* ── Progress Bars ── */
-
-        .progress-section { margin: 20px 0; }
-
-        .progress-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-        }
-
+        /* ── Progress ── */
+        .progress-section { margin: 18px 0; }
+        .progress-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
         .progress-label .name { font-size: 0.95em; color: #c0e8d0; }
         .progress-label .pct { font-size: 0.95em; color: #00ff88; font-weight: 700; }
-
-        .progress-track {
-            background: #1a3a1a;
-            border-radius: 10px;
-            height: 28px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            padding-right: 12px;
-            font-size: 0.8em;
-            font-weight: 700;
-            color: #000;
-            transition: width 1s ease;
-        }
-
+        .progress-track { background: #1a3a1a; border-radius: 10px; height: 26px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 10px; display: flex; align-items: center; padding-right: 12px; font-size: 0.8em; font-weight: 700; color: #000; }
         .fill-green { background: linear-gradient(90deg, #00cc6a, #00ff88); }
         .fill-yellow { background: linear-gradient(90deg, #cc9900, #f5c800); }
         .fill-blue { background: linear-gradient(90deg, #2563eb, #60a5fa); }
         .fill-purple { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
 
-        /* ── Decision Tree ── */
-
-        .decision-box {
-            background: #0d1a0d;
-            border: 1px dashed #00ff8844;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 12px 0;
-        }
-
-        .decision-box .path-title {
-            font-weight: 700;
-            color: #00ff88;
-            margin-bottom: 8px;
-        }
-
-        .decision-box .pros { color: #4ade80; }
-        .decision-box .cons { color: #fbbf24; }
-
-        /* ── Table ── */
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
-        }
-
-        th, td {
-            padding: 12px 16px;
-            border: 1px solid #1a3a1a;
-            text-align: right;
-        }
-
-        th {
-            background: #0d1a0d;
-            color: #00ff88;
-            font-weight: 700;
-        }
-
+        /* ── Tables ── */
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        th, td { padding: 12px 16px; border: 1px solid #1a3a1a; text-align: right; font-size: 0.95em; }
+        th { background: #0d1a0d; color: #00ff88; font-weight: 700; }
         tr:nth-child(even) { background: #0d170d; }
 
-        /* ── Country Cards ── */
+        /* ── Cost Box ── */
+        .cost-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+        .cost-item { background: #0d170d; border: 1px solid #1a3a1a; border-radius: 10px; padding: 14px; text-align: center; }
+        .cost-item .cost-label { font-size: 0.8em; color: #3d6b4a; }
+        .cost-item .cost-value { font-size: 1.3em; font-weight: 900; color: #00ff88; margin-top: 4px; }
+        .cost-item .cost-note { font-size: 0.75em; color: #6b9b7a; margin-top: 2px; }
 
-        .country-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            margin: 20px 0;
-        }
-
-        .country-card {
-            background: #111c11;
-            border: 1px solid #1a3a1a;
-            border-radius: 12px;
-            padding: 20px;
-        }
-
-        .country-card .flag { font-size: 2em; margin-bottom: 8px; }
-        .country-card .name { font-weight: 700; color: #00ff88; font-size: 1.1em; }
-        .country-card .detail { font-size: 0.9em; color: #6b9b7a; margin-top: 8px; }
-        .country-card .tag {
-            display: inline-block;
-            background: #00ff8822;
-            color: #00ff88;
-            padding: 2px 10px;
-            border-radius: 8px;
-            font-size: 0.8em;
-            margin-top: 8px;
-        }
-
-        .divider {
-            border: none;
-            height: 1px;
-            background: linear-gradient(to left, transparent, #1a3a1a, transparent);
-            margin: 50px 0;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 40px 20px;
-            color: #3d6b4a;
-            font-size: 0.9em;
-        }
-
-        .quote {
-            background: #0d1a0d;
-            border-right: 4px solid #00ff88;
-            padding: 16px 24px;
-            margin: 20px 0;
-            font-style: italic;
-            color: #8abf9a;
-            border-radius: 0 12px 12px 0;
-        }
-
-        .highlight { color: #00ff88; font-weight: 700; }
-        .warn { color: #f59e0b; font-weight: 700; }
-        .info { color: #60a5fa; font-weight: 700; }
+        /* ── Decision ── */
+        .decision-box { background: #0d1a0d; border: 1px dashed #00ff8844; border-radius: 12px; padding: 20px; margin: 12px 0; }
+        .decision-box .path-title { font-weight: 700; color: #00ff88; margin-bottom: 8px; font-size: 1.1em; }
+        .pros { color: #4ade80; }
+        .cons { color: #fbbf24; }
     </style>
 </head>
 <body>
 
-<!-- ═══ HERO ═══ -->
 <div class="hero">
     <h1>ساهند</h1>
-    <div class="subtitle">نقشه راه زندگی و مسیر شغلی · ۲۰۲۶ تا آینده</div>
-    <div class="term-badge">ترم ۲ · زیست‌شناسی سلولی و مولکولی · دانشگاه آزاد اسلامی ارومیه</div>
+    <div class="subtitle">نقشه راه زندگی: ایران → آلمان → آمریکا (میامی)</div>
+    <div class="badges">
+        <span class="badge">ترم ۲ · MCB</span>
+        <span class="badge">IAU ارومیه</span>
+        <span class="badge">هدف نهایی: میامی تا ۳۵ سالگی</span>
+    </div>
 </div>
 
 <div class="container">
+
+<!-- ═══ مسیر کلی ═══ -->
+<h2>مسیر کلی من</h2>
+
+<div class="roadmap-visual">
+    <div class="roadmap-node active">
+        <div class="node-title">🇮🇷 ایران</div>
+        <div class="node-detail">کارشناسی MCB<br>ترم ۲ تا ۸</div>
+    </div>
+    <div class="roadmap-arrow">←</div>
+    <div class="roadmap-node future">
+        <div class="node-title">🇩🇪 آلمان</div>
+        <div class="node-detail">کارشناسی ارشد بیوانفورماتیک<br>+ ۳-۵ سال کار</div>
+    </div>
+    <div class="roadmap-arrow">←</div>
+    <div class="roadmap-node future">
+        <div class="node-title">🇺🇸 آمریکا</div>
+        <div class="node-detail">میامی<br>کار یا دکترا</div>
+    </div>
+</div>
+
+<div class="card" style="border-color: #00ff8844;">
+    <p><span class="highlight">آلمان مقصد نهایی نیست — آلمان سکوی پرتاب است.</span> با تحصیل رایگان، تجربه کاری واقعی، و انتشار مقاله در آلمان، پروفایل حرفه‌ای می‌سازی که دروازه آمریکا را باز می‌کند.</p>
+</div>
+
+<hr class="divider">
 
 <!-- ═══ وضعیت فعلی ═══ -->
 <h2>وضعیت فعلی من</h2>
@@ -380,368 +159,311 @@
         <div class="detail">از ۸ ترم کارشناسی</div>
     </div>
     <div class="status-item">
-        <div class="label">پروژه تکمیل شده</div>
-        <div class="value">۱</div>
-        <div class="detail">BioSuite · بیوانفورماتیک</div>
+        <div class="label">پروژه</div>
+        <div class="value">BioSuite</div>
+        <div class="detail">۹۵ تست · ۳۰+ نمودار</div>
     </div>
-</div>
-
-<div class="card">
-    <div class="card-header"><span class="icon">🧬</span> درباره من</div>
-    <p>من <span class="highlight">ساهند</span> هستم، دانشجوی ترم ۲ رشته <span class="highlight">زیست‌شناسی سلولی و مولکولی</span> در دانشگاه آزاد اسلامی واحد ارومیه. هدفم این است که ابتدا مدرک کارشناسی را بگیرم، سپس کارشناسی ارشد، و در نهایت برای کار یا تحصیل به خارج از کشور مهاجرت کنم.</p>
-    <p>زبان انگلیسی من خوب است و در حال حاضر یک پروژه بیوانفورماتیک به نام <span class="highlight">BioSuite</span> ساخته‌ام که شامل بیش از ۳۰ نوع نمودار، تحلیل توالی، ترازبندی و رابط گرافیکی حرفه‌ای است.</p>
-</div>
-
-<div class="quote">
-    «مسیر من: کارشناسی → کارشناسی ارشد → مهاجرت → تصمیم‌گیری نهایی (کار یا دکترا)
-    <br>هر قدمی که الان برمی‌دارم، پایه‌ای برای قدم‌های بعدی است.»
-</div>
-
-<hr class="divider">
-
-<!-- ═══ پیشرفت تحصیلی ═══ -->
-<h2>پیشرفت تحصیلی</h2>
-
-<div class="progress-section">
-    <div class="progress-label">
-        <span class="name">کارشناسی (۸ ترم)</span>
-        <span class="pct">۲۵٪</span>
+    <div class="status-item">
+        <div class="label">زبان</div>
+        <div class="value">خوب</div>
+        <div class="detail">نیاز به آیلتس رسمی</div>
     </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-green" style="width: 25%;">ترم ۲ از ۸</div>
-    </div>
-</div>
-
-<div class="progress-section">
-    <div class="progress-label">
-        <span class="name">پروژه‌های فنی</span>
-        <span class="pct">۱ از ۳+</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-blue" style="width: 33%;">BioSuite تکمیل شد</div>
-    </div>
-</div>
-
-<div class="progress-section">
-    <div class="progress-label">
-        <span class="name">مهاجرت</span>
-        <span class="pct">آماده‌سازی</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-purple" style="width: 10%;">در حال برنامه‌ریزی</div>
+    <div class="status-item">
+        <div class="label">سن تقریبی</div>
+        <div class="value">~۲۰</div>
+        <div class="detail">۱۵ سال تا ۳۵ سالگی</div>
     </div>
 </div>
 
 <hr class="divider">
 
-<!-- ═══ نقشه راه زمانی ═══ -->
-<h2>نقشه راه زمانی</h2>
+<!-- ═══ فاز ۱: ایران ═══ -->
+<h2>فاز ۱: ایران — کارشناسی (الان تا ۲۰۲۹)</h2>
 
 <div class="timeline">
-
-    <!-- گذشته -->
     <div class="timeline-item past">
         <div class="timeline-label">تکمیل شد</div>
         <div class="timeline-title">ترم ۱ — پایه‌گذاری</div>
-        <div class="timeline-desc">شروع رشته زیست‌شناسی سلولی و مولکولی، یادگیری مبانی بیولوژی سلولی و بیوشیمی</div>
+        <div class="timeline-desc">شروع رشته MCB، یادگیری مبانی بیولوژی سلولی و بیوشیمی</div>
     </div>
 
-    <!-- حال -->
     <div class="timeline-item current">
         <div class="timeline-label">الان · ۲۰۲۶</div>
-        <div class="timeline-title">ترم ۲ — ساخت BioSuite</div>
-        <div class="timeline-desc">تکمیل پروژه بیوانفورماتیک BioSuite با ۹۵ تست، ۳ تم گرافیکی، و مستندسازی کامل</div>
+        <div class="timeline-title">ترم ۲ — ساخت BioSuite + شروع آیلتس</div>
+        <div class="timeline-desc">تکمیل پروژه بیوانفورماتیک و شروع آمادگی زبان</div>
         <ul class="timeline-tasks">
-            <li>✅ پیاده‌سازی الگوریتم‌های NW/SW از صفر</li>
-            <li>✅ ۹۵ تست واحد با pytest</li>
-            <li>✅ رابط گرافیکی حرفه‌ای با ۳ تم سایبرپانک</li>
-            <li>✅ اصلاح BH برای تحلیل بیان ژن</li>
-            <li>✅ بنچمارک عملکرد</li>
-            <li>✅ README و مستندسازی</li>
-            <li>⬜ آپلود در GitHub</li>
-            <li>⬜ اضافه کردن به رزومه</li>
-        </ul>
-    </div>
-
-    <div class="timeline-item current">
-        <div class="timeline-label">۲۰۲۶ - ۲۰۲۷</div>
-        <div class="timeline-title">ترم ۳ و ۴ — تقویت پایه</div>
-        <div class="timeline-desc">تقویت دروس پایه‌ای و شروع پروژه‌های تحقیقاتی</div>
-        <ul class="timeline-tasks">
-            <li>⬜ دروس تخصصی: ژنتیک مولکولی، زیست‌شناسی سلولی پیشرفته</li>
-            <li>⬜ شروع کار با داده‌های واقعی RNA-seq</li>
-            <li>⬜ یادگیری R برای تحلیل آماری بیولوژیکی</li>
-            <li>⬜ شرکت در کنفرانس‌های دانشجویی</li>
-            <li>⬜ شروع آمادگی آیلتس (هدف: ۶.۵+)</li>
+            <li>✅ BioSuite ساخته شد (۹۵ تست، GUI حرفه‌ای، بنچمارک)</li>
+            <li>⬜ آپلود BioSuite در GitHub</li>
+            <li>⬜ شروع روزانه IELTS (۴ ماه آمادگی)</li>
+            <li>⬜ گرفتن آیلتس ۶.۵+</li>
         </ul>
     </div>
 
     <div class="timeline-item future">
-        <div class="timeline-label">۲۰۲۷ - ۲۰۲۸</div>
-        <div class="timeline-title">ترم ۵ و ۶ — تحقیق و تخصص</div>
-        <div class="timeline-desc">عمیق‌تر شدن در بیوانفورماتیک و شروع مقاله‌نویسی</div>
+        <div class="timeline-label">۲۰۲۶ - ۲۰۲۷ · ترم ۳-۴</div>
+        <div class="timeline-title">تقویت پایه + یادگیری R</div>
         <ul class="timeline-tasks">
-            <li>⬜ یادگیری تحلیل NGS (Illumina data)</li>
-            <li>⬜ یادگیری single-cell RNA-seq analysis</li>
-            <li>⬜ نوشتن مقاله یا poster برای کنفرانس</li>
-            <li>⬜ پروژه تحقیقاتی با استاد راهنما</li>
-            <li>⬜ شرکت در کارگاه‌های بیوانفورماتیک</li>
+            <li>دروس تخصصی: ژنتیک مولکولی، بیولوژی سلولی پیشرفته</li>
+            <li>یادگیری R و Bioconductor برای تحلیل داده‌های واقعی</li>
+            <li>شروع کار با داده‌های RNA-seq</li>
+            <li>保护 GPA بالای ۱۵/۲۰</li>
         </ul>
     </div>
 
     <div class="timeline-item future">
-        <div class="timeline-label">۲۰۲۸ - ۲۰۲۹</div>
-        <div class="timeline-title">ترم ۷ و ۸ — پایان‌نامه و آماده‌سازی</div>
-        <div class="timeline-desc">تکمیل پایان‌نامه کارشناسی و آماده‌سازی برای اپلای کارشناسی ارشد</div>
+        <div class="timeline-label">۲۰۲۷ - ۲۰۲۸ · ترم ۵-۶</div>
+        <div class="timeline-title">تحقیق + شروع اپلای آلمان</div>
         <ul class="timeline-tasks">
-            <li>⬜ پایان‌نامه کارشناسی (ترجیحاً بیوانفورماتیکی)</li>
-            <li>⬜ آیلتس نهایی (هدف: ۷.۰+)</li>
-            <li>⬜ اپلای کارشناسی ارشد (ترجیحاً خارج از کشور)</li>
-            <li>⬜ نامه‌های توصیه از اساتید</li>
-            <li>⬜ آپدیت رزومه و LinkedIn</li>
+            <li>پروژه تحقیقاتی با استاد راهنما</li>
+            <li>نوشتن poster یا مقاله برای کنفرانس دانشجویی</li>
+            <li>تاریخ اپلای: <span class="highlight">۱۵ ژانویه</span> (برای شروع اکتبر)</li>
+            <li>اپلای به ۴-۶ دانشگاه آلمان</li>
         </ul>
     </div>
 
     <div class="timeline-item future">
-        <div class="timeline-label">۲۰۲۹+</div>
-        <div class="timeline-title">کارشناسی ارشد → مهاجرت</div>
-        <div class="timeline-desc">شروع کارشناسی ارشد و آماده‌سازی نهایی برای مهاجرت</div>
+        <div class="timeline-label">۲۰۲۸ - ۲۰۲۹ · ترم ۷-۸</div>
+        <div class="timeline-title">پایان‌نامه + ویزا + عزیمت</div>
         <ul class="timeline-tasks">
-            <li>⬜ شروع کارشناسی ارشد</li>
-            <li>⬜ انتخاب کشور مقصد</li>
-            <li>⬜ تصمیم‌گیری: کار یا دکترا</li>
-            <li>⬜ اپلای برای ویزا</li>
+            <li>تکمیل پایان‌نامه کارشناسی</li>
+            <li>دریافت نامه پذیرش از آلمان</li>
+            <li>افتتاح حساب بلوکه (Sperrkonto): <span class="highlight">€۱۱,۲۰۸</span></li>
+            <li>درخواست ویزای دانشجویی</li>
+            <li>عزیمت به آلمان — شروع کارشناسی ارشد</li>
         </ul>
     </div>
-
 </div>
 
 <hr class="divider">
 
-<!-- ═══ تصمیم بزرگ: کار یا دکترا ═══ -->
-<h2>تصمیم بزرگ: کار یا دکترا؟</h2>
+<!-- ═══ فاز ۲: آلمان ═══ -->
+<h2>فاز ۲: آلمان — کارشناسی ارشد + کار (۲۰۲۹ - ۲۰۳۵)</h2>
 
-<p>بعد از کارشناسی ارشد، دو مسیر اصلی وجود دارد. هر دو مسیر خوب هستند — بستگی به این دارد که چه چیزی برایتان مهم‌تر است:</p>
+<h3>چرا آلمان؟</h3>
+<div class="card">
+    <ul>
+        <li><span class="highlight">شهریه رایگان</span> — فقط ~€۳۰۰/ترم (هزینه اداری)</li>
+        <li><span class="highlight">ویزای کار پس از فارغ‌التحصیلی</span> — ۱۸ ماه فرصت پیدا کردن شغل</li>
+        <li><span class="highlight">اقامت دائم سریع</span> — ۲۱-۳۳ ماه بعد از Blue Card</li>
+        <li><span class="highlight">بازار قوی بیوانفورماتیک</span> — شرکت‌های دارویی و تحقیقاتی</li>
+        <li>برنامه‌ها <span class="info">انگلیسی‌زبان</span> هستند — آلمانی لازم نیست برای تحصیل</li>
+    </ul>
+</div>
+
+<h3>بهترین برنامه‌های کارشناسی ارشد بیوانفورماتیک</h3>
+<table>
+    <tr><th>دانشگاه</th><th>برنامه</th><th>شهریه</th><th>زبان</th><th>نکته ویژه</th></tr>
+    <tr><td>Heidelberg</td><td>MSc Molecular Biology</td><td>رایگان</td><td>انگلیسی</td><td>بهترین بیوانفورماتیک آلمان</td></tr>
+    <tr><td>TU Munich</td><td>MSc Bioinformatics</td><td>رایگان</td><td>انگلیسی</td><td>ارتباط قوی با صنعت</td></tr>
+    <tr><td>LMU Munich</td><td>MSc Bioinformatics</td><td>رایگان</td><td>انگلیسی</td><td>دانشگاه تحقیقاتی برتر</td></tr>
+    <tr><td>Göttingen</td><td>MSc Applied CS (Bioinformatics)</td><td>رایگان</td><td>انگلیسی</td><td>ارتباط با Max Planck</td></tr>
+    <tr><td>Berlin (FU/TU)</td><td>MSc Bioinformatics</td><td>رایگان</td><td>انگلیسی</td><td>اکوسیستم استارتاپی قوی</td></tr>
+</table>
+
+<h3>مراحل دریافت ویزا</h3>
+<table>
+    <tr><th>مرحله</th><th>توضیح</th><th>هزینه</th></tr>
+    <tr><td>۱. پذیرش دانشگاه</td><td>اپلای و دریافت نامه Acceptance</td><td>رایگان</td></tr>
+    <tr><td>۲. حساب بلوکه</td><td>واریز €۱۱,۲۰۸ به حساب بانکی آلمانی (ماهانه €۹۳۴ دریافت می‌کنی)</td><td>€۱۱,۲۰۸</td></tr>
+    <tr><td>۳. بیمه درمانی</td><td>ثبت‌نام بیمه سلامت آلمانی</td><td>~€۱۱۰/ماه</td></tr>
+    <tr><td>۴. درخواست ویزا</td><td>سفارت آلمان در تهران — مدارک + مصاحبه</td><td>~€۷۵</td></tr>
+    <tr><td>۵. عزیمت</td><td>ثبت‌نام شهری (Anmeldung) + افتتاح حساب بانکی</td><td>-</td></tr>
+</table>
+
+<h3>بورسیه‌ها برای کاهش هزینه</h3>
+<table>
+    <tr><th>بورسیه</th><th>مبلغ</th><th>شرایط</th></tr>
+    <tr><td>DAAD</td><td>€۸۵۰-۱,۲۰۰/ماه</td><td>نمرات بالا + مقاله/پروژه</td></tr>
+    <tr><td>Deutschlandstipendium</td><td>€۳۰۰/ماه</td><td>در اکثر دانشگاه‌ها موجود</td></tr>
+    <tr><td>Erasmus+</td><td>کمک هزینه</td><td>برای بخشی از تحصیل در اروپا</td></tr>
+</table>
+
+<div class="timeline" style="margin-top: 24px;">
+    <div class="timeline-item future">
+        <div class="timeline-label">۲۰۲۹ - ۲۰۳۱ · ۲ سال</div>
+        <div class="timeline-title">کارشناسی ارشد در آلمان</div>
+        <ul class="timeline-tasks">
+            <li>تحصیل رایگان — فقط هزینه زندگی (~€۸۰۰-۱,۰۰۰/ماه)</li>
+            <li>یادگیری آلمانی در کنار تحصیل (دوره‌های رایگان دانشگاه)</li>
+            <li>کار پاره‌时间: ۲۰ ساعت/هفته مجاز</li>
+            <li>پروژه تحقیقاتی + شروع نوشتن مقاله</li>
+        </ul>
+    </div>
+
+    <div class="timeline-item future">
+        <div class="timeline-label">۲۰۳۱ - ۲۰۳۵ · ۴ سال</div>
+        <div class="timeline-title">کار در آلمان + آماده‌سازی برای آمریکا</div>
+        <ul class="timeline-tasks">
+            <li>استفاده از ویزای ۱۸ ماهه جستجوی کار</li>
+            <li>پوزیشن بیوانفورماتیک در شرکت دارویی یا تحقیقاتی</li>
+            <li>درآمد: ~€۵۰,۰۰۰-۷۰,۰۰۰/سال</li>
+            <li>انتشار ۲-۳ مقاله علمی</li>
+            <li>گرفتن اقامت دائم آلمان (Blue Card)</li>
+            <li>آماده‌سازی برای اپلای آمریکا (PhD یا کار)</li>
+        </ul>
+    </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══ فاز ۳: آمریکا ═══ -->
+<h2>فاز ۳: آمریکا — میامی (۲۰۳۵+)</h2>
+
+<h3>چرا آلمان → آمریکا بهتر از رفتن مستقیم به آمریکاست؟</h3>
+<div class="card">
+    <ul>
+        <li>آمریکا <span class="warn">ویزای کار بعد از تحصیل ندارد</span> (برخلاف آلمان)</li>
+        <li>H1B ویزا <span class="warn">قرعه‌کشی</span> است — شانس ~۲۵٪</li>
+        <li>با <span class="highlight">مدرک آلمانی + ۵ سال تجربه + مقاله</span>، شانس H1B خیلی بالاتر می‌رود</li>
+        <li>PhD در آمریکا <span class="highlight">رایگان + حقوق</span> (~$30,000-40,000/سال)</li>
+    </ul>
+</div>
+
+<h3>مسیرهای رسیدن به میامی</h3>
 
 <div class="decision-box">
-    <div class="path-title">مسیر A: کار در صنعت بیوانفورماتیک</div>
-    <p class="pros"><strong>مزایا:</strong></p>
-    <ul style="padding-right: 20px; margin: 8px 0;">
-        <li>درآمد فوری (۴۰,۰۰۰ - ۸۰,۰۰۰ یورو/دلار در سال)</li>
-        <li>تجربه صنعتی واقعی</li>
-        <li>امکان مهاجرت سریع‌تر (ویزای کاری)</li>
-        <li>امکان ادامه تحصیل پاره‌เวลา در کنار کار</li>
-    </ul>
-    <p class="cons"><strong>معایب:</strong></p>
-    <ul style="padding-right: 20px; margin: 8px 0;">
-        <li>دسترسی به پوزیشن‌های تحقیقاتی عمیق محدودتر</li>
-        <li>بدون مدرک دکترا، سقف درآمد در برخی کشورها پایین‌تر</li>
+    <div class="path-title">مسیر A: کار مستقیم (سریع‌تر)</div>
+    <p>با ۵ سال تجربه کاری + مقاله در آلمان، درخواست پوزیشن در شرکت‌های بیوانفورماتیک میامی</p>
+    <ul>
+        <li>شرکت‌های هدف: Johnson & Johnson, Novartis, startups در Miami Beach</li>
+        <li>شرکت ویزای H1B را اسپانсор می‌کند</li>
+        <li>درآمد: $70,000-100,000+/سال</li>
     </ul>
 </div>
 
 <div class="decision-box">
-    <div class="path-title">مسیر B: دکترا (PhD)</div>
-    <p class="pros"><strong>مزایا:</strong></p>
-    <ul style="padding-right: 20px; margin: 8px 0;">
-        <li>عمق تحقیقاتی بیشتر</li>
-        <li>امکان مهاجرت از طریق ویزای دانشجویی (معمولاً راحت‌تر)</li>
-        <li>دسترسی به پوزیشن‌های مدیریتی و تحقیقاتی بعد از فارغ‌التحصیلی</li>
-        <li>درآمد دانشجویی در کشورهای اروپایی (۱,۵۰۰ - ۲,۵۰۰ یورو/ماه)</li>
+    <div class="path-title">مسیر B: دکترا در آمریکا (محتمل‌تر)</div>
+    <p>اپلای به برنامه‌های PhD بیوانفورماتیک — <span class="highlight">رایگان + حقوق ماهانه</span></p>
+    <ul>
+        <li>هزینه تحصیل: رایگان (فاند شده)</li>
+        <li>حقوق: $30,000-40,000/سال (TA/RA)</li>
+        <li>مدت: ۵-۶ سال</li>
+        <li>بعد از فارغ‌التحصیلی: OPT (۳ سال) → H1B → Green Card</li>
     </ul>
-    <p class="cons"><strong>معایب:</strong></p>
-    <ul style="padding-right: 20px; margin: 8px 0;">
-        <li>۴-۶ سال زمان اضافی</li>
-        <li>درآمد پایین در طول تحصیل</li>
-        <li>فشار تحقیقاتی</li>
-    </ul>
-</div>
-
-<div class="card" style="border-color: #00ff8844;">
-    <div class="card-header"><span class="icon">💡</span> پیشنهاد من</div>
-    <p>فعلاً نیازی به تصمیم‌گیری نیست. <span class="highlight">مسیر فعلی‌ات هر دو گزینه را باز نگه می‌دارد.</span> اگر در کارشناسی ارشد خوب عمل کنی و مقاله داشته باشی، هم برای کار و هم برای دکترا انتخاب خواهی داشت.</p>
-    <p>تمرکز الان: <span class="highlight">نمرات خوب + BioSuite روی GitHub + آیلتس خوب</span></p>
+    <p style="margin-top: 8px;"><span class="info">دانشگاه‌های هدف میامی:</span> University of Miami, Florida International University, Jackson Health System</p>
 </div>
 
 <hr class="divider">
 
-<!-- ═══ کشورهای مقصد ═══ -->
-<h2>کشورهای مناسب برای مهاجرت</h2>
-
-<div class="country-grid">
-    <div class="country-card">
-        <div class="flag">🇨🇦</div>
-        <div class="name">کانادا</div>
-        <div class="detail">
-            بهترین گزینه برای مهاجرت تحصیلی. سیستم اکسپرس اینتری برای اقامت دائم.
-            <br>هزینه تحصیل: متوسط
-            <br>بازار کار بیوانفورماتیک: قوی
-            <br>زبان: انگلیسی یا فرانسوی
-        </div>
-        <span class="tag">تحصیلی ✦ کاری</span>
-    </div>
-
-    <div class="country-card">
-        <div class="flag">🇩🇪</div>
-        <div class="name">آلمان</div>
-        <div class="detail">
-            تحصیل رایگان یا ارزان. ویزای جستجوی کار بعد از فارغ‌التحصیلی (۱۸ ماه).
-            <br>هزینه تحصیل: رایگان (بیشتر دانشگاه‌ها)
-            <br>بازار کار: قوی (خصوصاً bioinformatics)
-            <br>زبان: آلمانی + انگلیسی
-        </div>
-        <span class="tag">تحصیلی ✦ ارزان</span>
-    </div>
-
-    <div class="country-card">
-        <div class="flag">🇳🇱</div>
-        <div class="name">هلند</div>
-        <div class="detail">
-            دوره‌های انگلیسی‌زبان بسیار قوی. بازار کار بیوانفورماتیک عالی (Wageningen, Utrecht).
-            <br>هزینه تحصیل: متوسط
-            <br>بازار کار: عالی
-            <br>زبان: انگلیسی
-        </div>
-        <span class="tag">تحصیلی ✦ انگلیسی</span>
-    </div>
-
-    <div class="country-card">
-        <div class="flag">🇦🇺</div>
-        <div class="name">استرالیا</div>
-        <div class="detail">
-            سیستم مهاجرت مبتنی بر امتیاز. ویزای تحصیلی → اقامت دائم.
-            <br>هزینه تحصیل: بالا
-            <br>بازار کار: خوب
-            <br>زبان: انگلیسی
-        </div>
-        <span class="tag">تحصیلی ✦ اقامت</span>
-    </div>
-
-    <div class="country-card">
-        <div class="flag">🇬🇧</div>
-        <div class="name">بریتانیا</div>
-        <div class="detail">
-            دانشگاه‌های برتر جهان. ویزای Graduate Route (۲ سال کار بعد از فارغ‌التحصیلی).
-            <br>هزینه تحصیل: بالا
-            <br>بازار کار: قوی
-            <br>زبان: انگلیسی
-        </div>
-        <span class="tag">تحصیلی ✦ معتبر</span>
-    </div>
-
-    <div class="country-card">
-        <div class="flag">🇸🇪</div>
-        <div class="name">سوئد / نروژ</div>
-        <div class="detail">
-            کیفیت زندگی بالا. بورسیه‌های تحصیلی موجود.
-            <br>هزینه تحصیل: رایگان (سوئد برای EU) / ارزان
-            <br>بازار کار: خوب
-            <br>زبان: انگلیسی
-        </div>
-        <span class="tag">تحصیلی ✦ کیفیت</span>
-    </div>
-</div>
-
-<hr class="divider">
-
-<!-- ═══ اقدامات فوری ═══ -->
-<h2>اقدامات فوری (الان تا ۶ ماه آینده)</h2>
+<!-- ═══ جدول زمانی کلی ═══ -->
+<h2>جدول زمانی کلی — سن ۲۰ تا ۳۵</h2>
 
 <table>
-    <tr><th>اقدام</th><th>اولویت</th><th>زمان تقریبی</th></tr>
-    <tr><td>آپلود BioSuite در GitHub با README</td><td><span class="highlight">فوری</span></td><td>۱ هفته</td></tr>
-    <tr><td>تکمیل نمرات ترم ۲</td><td><span class="highlight">فوری</span></td><td>۳ ماه</td></tr>
-    <tr><td>شروع آمادگی آیلتس</td><td><span class="info">مهم</span></td><td>۳-۶ ماه</td></tr>
-    <tr><td>ساخت LinkedIn حرفه‌ای</td><td><span class="info">مهم</span></td><td>۱ هفته</td></tr>
-    <tr><td>یادگیری R یا Python پیشرفته</td><td><span class="info">مهم</span></td><td>۳-۶ ماه</td></tr>
-    <tr><td>شرکت در کارگاه بیوانفورماتیک</td><td>خوب</td><td>۶ ماه</td></tr>
-    <tr><td>شروع پروژه دوم (مثلاً تحلیل NGS)</td><td>خوب</td><td>۶-۱۲ ماه</td></tr>
+    <tr><th>سن</th><th>کجا</th><th>چه کاری</th><th>وضعیت مالی</th></tr>
+    <tr><td>۲۰</td><td>🇮🇷 ایران</td><td>ترم ۲ — BioSuite + IELTS</td><td>دانشجویی</td></tr>
+    <tr><td>۲۱-۲۳</td><td>🇮🇷 ایران</td><td>ترم ۳-۶ — تقویت پایه + اپلای</td><td>دانشجویی</td></tr>
+    <tr><td>۲۳-۲۴</td><td>🇮🇷 ایران</td><td>ترم ۷-۸ — پایان‌نامه + ویزا</td><td>دانشجویی</td></tr>
+    <tr><td>۲۴-۲۶</td><td>🇩🇪 آلمان</td><td>کارشناسی ارشد بیوانفورماتیک</td><td>رایگان + پاره‌时间</td></tr>
+    <tr><td>۲۶-۳۰</td><td>🇩🇪 آلمان</td><td>کار + مقاله + اقامت دائم</td><td>€۵۰K-۷۰K/سال</td></tr>
+    <tr><td>۳۰-۳۵</td><td>🇺🇸 میامی</td><td>کار یا دکترا در بیوانفورماتیک</td><td>$70K-100K+</td></tr>
 </table>
 
 <hr class="divider">
 
-<!-- ═══ مهارت‌های فنی ═══ -->
-<h2>مهارت‌های فنی فعلی و مورد نیاز</h2>
+<!-- ═══ اقدامات فوری ═══ -->
+<h2>اقدامات فوری — شروع از الان</h2>
+
+<table>
+    <tr><th>اقدام</th><th>اولویت</th><th>زمان</th></tr>
+    <tr><td>IELTS — ثبت‌نام و شروع مطالعه روزانه</td><td><span class="highlight">فوری</span></td><td>الان → ۴ ماه</td></tr>
+    <tr><td>آپلود BioSuite در GitHub با README</td><td><span class="highlight">فوری</span></td><td>۱ هفته</td></tr>
+    <tr><td>保护 GPA بالای ۱۵/۲۰</td><td><span class="highlight">فوری</span></td><td>تمام ترم‌ها</td></tr>
+    <tr><td>ساخت LinkedIn حرفه‌ای</td><td><span class="info">مهم</span></td><td>۱ هفته</td></tr>
+    <tr><td>شروع Duolingo آلمانی (۲۰ دقیقه/روز)</td><td><span class="info">مهم</span></td><td>الان → مداوم</td></tr>
+    <tr><td>یادگیری R و Bioconductor</td><td><span class="info">مهم</span></td><td>۳-۶ ماه</td></tr>
+    <tr><td>تحقیق درباره برنامه‌های آلمان (daad.de)</td><td>خوب</td><td>ترم ۴-۵</td></tr>
+</table>
+
+<hr class="divider">
+
+<!-- ═══ مهارت‌ها ═══ -->
+<h2>وضعیت مهارت‌های فنی</h2>
 
 <div class="progress-section">
-    <div class="progress-label">
-        <span class="name">پایتون (Python)</span>
-        <span class="pct">خوب</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-green" style="width: 65%;">BioSuite ثابت کرد</div>
-    </div>
+    <div class="progress-label"><span class="name">Python</span><span class="pct">۶۵٪</span></div>
+    <div class="progress-track"><div class="progress-fill fill-green" style="width: 65%;">BioSuite</div></div>
 </div>
-
 <div class="progress-section">
-    <div class="progress-label">
-        <span class="name">بیوانفورماتیک</span>
-        <span class="pct">متوسط</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-blue" style="width: 45%;"> NW/SW, DE, PCA</div>
-    </div>
+    <div class="progress-label"><span class="name">بیوانفورماتیک</span><span class="pct">۴۵٪</span></div>
+    <div class="progress-track"><div class="progress-fill fill-blue" style="width: 45%;">NW/SW, DE, PCA</div></div>
 </div>
-
 <div class="progress-section">
-    <div class="progress-label">
-        <span class="name">آمار بیولوژیکی</span>
-        <span class="pct">در حال یادگیری</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-yellow" style="width: 30%;">t-test, BH correction</div>
-    </div>
+    <div class="progress-label"><span class="name">IELTS</span><span class="pct">۰٪</span></div>
+    <div class="progress-track"><div class="progress-fill fill-yellow" style="width: 5%;">شروع نشده</div></div>
 </div>
-
 <div class="progress-section">
-    <div class="progress-label">
-        <span class="name">R / Bioconductor</span>
-        <span class="pct">نیاز به یادگیری</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-purple" style="width: 5%;">شروع نشده</div>
-    </div>
+    <div class="progress-label"><span class="name">آلمانی</span><span class="pct">۰٪</span></div>
+    <div class="progress-track"><div class="progress-fill fill-purple" style="width: 2%;">شروع نشده</div></div>
 </div>
-
 <div class="progress-section">
-    <div class="progress-label">
-        <span class="name">NGS Analysis</span>
-        <span class="pct">نیاز به یادگیری</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-purple" style="width: 10%;">پایه‌ها در BioSuite</div>
-    </div>
+    <div class="progress-label"><span class="name">R / Bioconductor</span><span class="pct">۵٪</span></div>
+    <div class="progress-track"><div class="progress-fill fill-purple" style="width: 5%;">شروع نشده</div></div>
 </div>
-
 <div class="progress-section">
-    <div class="progress-label">
-        <span class="name">English (Academic)</span>
-        <span class="pct">خوب</span>
-    </div>
-    <div class="progress-track">
-        <div class="progress-fill fill-green" style="width: 70%;">نیاز به آیلتس رسمی</div>
-    </div>
+    <div class="progress-label"><span class="name">English (مکالمه)</span><span class="pct">۷۰٪</span></div>
+    <div class="progress-track"><div class="progress-fill fill-green" style="width: 70%;">نیاز به تقویت آکادمیک</div></div>
 </div>
 
 <hr class="divider">
 
-<!-- ═══ خلاصه ═══ -->
-<h2>خلاصه و چشم‌انداز</h2>
+<!-- ═══ هزینه کل ═══ -->
+<h2>برآورد هزینه کل مسیر</h2>
+
+<div class="cost-grid">
+    <div class="cost-item">
+        <div class="cost-label">IELTS</div>
+        <div class="cost-value">~$250</div>
+        <div class="cost-note">یک بار آزمون</div>
+    </div>
+    <div class="cost-item">
+        <div class="cost-label">حساب بلوکه آلمان</div>
+        <div class="cost-value">€11,208</div>
+        <div class="cost-note">ماهانه پس داده می‌شود</div>
+    </div>
+    <div class="cost-item">
+        <div class="cost-label">شهریه کارشناسی ارشد</div>
+        <div class="cost-value">€0</div>
+        <div class="cost-note">رایگان</div>
+    </div>
+    <div class="cost-item">
+        <div class="cost-label">هزینه زندگی (۲ سال)</div>
+        <div class="cost-value">~€20,000</div>
+        <div class="cost-note">از حساب بلوکه + کار پاره‌时间</div>
+    </div>
+    <div class="cost-item">
+        <div class="cost-label">هزینه ویزا</div>
+        <div class="cost-value">~€75</div>
+        <div class="cost-note">ویزای دانشجویی</div>
+    </div>
+</div>
+
+<div class="card" style="border-color: #00ff8844;">
+    <div class="card-header"><span class="icon">💰</span> خلاصه مالی</div>
+    <p><span class="highlight">هزینه کل تا رسیدن به آلمان: ~€11,500</span> (عمدتاً حساب بلوکه که ماهانه پس داده می‌شود)</p>
+    <p><span class="highlight">هزینه تحصیل: €0</span> (رایگان)</p>
+    <p>بعد از شروع کار در آلمان (~€50K-70K/سال)، هزینه‌ها خودشان تأمین می‌شوند.</p>
+</div>
+
+<hr class="divider">
+
+<!-- ═══ چشم‌انداز نهایی ═══ -->
+<h2>چشم‌انداز نهایی</h2>
 
 <div class="card" style="border-color: #00ff88;">
-    <div class="card-header"><span class="icon">🎯</span> هدف نهایی</div>
-    <p>ساهند، تو الان در <span class="highlight">ترم ۲</span> هستی و تا <span class="highlight">۳-۴ سال دیگر</span> کارشناسی‌ات تمام می‌شود. اگر الان درست حرکت کنی:</p>
-    <ul style="padding-right: 24px; margin: 12px 0;">
-        <li><span class="highlight"> BioSuite </span> را روی GitHub بگذار — این یک پروژه واقعی و حرفه‌ای است</li>
-        <li><span class="highlight"> آیلتس ۷+ </span> بگیر — بدون آن مهاجرت غیرممکن است</li>
-        <li><span class="highlight"> نمرات خوب </span> داشته باش — برای بورسیه و پذیرش لازم است</li>
-        <li><span class="highlight"> مقاله یا poster </span> بنویس — حتی یک poster دانشجویی ارزش دارد</li>
-        <li><span class="highlight"> پروژه دوم </span> بساز — مثلاً تحلیل RNA-seq واقعی</li>
+    <div class="card-header"><span class="icon">🎯</span> ساهند، ۳۵ سالگی‌ات</div>
+    <p>اگر الان شروع کنی و مراحل را دنبال کنی، در <span class="highlight">۳۵ سالگی</span>:</p>
+    <ul>
+        <li>مدرک کارشناسی ارشد بیوانفورماتیک از آلمان</li>
+        <li>۵+ سال تجربه کاری حرفه‌ای</li>
+        <li>۲-۳ مقاله علمی منتشر شده</li>
+        <li>اقامت دائم آلمان (به عنوان پشتیبان)</li>
+        <li>در حال کار یا تحصیل در <span class="highlight">میامی، آمریکا</span></li>
+        <li>درآمد: $70,000-100,000+ در سال</li>
     </ul>
-    <p>مسیر طولانی است، ولی <span class="highlight">هر قدمی که الان برمی‌داری، فردا ارزشش را دارد.</span></p>
 </div>
 
 <div class="quote">
-    «مهاجرت یک پروژه بلندمدت است. مثل بیوانفورماتیک — یک آرایه بزرگ را به بخش‌های کوچک تقسیم کن و مرحله به مرحله حلش کن.»
+    «مسیر طولانی است — ۱۵ سال. ولی هر سال یک مرحله مشخص دارد. مثل کدنویسی: یک تابع بزرگ را به توابع کوچک تقسیم کن و هر کدام را جداگانه تست کن. الان فقط روی مرحله اول تمرکز کن: آیلتس + نمرات خوب.»
 </div>
 
 </div>
