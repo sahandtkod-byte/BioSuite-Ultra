@@ -167,15 +167,26 @@ class _BaseDialog(ctk.CTkToplevel):
         self._body.pack(fill='both', expand=True, padx=24, pady=(20, 16))
 
         self.transient(parent)
-        self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+
+        # Delay grab_set so the previous dialog's grab is fully released first
+        self.after(50, self._do_grab)
 
         # Escape to close
         self.bind('<Escape>', lambda e: self._on_cancel())
 
+    def _do_grab(self):
+        try:
+            self.grab_set()
+        except Exception:
+            pass
+
     def _on_cancel(self):
         self.result = None
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
 
@@ -213,7 +224,10 @@ class BioMessageDialog(_BaseDialog):
 
     def _on_ok(self):
         self.result = 'ok'
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
 
@@ -247,12 +261,18 @@ class BioConfirmDialog(_BaseDialog):
 
     def _on_yes(self):
         self.result = True
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
     def _on_no(self):
         self.result = False
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
 
@@ -275,7 +295,8 @@ class BioInputDialog(_BaseDialog):
         if default:
             self._entry.insert(0, default)
         self._entry.select_range(0, 'end')
-        self._entry.focus_set()
+        # Delay focus_set so the entry is fully rendered and can receive keystrokes
+        self.after(80, lambda: self._entry.focus_force())
 
         # Buttons
         btn_row = ctk.CTkFrame(self._body, fg_color='transparent')
@@ -292,12 +313,18 @@ class BioInputDialog(_BaseDialog):
 
     def _on_ok(self):
         self.result = self._entry.get()
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
     def _on_cancel(self):
         self.result = None
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
 
@@ -307,7 +334,6 @@ class BioFilePickerDialog(_BaseDialog):
     def __init__(self, parent, T, title="Select File", filetypes=None, prompt="Choose a file:"):
         super().__init__(parent, T, title=title, width=520, height=240)
         self._filetypes = filetypes or [("All Files", "*.*")]
-        self._path_var = tk.StringVar(value="")
 
         ctk.CTkLabel(self._body, text=prompt, font=FONT_BODY,
                       text_color=T['text'], wraplength=460, justify='left').pack(anchor='w', pady=(0, 10))
@@ -340,6 +366,7 @@ class BioFilePickerDialog(_BaseDialog):
                        text_color='#000000', hover_color=T['accent_dim'],
                        command=self._on_ok).pack(side='right')
         self.bind('<Return>', lambda e: self._on_ok())
+        self.after(80, lambda: self._path_entry.focus_force())
 
     def _browse(self):
         path = filedialog.askopenfilename(filetypes=self._filetypes)
@@ -349,12 +376,18 @@ class BioFilePickerDialog(_BaseDialog):
 
     def _on_ok(self):
         self.result = self._path_entry.get().strip()
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
     def _on_cancel(self):
         self.result = None
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
 
@@ -379,6 +412,7 @@ class BioDropdownDialog(_BaseDialog):
             self._combo.set(default)
         elif self._options:
             self._combo.set(self._options[0])
+        self.after(80, lambda: self._combo.focus_force())
 
         btn_row = ctk.CTkFrame(self._body, fg_color='transparent')
         btn_row.pack(fill='x')
@@ -394,12 +428,18 @@ class BioDropdownDialog(_BaseDialog):
 
     def _on_ok(self):
         self.result = self._combo.get()
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
     def _on_cancel(self):
         self.result = None
-        self.grab_release()
+        try:
+            self.grab_release()
+        except Exception:
+            pass
         self.destroy()
 
 
