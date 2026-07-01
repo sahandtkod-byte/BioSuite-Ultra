@@ -31,7 +31,7 @@ def show_help():
     print(help_text)
 
 def print_menu():
-    pre = '\033[96m' if config['theme'] == 'light' else '\033[92m'
+    pre = '\033[96m' if not config['theme'].startswith('dark') else '\033[92m'
     bold = '\033[1m'
     reset = '\033[0m'
     print(pre + bold + "\n" + "="*64)
@@ -108,8 +108,11 @@ def main_cli():
         elif choice == '28': ridge_plot()
         elif choice == '29': dot_plot()
         elif choice == '30':
-            new_theme = input("Switch to (light/dark): ").strip()
-            if new_theme in ['light','dark']:
+            print("Themes: 1=Dark-Green-Cyber, 2=Dark-Purple-Cyber, 3=Light-Blue-Cyber")
+            t = input("Select theme (1/2/3): ").strip()
+            theme_map = {'1': 'dark-green', '2': 'dark-purple', '3': 'light-blue'}
+            new_theme = theme_map.get(t)
+            if new_theme:
                 config['theme'] = new_theme
                 save_config(config)
                 set_theme(new_theme)

@@ -30,8 +30,9 @@ def main():
     args = parser.parse_args()
 
     if args.config:
-        new_theme = input("Theme (light/dark): ").strip()
-        if new_theme in ['light','dark']:
+        print("Themes: dark-green, dark-purple, light-blue")
+        new_theme = input(f"Theme [{config['theme']}]: ").strip()
+        if new_theme in ['dark-green', 'dark-purple', 'light-blue']:
             config['theme'] = new_theme
         new_dpi = input(f"DPI [{config['default_dpi']}]: ").strip()
         if new_dpi.isdigit():

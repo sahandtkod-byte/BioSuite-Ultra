@@ -25,7 +25,7 @@ _interrupted = False
 _interaction_counter = 0
 
 DEFAULT_CONFIG = {
-    "theme": "light",
+    "theme": "dark-green",
     "default_dpi": 180,
     "save_format": "png",
     "interactive": False,
@@ -77,7 +77,8 @@ config = load_config()
 session = load_session()
 
 def set_theme(choice):
-    if choice == 'light':
+    is_dark = choice in ('dark', 'dark-green', 'dark-purple')
+    if not is_dark:
         try:
             plt.style.use('seaborn-v0_8-whitegrid')
         except Exception:

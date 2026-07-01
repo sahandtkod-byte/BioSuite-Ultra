@@ -1,5 +1,6 @@
 """
-Modern CustomTkinter GUI for BioSuite – Professional bioinformatic platform.
+Professional Cyberpunk GUI for BioSuite – Advanced Bioinformatic Platform.
+3 themes: Dark-Green-Cyber, Dark-Purple-Cyber, Light-Blue-Cyber
 """
 import customtkinter as ctk
 import tkinter as tk
@@ -31,22 +32,87 @@ from ..plotting.math_plots import (sine_plot, cosine_plot, linear_plot,
     quadratic_plot, cubic_plot, exponential_plot, logistic_plot)
 from ..plotting.specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
 
-ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("blue")
+# ─── Theme Definitions ───────────────────────────────────────────────────────
 
-COLORS = {
-    'bg': '#f0f2f5', 'card': '#ffffff', 'accent': '#2563eb',
-    'accent_hover': '#1d4ed8', 'text': '#1e293b', 'text_secondary': '#64748b',
-    'border': '#e2e8f0', 'success': '#16a34a', 'danger': '#dc2626',
-    'sidebar_bg': '#0f172a', 'sidebar_text': '#e2e8f0', 'sidebar_hover': '#1e293b',
-    'sidebar_active': '#2563eb',
-}
-DARK_COLORS = {
-    'bg': '#0f172a', 'card': '#1e293b', 'accent': '#3b82f6',
-    'accent_hover': '#2563eb', 'text': '#f1f5f9', 'text_secondary': '#94a3b8',
-    'border': '#334155', 'success': '#22c55e', 'danger': '#ef4444',
-    'sidebar_bg': '#020617', 'sidebar_text': '#e2e8f0', 'sidebar_hover': '#1e293b',
-    'sidebar_active': '#3b82f6',
+THEMES = {
+    'dark-green': {
+        'name': 'Dark-Green-Cyber',
+        'ctk_mode': 'dark',
+        'bg':           '#0a0f0a',
+        'bg_secondary': '#0d170d',
+        'card':         '#111c11',
+        'card_hover':   '#162216',
+        'accent':       '#00ff88',
+        'accent_dim':   '#00cc6a',
+        'accent_glow':  '#00ff8833',
+        'text':         '#e0ffe8',
+        'text_dim':     '#6b9b7a',
+        'text_muted':   '#3d6b4a',
+        'border':       '#1a3a1a',
+        'border_light': '#2a5a2a',
+        'sidebar_bg':   '#060d06',
+        'sidebar_text': '#a0d0a0',
+        'sidebar_hover':'#0f1f0f',
+        'sidebar_active':'#00ff88',
+        'sidebar_active_text': '#000000',
+        'danger':       '#ff4444',
+        'success':      '#00ff88',
+        'input_bg':     '#0a150a',
+        'scrollbar':    '#1a3a1a',
+        'header_accent':'#00ff88',
+    },
+    'dark-purple': {
+        'name': 'Dark-Purple-Cyber',
+        'ctk_mode': 'dark',
+        'bg':           '#0a0a12',
+        'bg_secondary': '#0f0f1a',
+        'card':         '#13132a',
+        'card_hover':   '#1a1a35',
+        'accent':       '#b44aff',
+        'accent_dim':   '#9933e6',
+        'accent_glow':  '#b44aff33',
+        'text':         '#e8e0ff',
+        'text_dim':     '#8a7aaa',
+        'text_muted':   '#5a4a7a',
+        'border':       '#2a1a3a',
+        'border_light': '#3a2a5a',
+        'sidebar_bg':   '#08080f',
+        'sidebar_text': '#b0a0d0',
+        'sidebar_hover':'#150f22',
+        'sidebar_active':'#b44aff',
+        'sidebar_active_text': '#ffffff',
+        'danger':       '#ff4466',
+        'success':      '#44ffaa',
+        'input_bg':     '#0a0a18',
+        'scrollbar':    '#2a1a3a',
+        'header_accent':'#d080ff',
+    },
+    'light-blue': {
+        'name': 'Light-Blue-Cyber',
+        'ctk_mode': 'light',
+        'bg':           '#f0f4fa',
+        'bg_secondary': '#e8eef8',
+        'card':         '#ffffff',
+        'card_hover':   '#f5f8ff',
+        'accent':       '#2563eb',
+        'accent_dim':   '#1d4ed8',
+        'accent_glow':  '#2563eb22',
+        'text':         '#0f172a',
+        'text_dim':     '#64748b',
+        'text_muted':   '#94a3b8',
+        'border':       '#e2e8f0',
+        'border_light': '#cbd5e1',
+        'sidebar_bg':   '#0f172a',
+        'sidebar_text': '#94a3b8',
+        'sidebar_hover':'#1e293b',
+        'sidebar_active':'#3b82f6',
+        'sidebar_active_text': '#ffffff',
+        'danger':       '#dc2626',
+        'success':      '#16a34a',
+        'input_bg':     '#f8fafc',
+        'scrollbar':    '#cbd5e1',
+        'header_accent':'#2563eb',
+    },
 }
 
 PLOT_CATEGORIES = {
@@ -90,104 +156,191 @@ PLOT_FUNCS = {
     'dotplot': dot_plot,
 }
 
+# ─── Font Constants ───────────────────────────────────────────────────────────
+
+FONT_FAMILY = 'Segoe UI'
+FONT_MONO = 'Consolas'
+FONT_TITLE = (FONT_FAMILY, 22, 'bold')
+FONT_HEADING = (FONT_FAMILY, 16, 'bold')
+FONT_SUBHEADING = (FONT_FAMILY, 13, 'bold')
+FONT_BODY = (FONT_FAMILY, 12)
+FONT_SMALL = (FONT_FAMILY, 10)
+FONT_SIDEBAR = (FONT_FAMILY, 12)
+FONT_SIDEBAR_TITLE = (FONT_FAMILY, 20, 'bold')
+FONT_CODE = (FONT_MONO, 11)
+FONT_BUTTON = (FONT_FAMILY, 12, 'bold')
+FONT_BUTTON_SM = (FONT_FAMILY, 11)
+
+
+# ─── Application ─────────────────────────────────────────────────────────────
 
 class BioSuiteApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("BioSuite – Advanced Bioinformatic Platform")
-        self.geometry("1300x900")
-        self.minsize(1100, 750)
-        self.is_dark = config.get('theme', 'light') == 'dark'
-        self.colors = DARK_COLORS if self.is_dark else COLORS
-        if self.is_dark:
-            ctk.set_appearance_mode("dark")
-        else:
-            ctk.set_appearance_mode("light")
-        self.configure(fg_color=self.colors['bg'])
+
+        # ── Theme init ──
+        saved_theme = config.get('theme', 'dark-green')
+        if saved_theme not in THEMES:
+            saved_theme = 'dark-green'
+        self.current_theme_key = saved_theme
+        self.T = THEMES[self.current_theme_key]
+
+        # ── Window setup ──
+        self.title("BioSuite Pro  ·  Bioinformatic Platform")
+        ctk.set_appearance_mode(self.T['ctk_mode'])
+        ctk.set_default_color_theme("blue")
+
+        # Fit to screen with padding
+        self.update_idletasks()
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        w = min(1400, int(sw * 0.82))
+        h = min(920, int(sh * 0.85))
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(1050, 700)
+        self.configure(fg_color=self.T['bg'])
+
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # ── Build UI ──
         self._build_sidebar()
         self._build_content()
         self._show_frame('plots')
         self._apply_plot_search()
 
-    def _get_colors(self):
-        return DARK_COLORS if self.is_dark else COLORS
+        # Smooth startup
+        self.after(50, lambda: self.configure(fg_color=self.T['bg']))
 
-    def _refresh_colors(self):
-        self.colors = self._get_colors()
-        self.configure(fg_color=self.colors['bg'])
-        self.sidebar.configure(fg_color=self.colors['sidebar_bg'])
-        for btn in self.sidebar_buttons.values():
-            btn.configure(fg_color=self.colors['sidebar_bg'], text_color=self.colors['sidebar_text'])
-        active = self._current_frame
-        if active and active in self.sidebar_buttons:
-            self.sidebar_buttons[active].configure(fg_color=self.colors['sidebar_active'])
-        for frame in self.frames.values():
-            frame.configure(fg_color=self.colors['bg'])
-        for card in self.all_cards:
-            card.configure(fg_color=self.colors['card'], border_color=self.colors['border'])
-        self.status_bar.configure(fg_color=self.colors['card'], text_color=self.colors['text_secondary'])
+    # ─── Theme Helpers ────────────────────────────────────────────────────────
+
+    def _apply_theme(self, theme_key):
+        if theme_key not in THEMES:
+            return
+        self.current_theme_key = theme_key
+        self.T = THEMES[theme_key]
+        config['theme'] = theme_key
+        save_config(config)
+        set_theme('dark' if self.T['ctk_mode'] == 'dark' else 'light')
+        ctk.set_appearance_mode(self.T['ctk_mode'])
+        self.configure(fg_color=self.T['bg'])
+        self._rebuild_ui()
+
+    def _rebuild_ui(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.all_cards = []
+        self._build_sidebar()
+        self._build_content()
+        self._show_frame(self._current_frame if hasattr(self, '_current_frame') else 'plots')
+        self._apply_plot_search()
 
     def _on_close(self):
         plt.close('all')
         self.destroy()
 
+    # ─── Sidebar ──────────────────────────────────────────────────────────────
+
     def _build_sidebar(self):
-        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=self.colors['sidebar_bg'])
+        T = self.T
+        self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0,
+                                     fg_color=T['sidebar_bg'])
         self.sidebar.pack(side='left', fill='y')
         self.sidebar.pack_propagate(False)
-        logo_frame = ctk.CTkFrame(self.sidebar, fg_color='transparent')
-        logo_frame.pack(fill='x', padx=16, pady=(20, 8))
-        ctk.CTkLabel(logo_frame, text="BioSuite", font=ctk.CTkFont(size=22, weight="bold"),
-                      text_color='#60a5fa').pack(anchor='w')
-        ctk.CTkLabel(logo_frame, text="v2.0 Pro", font=ctk.CTkFont(size=11),
-                      text_color='#94a3b8').pack(anchor='w')
-        ctk.CTkFrame(self.sidebar, height=1, fg_color='#334155').pack(fill='x', padx=16, pady=8)
+
+        # ── Logo area ──
+        logo_area = ctk.CTkFrame(self.sidebar, fg_color='transparent')
+        logo_area.pack(fill='x', padx=20, pady=(28, 6))
+
+        ctk.CTkLabel(logo_area, text="BIOSUITE",
+                      font=(FONT_FAMILY, 18, 'bold'),
+                      text_color=T['accent']).pack(anchor='w')
+        ctk.CTkLabel(logo_area, text="Bioinformatic Platform",
+                      font=FONT_SMALL,
+                      text_color=T['text_dim']).pack(anchor='w', pady=(2, 0))
+
+        # Separator
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=T['border']).pack(
+            fill='x', padx=18, pady=(16, 12))
+
+        # ── Navigation ──
         self.sidebar_buttons = {}
         nav_items = [
-            ('plots', 'Plots Gallery'), ('sequence', 'Sequence Analysis'),
-            ('alignment', 'Alignments'), ('phylogeny', 'Phylogeny'),
-            ('expression', 'Expression'), ('ngs', 'NGS / VCF'),
+            ('plots',      'Plots Gallery'),
+            ('sequence',   'Sequence Analysis'),
+            ('alignment',  'Alignments'),
+            ('phylogeny',  'Phylogeny'),
+            ('expression', 'Expression'),
+            ('ngs',        'NGS / VCF'),
         ]
         for key, label in nav_items:
-            btn = ctk.CTkButton(self.sidebar, text=f"  {label}", anchor='w',
-                                font=ctk.CTkFont(size=13), height=38, corner_radius=8,
-                                fg_color=self.colors['sidebar_bg'],
-                                text_color=self.colors['sidebar_text'],
-                                hover_color=self.colors['sidebar_hover'],
-                                command=lambda k=key: self._show_frame(k))
-            btn.pack(fill='x', padx=10, pady=2)
+            btn = ctk.CTkButton(
+                self.sidebar, text=f"  {label}", anchor='w',
+                font=FONT_SIDEBAR, height=40, corner_radius=8,
+                fg_color='transparent',
+                text_color=T['sidebar_text'],
+                hover_color=T['sidebar_hover'],
+                command=lambda k=key: self._show_frame(k))
+            btn.pack(fill='x', padx=12, pady=2)
             self.sidebar_buttons[key] = btn
-        ctk.CTkFrame(self.sidebar, height=1, fg_color='#334155').pack(fill='x', padx=16, pady=8)
-        self.theme_btn = ctk.CTkButton(self.sidebar, text="Dark Mode", font=ctk.CTkFont(size=12),
-                                        height=34, corner_radius=8,
-                                        fg_color=self.colors['sidebar_bg'],
-                                        text_color=self.colors['sidebar_text'],
-                                        hover_color=self.colors['sidebar_hover'],
-                                        command=self._toggle_theme)
-        self.theme_btn.pack(fill='x', padx=10, pady=2)
-        if self.is_dark:
-            self.theme_btn.configure(text="Light Mode")
+
+        # Separator
+        ctk.CTkFrame(self.sidebar, height=1, fg_color=T['border']).pack(
+            fill='x', padx=18, pady=(16, 12))
+
+        # ── Theme selector ──
+        ctk.CTkLabel(self.sidebar, text="THEME", font=(FONT_FAMILY, 9, 'bold'),
+                      text_color=T['text_muted']).pack(anchor='w', padx=20, pady=(0, 6))
+
+        self.theme_buttons = {}
+        theme_keys = [('dark-green', 'Green Cyber'), ('dark-purple', 'Purple Cyber'), ('light-blue', 'Light Blue')]
+        for tkey, tlabel in theme_keys:
+            is_active = tkey == self.current_theme_key
+            btn = ctk.CTkButton(
+                self.sidebar, text=f"  {tlabel}", anchor='w',
+                font=FONT_SMALL, height=32, corner_radius=6,
+                fg_color=T['sidebar_active'] if is_active else 'transparent',
+                text_color=T['sidebar_active_text'] if is_active else T['sidebar_text'],
+                hover_color=T['sidebar_hover'],
+                command=lambda k=tkey: self._apply_theme(k))
+            btn.pack(fill='x', padx=12, pady=1)
+            self.theme_buttons[tkey] = btn
+
+        # ── Version badge ──
+        version_frame = ctk.CTkFrame(self.sidebar, fg_color='transparent')
+        version_frame.pack(side='bottom', fill='x', padx=18, pady=(0, 16))
+        ctk.CTkLabel(version_frame, text="v2.0 Pro",
+                      font=(FONT_FAMILY, 9),
+                      text_color=T['text_muted']).pack(anchor='w')
+
         self._current_frame = 'plots'
 
+    # ─── Content Area ─────────────────────────────────────────────────────────
+
     def _build_content(self):
-        self.content = ctk.CTkFrame(self, fg_color=self.colors['bg'], corner_radius=0)
+        T = self.T
+        self.content = ctk.CTkFrame(self, fg_color=T['bg'], corner_radius=0)
         self.content.pack(side='right', fill='both', expand=True)
         self.frames = {}
         self.all_cards = []
+
         self._build_plot_frame()
         self._build_sequence_frame()
         self._build_alignment_frame()
         self._build_phylogeny_frame()
         self._build_expression_frame()
         self._build_ngs_frame()
-        self.status_bar = ctk.CTkLabel(self, text="Ready", anchor='w',
-                                        font=ctk.CTkFont(size=11),
-                                        fg_color=self.colors['card'],
-                                        text_color=self.colors['text_secondary'],
-                                        height=28)
-        self.status_bar.pack(side='bottom', fill='x', padx=0, pady=0)
-        self._set_status("Ready – BioSuite v2.0 Pro loaded")
+
+        # Status bar
+        self.status_bar = ctk.CTkLabel(
+            self, text="  Ready", anchor='w',
+            font=FONT_SMALL,
+            fg_color=T['card'],
+            text_color=T['text_dim'],
+            height=30)
+        self.status_bar.pack(side='bottom', fill='x')
+        self._set_status("BioSuite Pro loaded successfully")
 
     def _set_status(self, text):
         self.status_bar.configure(text=f"  {text}")
@@ -195,91 +348,139 @@ class BioSuiteApp(ctk.CTk):
     def _show_frame(self, key):
         for f in self.frames.values():
             f.pack_forget()
-        self.frames[key].pack(in_=self.content, fill='both', expand=True, padx=12, pady=12)
+        self.frames[key].pack(in_=self.content, fill='both', expand=True, padx=16, pady=16)
+        T = self.T
         for k, btn in self.sidebar_buttons.items():
             if k == key:
-                btn.configure(fg_color=self.colors['sidebar_active'], text_color='white')
+                btn.configure(fg_color=T['sidebar_active'],
+                              text_color=T['sidebar_active_text'])
             else:
-                btn.configure(fg_color=self.colors['sidebar_bg'], text_color=self.colors['sidebar_text'])
+                btn.configure(fg_color='transparent', text_color=T['sidebar_text'])
         self._current_frame = key
 
-    def _toggle_theme(self):
-        self.is_dark = not self.is_dark
-        config['theme'] = 'dark' if self.is_dark else 'light'
-        save_config(config)
-        set_theme(config['theme'])
-        if self.is_dark:
-            ctk.set_appearance_mode("dark")
-            self.theme_btn.configure(text="Light Mode")
-        else:
-            ctk.set_appearance_mode("light")
-            self.theme_btn.configure(text="Dark Mode")
-        self._refresh_colors()
+    # ─── Card Helper ──────────────────────────────────────────────────────────
 
-    # ── Plots Gallery ──────────────────────────────────────────
+    def _card(self, parent, **kwargs):
+        T = self.T
+        defaults = dict(fg_color=T['card'], corner_radius=12, border_width=1,
+                        border_color=T['border'])
+        defaults.update(kwargs)
+        card = ctk.CTkFrame(parent, **defaults)
+        self.all_cards.append(card)
+        return card
+
+    def _section_header(self, parent, text):
+        T = self.T
+        ctk.CTkLabel(parent, text=text, font=FONT_HEADING,
+                      text_color=T['text']).pack(anchor='w', padx=4, pady=(4, 8))
+
+    def _action_button(self, parent, text, command, color_key='accent'):
+        T = self.T
+        color = T.get(color_key, T['accent'])
+        hover = T.get(f'{color_key}_dim', color)
+        return ctk.CTkButton(
+            parent, text=text, height=36, corner_radius=8,
+            font=FONT_BUTTON, fg_color=color, hover_color=hover,
+            text_color='#000000' if color_key == 'accent' else '#ffffff',
+            command=command)
+
+    def _input_entry(self, parent, placeholder, **kwargs):
+        T = self.T
+        defaults = dict(height=36, font=FONT_BODY, corner_radius=8,
+                        fg_color=T['input_bg'], border_color=T['border'],
+                        text_color=T['text'], placeholder_text=placeholder,
+                        placeholder_text_color=T['text_muted'])
+        defaults.update(kwargs)
+        return ctk.CTkEntry(parent, **defaults)
+
+    def _text_box(self, parent, height=200, **kwargs):
+        T = self.T
+        defaults = dict(height=height, font=FONT_CODE, corner_radius=8,
+                        fg_color=T['input_bg'], border_color=T['border'],
+                        text_color=T['text'], border_width=1)
+        defaults.update(kwargs)
+        return ctk.CTkTextbox(parent, **defaults)
+
+    def _label(self, parent, text, style='body'):
+        T = self.T
+        font_map = {'title': FONT_HEADING, 'sub': FONT_SUBHEADING,
+                     'body': FONT_BODY, 'small': FONT_SMALL, 'dim': FONT_SMALL}
+        color_map = {'title': T['text'], 'sub': T['text'],
+                      'body': T['text'], 'small': T['text_dim'], 'dim': T['text_muted']}
+        return ctk.CTkLabel(parent, text=text, font=font_map.get(style, FONT_BODY),
+                             text_color=color_map.get(style, T['text']))
+
+    # ─── Plots Gallery ────────────────────────────────────────────────────────
+
     def _build_plot_frame(self):
-        f = ctk.CTkFrame(self.content, fg_color=self.colors['bg'])
+        T = self.T
+        f = ctk.CTkFrame(self.content, fg_color=T['bg'])
         self.frames['plots'] = f
+
+        # Header
         header = ctk.CTkFrame(f, fg_color='transparent')
-        header.pack(fill='x', padx=4, pady=(8, 4))
-        ctk.CTkLabel(header, text="Plots Gallery", font=ctk.CTkFont(size=20, weight="bold"),
-                      text_color=self.colors['text']).pack(side='left')
-        self.plot_search = ctk.CTkEntry(header, placeholder_text="Search plots...",
-                                         width=260, height=34,
-                                         font=ctk.CTkFont(size=12))
-        self.plot_search.pack(side='right', padx=(8, 0))
+        header.pack(fill='x', pady=(0, 8))
+        self._label(header, 'Plots Gallery', 'title').pack(side='left')
+
+        self.plot_search = self._input_entry(header, "Search plots...", width=280)
+        self.plot_search.pack(side='right')
         self._search_after_id = None
         self.plot_search.bind('<KeyRelease>', self._on_search_key)
+
+        # Main area
         mid = ctk.CTkFrame(f, fg_color='transparent')
-        mid.pack(fill='both', expand=True, padx=4, pady=4)
-        cat_frame = ctk.CTkFrame(mid, width=200, fg_color=self.colors['card'],
-                                  border_width=1, border_color=self.colors['border'], corner_radius=10)
-        cat_frame.pack(side='left', fill='y', padx=(0, 8))
-        cat_frame.pack_propagate(False)
-        ctk.CTkLabel(cat_frame, text="Categories", font=ctk.CTkFont(size=13, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=14, pady=(12, 6), anchor='w')
+        mid.pack(fill='both', expand=True, pady=(0, 8))
+
+        # Categories sidebar
+        cat_card = self._card(mid, width=190)
+        cat_card.pack(side='left', fill='y', padx=(0, 10))
+        cat_card.pack_propagate(False)
+
+        self._label(cat_card, 'Categories', 'sub').pack(padx=14, pady=(14, 6), anchor='w')
+
         self.cat_buttons = {}
-        all_cats = ['All'] + list(PLOT_CATEGORIES.keys())
-        for cat in all_cats:
-            btn = ctk.CTkButton(cat_frame, text=cat, anchor='w', height=32,
-                                font=ctk.CTkFont(size=12), corner_radius=6,
-                                fg_color='transparent', text_color=self.colors['text_secondary'],
-                                hover_color=self.colors['border'],
-                                command=lambda c=cat: self._select_category(c))
+        for cat in ['All'] + list(PLOT_CATEGORIES.keys()):
+            btn = ctk.CTkButton(
+                cat_card, text=cat, anchor='w', height=30, corner_radius=6,
+                font=FONT_SMALL, fg_color='transparent',
+                text_color=T['text_dim'], hover_color=T['border'],
+                command=lambda c=cat: self._select_category(c))
             btn.pack(fill='x', padx=8, pady=1)
             self.cat_buttons[cat] = btn
         self._selected_cat = 'All'
-        list_frame = ctk.CTkFrame(mid, fg_color=self.colors['card'], border_width=1,
-                                   border_color=self.colors['border'], corner_radius=10)
-        list_frame.pack(side='right', fill='both', expand=True)
-        self.plot_count_label = ctk.CTkLabel(list_frame, text="",
-                                               font=ctk.CTkFont(size=11),
-                                               text_color=self.colors['text_secondary'])
-        self.plot_count_label.pack(padx=14, pady=(8, 2), anchor='w')
-        scroll_frame = ctk.CTkScrollableFrame(list_frame, fg_color='transparent',
-                                                corner_radius=0)
+
+        # Plot list
+        list_card = self._card(mid)
+        list_card.pack(side='right', fill='both', expand=True)
+
+        self.plot_count_label = self._label(list_card, '', 'dim')
+        self.plot_count_label.pack(padx=14, pady=(10, 2), anchor='w')
+
+        scroll_frame = ctk.CTkScrollableFrame(
+            list_card, fg_color='transparent', corner_radius=0,
+            scrollbar_button_color=T['scrollbar'],
+            scrollbar_button_hover_color=T['border_light'])
         scroll_frame.pack(fill='both', expand=True, padx=8, pady=(0, 8))
         self.plot_buttons_frame = scroll_frame
+
         self._select_category('All')
+
+        # Action buttons
         btn_row = ctk.CTkFrame(f, fg_color='transparent')
-        btn_row.pack(fill='x', padx=4, pady=(4, 0))
-        ctk.CTkButton(btn_row, text="Generate Plot", height=36, corner_radius=8,
-                       fg_color=self.colors['accent'], hover_color=self.colors['accent_hover'],
-                       command=self._generate_selected_plot).pack(side='left', padx=(0, 8))
-        ctk.CTkButton(btn_row, text="Export All Plots", height=36, corner_radius=8,
-                       fg_color=self.colors['success'], hover_color='#15803d',
-                       command=self._export_all_plots).pack(side='left', padx=(0, 8))
-        ctk.CTkButton(btn_row, text="Batch PDF", height=36, corner_radius=8,
-                       fg_color='#7c3aed', hover_color='#6d28d9',
-                       command=self._batch_pdf).pack(side='left')
+        btn_row.pack(fill='x')
+        self._action_button(btn_row, "Generate Plot", self._generate_selected_plot).pack(side='left', padx=(0, 8))
+        self._action_button(btn_row, "Export All", self._export_all_plots, 'success').pack(side='left', padx=(0, 8))
+        self._action_button(btn_row, "Batch PDF", self._batch_pdf, 'accent_dim').pack(side='left')
 
     def _select_category(self, cat):
+        T = self.T
         self._selected_cat = cat
         for k, btn in self.cat_buttons.items():
             if k == cat:
-                btn.configure(fg_color=self.colors['accent'], text_color='white')
+                btn.configure(fg_color=T['sidebar_active'],
+                              text_color=T['sidebar_active_text'])
             else:
-                btn.configure(fg_color='transparent', text_color=self.colors['text_secondary'])
+                btn.configure(fg_color='transparent', text_color=T['text_dim'])
         self._apply_plot_search()
 
     def _on_search_key(self, event=None):
@@ -290,6 +491,7 @@ class BioSuiteApp(ctk.CTk):
     def _apply_plot_search(self):
         if not hasattr(self, 'plot_buttons_frame'):
             return
+        T = self.T
         for w in self.plot_buttons_frame.winfo_children():
             w.destroy()
         term = self.plot_search.get().strip().lower() if hasattr(self, 'plot_search') else ''
@@ -307,17 +509,17 @@ class BioSuiteApp(ctk.CTk):
         self.plot_count_label.configure(text=f"{len(items)} plots available")
         self._selected_plot_id = None
         for name, pid, cat in items:
-            row = ctk.CTkFrame(self.plot_buttons_frame, fg_color='transparent', height=38)
-            row.pack(fill='x', pady=1)
+            row = ctk.CTkFrame(self.plot_buttons_frame, fg_color='transparent', height=40)
+            row.pack(fill='x', pady=2)
             row.pack_propagate(False)
-            btn = ctk.CTkButton(row, text=f"  {name}", anchor='w', height=34,
-                                font=ctk.CTkFont(size=12), corner_radius=6,
-                                fg_color='transparent', text_color=self.colors['text'],
-                                hover_color=self.colors['border'],
-                                command=lambda p=pid, n=name: self._select_and_gen(p, n))
-            btn.pack(fill='x')
-            ctk.CTkLabel(row, text=cat, font=ctk.CTkFont(size=10),
-                          text_color=self.colors['text_secondary']).pack(side='right', padx=8)
+            btn = ctk.CTkButton(
+                row, text=f"  {name}", anchor='w', height=36, corner_radius=8,
+                font=FONT_BODY, fg_color='transparent',
+                text_color=T['text'], hover_color=T['border'],
+                command=lambda p=pid, n=name: self._select_and_gen(p, n))
+            btn.pack(fill='x', padx=(0, 80))
+            ctk.CTkLabel(row, text=cat, font=FONT_SMALL,
+                          text_color=T['text_muted']).pack(side='right', padx=12)
 
     def _select_and_gen(self, plot_id, name):
         self._selected_plot_id = plot_id
@@ -325,7 +527,7 @@ class BioSuiteApp(ctk.CTk):
 
     def _generate_selected_plot(self):
         if not hasattr(self, '_selected_plot_id') or self._selected_plot_id is None:
-            messagebox.showinfo("Info", "Double-click a plot or select one and click Generate.")
+            messagebox.showinfo("Info", "Select a plot from the list, then click Generate.")
             return
         self._generate_plot_by_id(self._selected_plot_id)
 
@@ -411,49 +613,44 @@ class BioSuiteApp(ctk.CTk):
                     self.after(0, lambda: self._set_status("Ready"))
             threading.Thread(target=run, daemon=True).start()
 
-    # ── Sequence Tab ──────────────────────────────────────────
+    # ─── Sequence Tab ─────────────────────────────────────────────────────────
+
     def _build_sequence_frame(self):
-        f = ctk.CTkFrame(self.content, fg_color=self.colors['bg'])
+        T = self.T
+        f = ctk.CTkFrame(self.content, fg_color=T['bg'])
         self.frames['sequence'] = f
-        header = ctk.CTkFrame(f, fg_color='transparent')
-        header.pack(fill='x', padx=4, pady=(8, 4))
-        ctk.CTkLabel(header, text="Sequence Analysis", font=ctk.CTkFont(size=20, weight="bold"),
-                      text_color=self.colors['text']).pack(side='left')
+
+        self._section_header(f, "Sequence Analysis")
+
         body = ctk.CTkFrame(f, fg_color='transparent')
-        body.pack(fill='both', expand=True, padx=4, pady=4)
-        left = ctk.CTkFrame(body, fg_color=self.colors['card'], border_width=1,
-                             border_color=self.colors['border'], corner_radius=10)
+        body.pack(fill='both', expand=True)
+
+        # Left: Input
+        left = self._card(body)
         left.pack(side='left', fill='both', expand=True, padx=(0, 6))
-        self.all_cards.append(left)
-        ctk.CTkLabel(left, text="Input Sequence (FASTA/FASTQ)", font=ctk.CTkFont(size=13, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=14, pady=(12, 4), anchor='w')
-        self.seq_text = ctk.CTkTextbox(left, font=ctk.CTkFont(family="Consolas", size=11),
-                                        height=280, fg_color=self.colors['bg'],
-                                        text_color=self.colors['text'], corner_radius=8)
+
+        self._label(left, 'Input Sequence (FASTA/FASTQ)', 'sub').pack(padx=14, pady=(14, 4), anchor='w')
+        self.seq_text = self._text_box(left, height=280)
         self.seq_text.pack(fill='both', expand=True, padx=10, pady=(0, 6))
+
         btn_row = ctk.CTkFrame(left, fg_color='transparent')
         btn_row.pack(fill='x', padx=10, pady=(0, 10))
-        ctk.CTkButton(btn_row, text="Load File", height=32, corner_radius=6,
-                       fg_color=self.colors['accent'], command=self._load_seq_file).pack(side='left', padx=(0, 4))
-        ctk.CTkButton(btn_row, text="Clear", height=32, corner_radius=6,
-                       fg_color=self.colors['danger'],
-                       command=lambda: self.seq_text.delete("1.0", "end")).pack(side='left')
-        right = ctk.CTkFrame(body, fg_color=self.colors['card'], border_width=1,
-                              border_color=self.colors['border'], corner_radius=10)
+        self._action_button(btn_row, "Load File", self._load_seq_file).pack(side='left', padx=(0, 6))
+        self._action_button(btn_row, "Clear", lambda: self.seq_text.delete("1.0", "end"), 'danger').pack(side='left')
+
+        # Right: Results
+        right = self._card(body)
         right.pack(side='right', fill='both', expand=True, padx=(6, 0))
-        self.all_cards.append(right)
-        ctk.CTkLabel(right, text="Results & Statistics", font=ctk.CTkFont(size=13, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=14, pady=(12, 4), anchor='w')
-        self.seq_stats = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=11),
-                                          height=280, fg_color=self.colors['bg'],
-                                          text_color=self.colors['text'], corner_radius=8)
+
+        self._label(right, 'Results & Statistics', 'sub').pack(padx=14, pady=(14, 4), anchor='w')
+        self.seq_stats = self._text_box(right, height=280)
         self.seq_stats.pack(fill='both', expand=True, padx=10, pady=(0, 6))
+
         btn_row2 = ctk.CTkFrame(right, fg_color='transparent')
         btn_row2.pack(fill='x', padx=10, pady=(0, 10))
         for label, cmd in [("GC%", self._seq_gc), ("Rev Comp", self._seq_revcomp),
                            ("Translate", self._seq_translate), ("Stats", self._seq_stats_cmd)]:
-            ctk.CTkButton(btn_row2, text=label, height=32, corner_radius=6,
-                           fg_color=self.colors['accent'], command=cmd).pack(side='left', padx=(0, 4))
+            self._action_button(btn_row2, label, cmd).pack(side='left', padx=(0, 6))
 
     def _load_seq_file(self):
         path = filedialog.askopenfilename(filetypes=[
@@ -524,40 +721,35 @@ class BioSuiteApp(ctk.CTk):
             else:
                 self.seq_stats.insert("end", f"{k}: {v}\n")
 
-    # ── Alignment Tab ──────────────────────────────────────────
+    # ─── Alignment Tab ────────────────────────────────────────────────────────
+
     def _build_alignment_frame(self):
-        f = ctk.CTkFrame(self.content, fg_color=self.colors['bg'])
+        T = self.T
+        f = ctk.CTkFrame(self.content, fg_color=T['bg'])
         self.frames['alignment'] = f
-        ctk.CTkLabel(f, text="Pairwise Sequence Alignment",
-                      font=ctk.CTkFont(size=20, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=4, pady=(8, 4), anchor='w')
-        card = ctk.CTkFrame(f, fg_color=self.colors['card'], border_width=1,
-                             border_color=self.colors['border'], corner_radius=10)
-        card.pack(fill='both', expand=True, padx=4, pady=4)
-        self.all_cards.append(card)
+
+        self._section_header(f, "Pairwise Sequence Alignment")
+
+        card = self._card(f)
+        card.pack(fill='both', expand=True)
+
         inner = ctk.CTkFrame(card, fg_color='transparent')
-        inner.pack(fill='both', expand=True, padx=14, pady=10)
-        ctk.CTkLabel(inner, text="Sequence 1", font=ctk.CTkFont(size=12, weight="bold"),
-                      text_color=self.colors['text']).pack(anchor='w')
-        self.align_seq1 = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                          height=80, fg_color=self.colors['bg'],
-                                          text_color=self.colors['text'], corner_radius=6)
-        self.align_seq1.pack(fill='x', pady=(0, 6))
-        ctk.CTkLabel(inner, text="Sequence 2", font=ctk.CTkFont(size=12, weight="bold"),
-                      text_color=self.colors['text']).pack(anchor='w')
-        self.align_seq2 = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                          height=80, fg_color=self.colors['bg'],
-                                          text_color=self.colors['text'], corner_radius=6)
-        self.align_seq2.pack(fill='x', pady=(0, 6))
+        inner.pack(fill='both', expand=True, padx=16, pady=12)
+
+        self._label(inner, 'Sequence 1', 'sub').pack(anchor='w')
+        self.align_seq1 = self._text_box(inner, height=80)
+        self.align_seq1.pack(fill='x', pady=(0, 8))
+
+        self._label(inner, 'Sequence 2', 'sub').pack(anchor='w')
+        self.align_seq2 = self._text_box(inner, height=80)
+        self.align_seq2.pack(fill='x', pady=(0, 8))
+
         btn_row = ctk.CTkFrame(inner, fg_color='transparent')
-        btn_row.pack(fill='x', pady=(0, 6))
-        ctk.CTkButton(btn_row, text="Needleman-Wunsch (Global)", height=34, corner_radius=6,
-                       fg_color=self.colors['accent'], command=self._align_nw).pack(side='left', padx=(0, 8))
-        ctk.CTkButton(btn_row, text="Smith-Waterman (Local)", height=34, corner_radius=6,
-                       fg_color='#7c3aed', command=self._align_sw).pack(side='left')
-        self.align_result = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                            height=120, fg_color=self.colors['bg'],
-                                            text_color=self.colors['text'], corner_radius=6)
+        btn_row.pack(fill='x', pady=(0, 8))
+        self._action_button(btn_row, "Needleman-Wunsch (Global)", self._align_nw).pack(side='left', padx=(0, 8))
+        self._action_button(btn_row, "Smith-Waterman (Local)", self._align_sw, 'accent_dim').pack(side='left')
+
+        self.align_result = self._text_box(inner, height=120)
         self.align_result.pack(fill='both', expand=True)
 
     def _get_align_seq(self, widget):
@@ -583,30 +775,28 @@ class BioSuiteApp(ctk.CTk):
         self.align_result.delete("1.0", "end")
         self.align_result.insert("end", f"Score: {score}\n\nSeq1: {a1}\nSeq2: {a2}\n")
 
-    # ── Phylogeny Tab ──────────────────────────────────────────
+    # ─── Phylogeny Tab ────────────────────────────────────────────────────────
+
     def _build_phylogeny_frame(self):
-        f = ctk.CTkFrame(self.content, fg_color=self.colors['bg'])
+        T = self.T
+        f = ctk.CTkFrame(self.content, fg_color=T['bg'])
         self.frames['phylogeny'] = f
-        ctk.CTkLabel(f, text="Phylogenetic Tree Builder",
-                      font=ctk.CTkFont(size=20, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=4, pady=(8, 4), anchor='w')
-        card = ctk.CTkFrame(f, fg_color=self.colors['card'], border_width=1,
-                             border_color=self.colors['border'], corner_radius=10)
-        card.pack(fill='both', expand=True, padx=4, pady=4)
-        self.all_cards.append(card)
+
+        self._section_header(f, "Phylogenetic Tree Builder")
+
+        card = self._card(f)
+        card.pack(fill='both', expand=True)
+
         inner = ctk.CTkFrame(card, fg_color='transparent')
-        inner.pack(fill='both', expand=True, padx=14, pady=10)
-        ctk.CTkLabel(inner, text="Aligned Sequences (FASTA format)", font=ctk.CTkFont(size=12, weight="bold"),
-                      text_color=self.colors['text']).pack(anchor='w')
-        self.phylo_input = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                           height=160, fg_color=self.colors['bg'],
-                                           text_color=self.colors['text'], corner_radius=6)
-        self.phylo_input.pack(fill='x', pady=(0, 6))
-        ctk.CTkButton(inner, text="Build UPGMA Tree", height=34, corner_radius=6,
-                       fg_color=self.colors['accent'], command=self._build_tree).pack(pady=(0, 6))
-        self.phylo_result = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                            height=140, fg_color=self.colors['bg'],
-                                            text_color=self.colors['text'], corner_radius=6)
+        inner.pack(fill='both', expand=True, padx=16, pady=12)
+
+        self._label(inner, 'Aligned Sequences (FASTA format)', 'sub').pack(anchor='w')
+        self.phylo_input = self._text_box(inner, height=160)
+        self.phylo_input.pack(fill='x', pady=(0, 8))
+
+        self._action_button(inner, "Build UPGMA Tree", self._build_tree).pack(pady=(0, 8))
+
+        self.phylo_result = self._text_box(inner, height=140)
         self.phylo_result.pack(fill='both', expand=True)
 
     def _build_tree(self):
@@ -646,38 +836,36 @@ class BioSuiteApp(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    # ── Expression Tab ──────────────────────────────────────────
+    # ─── Expression Tab ───────────────────────────────────────────────────────
+
     def _build_expression_frame(self):
-        f = ctk.CTkFrame(self.content, fg_color=self.colors['bg'])
+        T = self.T
+        f = ctk.CTkFrame(self.content, fg_color=T['bg'])
         self.frames['expression'] = f
-        ctk.CTkLabel(f, text="Differential Expression",
-                      font=ctk.CTkFont(size=20, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=4, pady=(8, 4), anchor='w')
-        card = ctk.CTkFrame(f, fg_color=self.colors['card'], border_width=1,
-                             border_color=self.colors['border'], corner_radius=10)
-        card.pack(fill='both', expand=True, padx=4, pady=4)
-        self.all_cards.append(card)
+
+        self._section_header(f, "Differential Expression")
+
+        card = self._card(f)
+        card.pack(fill='both', expand=True)
+
         inner = ctk.CTkFrame(card, fg_color='transparent')
-        inner.pack(fill='both', expand=True, padx=14, pady=10)
+        inner.pack(fill='both', expand=True, padx=16, pady=12)
+
         file_row = ctk.CTkFrame(inner, fg_color='transparent')
-        file_row.pack(fill='x', pady=(0, 6))
-        self.expr_path = ctk.CTkEntry(file_row, placeholder_text="Count matrix file (CSV/TSV)...",
-                                       height=34, font=ctk.CTkFont(size=12))
+        file_row.pack(fill='x', pady=(0, 8))
+        self.expr_path = self._input_entry(file_row, "Count matrix file (CSV/TSV)...")
         self.expr_path.pack(side='left', fill='x', expand=True, padx=(0, 8))
-        ctk.CTkButton(file_row, text="Browse", height=34, width=80, corner_radius=6,
-                       fg_color=self.colors['accent'],
-                       command=lambda: self._browse_file(self.expr_path,
-                           [("CSV/TSV", "*.csv *.tsv *.txt")])).pack(side='right')
-        ctk.CTkLabel(inner, text="Conditions (comma-separated, e.g., control,control,treat,treat)",
-                      font=ctk.CTkFont(size=11), text_color=self.colors['text_secondary']).pack(anchor='w')
-        self.expr_conds = ctk.CTkEntry(inner, placeholder_text="control,control,treat,treat",
-                                        height=34, font=ctk.CTkFont(size=12))
-        self.expr_conds.pack(fill='x', pady=(2, 6))
-        ctk.CTkButton(inner, text="Run Differential Expression", height=36, corner_radius=6,
-                       fg_color=self.colors['accent'], command=self._run_expr).pack(pady=(0, 6))
-        self.expr_result = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                           height=200, fg_color=self.colors['bg'],
-                                           text_color=self.colors['text'], corner_radius=6)
+        self._action_button(file_row, "Browse",
+                            lambda: self._browse_file(self.expr_path, [("CSV/TSV", "*.csv *.tsv *.txt")])
+                            ).pack(side='right')
+
+        self._label(inner, 'Conditions (comma-separated, e.g., control,control,treat,treat)', 'dim').pack(anchor='w', pady=(0, 2))
+        self.expr_conds = self._input_entry(inner, "control,control,treat,treat")
+        self.expr_conds.pack(fill='x', pady=(0, 8))
+
+        self._action_button(inner, "Run Differential Expression", self._run_expr).pack(pady=(0, 8))
+
+        self.expr_result = self._text_box(inner, height=200)
         self.expr_result.pack(fill='both', expand=True)
 
     def _browse_file(self, entry, filetypes):
@@ -723,33 +911,32 @@ class BioSuiteApp(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    # ── NGS Tab ──────────────────────────────────────────────
+    # ─── NGS Tab ──────────────────────────────────────────────────────────────
+
     def _build_ngs_frame(self):
-        f = ctk.CTkFrame(self.content, fg_color=self.colors['bg'])
+        T = self.T
+        f = ctk.CTkFrame(self.content, fg_color=T['bg'])
         self.frames['ngs'] = f
-        ctk.CTkLabel(f, text="NGS / VCF Analysis",
-                      font=ctk.CTkFont(size=20, weight="bold"),
-                      text_color=self.colors['text']).pack(padx=4, pady=(8, 4), anchor='w')
-        card = ctk.CTkFrame(f, fg_color=self.colors['card'], border_width=1,
-                             border_color=self.colors['border'], corner_radius=10)
-        card.pack(fill='both', expand=True, padx=4, pady=4)
-        self.all_cards.append(card)
+
+        self._section_header(f, "NGS / VCF Analysis")
+
+        card = self._card(f)
+        card.pack(fill='both', expand=True)
+
         inner = ctk.CTkFrame(card, fg_color='transparent')
-        inner.pack(fill='both', expand=True, padx=14, pady=10)
+        inner.pack(fill='both', expand=True, padx=16, pady=12)
+
         file_row = ctk.CTkFrame(inner, fg_color='transparent')
-        file_row.pack(fill='x', pady=(0, 6))
-        self.vcf_path = ctk.CTkEntry(file_row, placeholder_text="VCF file path...",
-                                      height=34, font=ctk.CTkFont(size=12))
+        file_row.pack(fill='x', pady=(0, 8))
+        self.vcf_path = self._input_entry(file_row, "VCF file path...")
         self.vcf_path.pack(side='left', fill='x', expand=True, padx=(0, 8))
-        ctk.CTkButton(file_row, text="Browse", height=34, width=80, corner_radius=6,
-                       fg_color=self.colors['accent'],
-                       command=lambda: self._browse_file(self.vcf_path,
-                           [("VCF", "*.vcf")])).pack(side='right')
-        ctk.CTkButton(inner, text="Load VCF & Show Manhattan Plot", height=36, corner_radius=6,
-                       fg_color=self.colors['accent'], command=self._load_vcf).pack(pady=(0, 6))
-        self.vcf_result = ctk.CTkTextbox(inner, font=ctk.CTkFont(family="Consolas", size=11),
-                                          height=240, fg_color=self.colors['bg'],
-                                          text_color=self.colors['text'], corner_radius=6)
+        self._action_button(file_row, "Browse",
+                            lambda: self._browse_file(self.vcf_path, [("VCF", "*.vcf")])
+                            ).pack(side='right')
+
+        self._action_button(inner, "Load VCF & Show Manhattan Plot", self._load_vcf).pack(pady=(0, 8))
+
+        self.vcf_result = self._text_box(inner, height=240)
         self.vcf_result.pack(fill='both', expand=True)
 
     def _load_vcf(self):
