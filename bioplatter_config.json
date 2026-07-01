@@ -1,0 +1,8 @@
+{
+  "theme": "dark",
+  "default_dpi": 180,
+  "save_format": "png",
+  "interactive": false,
+  "downsample_threshold": 5000,
+  "quiet": false
+}

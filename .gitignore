@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+*.egg-info/
+*.egg
+.env
+*.exe
+bioplatter_session.json
