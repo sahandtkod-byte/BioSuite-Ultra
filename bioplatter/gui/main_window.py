@@ -542,6 +542,7 @@ class BioSuiteApp(ctk.CTk):
         self._show_frame('plots')
         self._apply_plot_search()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.bind('<Configure>', self._on_resize)
         self._splash.animate_out()
         self.after(300, self.deiconify)  # Show main window after splash fades
 
@@ -607,6 +608,10 @@ class BioSuiteApp(ctk.CTk):
     def _on_close(self):
         plt.close('all')
         self.destroy()
+
+    def _on_resize(self, event=None):
+        if event and event.widget == self:
+            self.update_idletasks()
 
     # ─── Sidebar ──────────────────────────────────────────────────────────────
 
@@ -760,18 +765,19 @@ class BioSuiteApp(ctk.CTk):
         mid = ctk.CTkFrame(f, fg_color='transparent')
         mid.pack(fill='both', expand=True, pady=(0, 8))
 
-        cat_card = self._card(mid, width=190)
-        cat_card.pack(side='left', fill='y', padx=(0, 10))
+        cat_card = self._card(mid, width=220)
+        cat_card.pack(side='left', fill='y', padx=(0, 12))
         cat_card.pack_propagate(False)
-        self._label(cat_card, 'Categories', 'sub').pack(padx=14, pady=(14, 6), anchor='w')
+
+        self._label(cat_card, 'Categories', 'sub').pack(padx=12, pady=(14, 8), anchor='w')
 
         self.cat_buttons = {}
         for cat in ['All'] + list(PLOT_CATEGORIES.keys()):
-            btn = ctk.CTkButton(cat_card, text=cat, anchor='w', height=30, corner_radius=6,
-                                font=FONT_SMALL, fg_color='transparent', text_color=T['text_dim'],
+            btn = ctk.CTkButton(cat_card, text=cat, anchor='w', height=34, corner_radius=8,
+                                font=(FONT_FAMILY, 12), fg_color='transparent', text_color=T['text_dim'],
                                 hover_color=T['border'],
                                 command=lambda c=cat: self._select_category(c))
-            btn.pack(fill='x', padx=8, pady=1)
+            btn.pack(fill='x', padx=8, pady=2)
             self.cat_buttons[cat] = btn
         self._selected_cat = 'All'
 
@@ -829,15 +835,15 @@ class BioSuiteApp(ctk.CTk):
         self.plot_count_label.configure(text=f"{len(items)} plots available")
         self._selected_plot_id = None
         for name, pid, cat in items:
-            row = ctk.CTkFrame(self.plot_buttons_frame, fg_color='transparent', height=40)
+            row = ctk.CTkFrame(self.plot_buttons_frame, fg_color='transparent')
             row.pack(fill='x', pady=2)
-            row.pack_propagate(False)
             btn = ctk.CTkButton(row, text=f"  {name}", anchor='w', height=36, corner_radius=8,
-                                font=FONT_BODY, fg_color='transparent', text_color=T['text'],
+                                font=(FONT_FAMILY, 13), fg_color='transparent', text_color=T['text'],
                                 hover_color=T['border'],
                                 command=lambda p=pid, n=name: self._select_and_gen(p, n))
-            btn.pack(fill='x', padx=(0, 80))
-            ctk.CTkLabel(row, text=cat, font=FONT_SMALL, text_color=T['text_muted']).pack(side='right', padx=12)
+            btn.pack(side='left', fill='x', expand=True)
+            ctk.CTkLabel(row, text=cat, font=(FONT_FAMILY, 10),
+                          text_color=T['text_muted'], width=150, anchor='e').pack(side='right', padx=12)
 
     def _select_and_gen(self, plot_id, name):
         self._selected_plot_id = plot_id
