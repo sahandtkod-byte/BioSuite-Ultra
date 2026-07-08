@@ -17,9 +17,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from bioplatter.core.utils import config, save_config, set_theme, load_session
-from bioplatter.plotting.biological_plots import export_all_to_folder, generate_markdown_story, batch_export_to_pdf
-from bioplatter.cli.menu import main_cli
+from biosuite.core.utils import config, save_config, set_theme, load_session
+from biosuite.plotting.biological_plots import export_all_to_folder, generate_markdown_story, batch_export_to_pdf
+from biosuite.cli.menu import main_cli
 
 
 def run_benchmark():
@@ -30,8 +30,8 @@ def run_benchmark():
     """
     import numpy as np
     import pandas as pd
-    from bioplatter.core.alignment import needleman_wunsch, smith_waterman
-    from bioplatter.core.expression import differential_expression
+    from biosuite.core.alignment import needleman_wunsch, smith_waterman
+    from biosuite.core.expression import differential_expression
 
     print("\n" + "=" * 60)
     print("  BioSuite Performance Benchmark")
@@ -89,7 +89,7 @@ def main():
     parser = argparse.ArgumentParser(description="BioSuite – Bioinformatics Platform")
     parser.add_argument("--gui", action="store_true", help="Launch modern graphical interface")
     parser.add_argument("--batch", action="store_true", help="Batch export all plots to PDF")
-    parser.add_argument("--pdf", type=str, default="bioplatter_report.pdf", help="PDF filename for batch")
+    parser.add_argument("--pdf", type=str, default="biosuite_report.pdf", help="PDF filename for batch")
     parser.add_argument("--export-folder", type=str, help="Export all plots to a folder")
     parser.add_argument("--story", action="store_true", help="Generate markdown story after export")
     parser.add_argument("--config", action="store_true", help="Edit configuration")
@@ -120,7 +120,7 @@ def main():
     set_theme(config['theme'])
 
     if args.gui:
-        from bioplatter.gui.main_window import BioSuiteApp
+        from biosuite.gui.main_window import BioSuiteApp
         app = BioSuiteApp()
         app.mainloop()
     elif args.export_folder:

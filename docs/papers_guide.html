@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>راهنمای جامع انتشار مقالات بیوانفرماتیک — ساهند توری</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Vazirmatn', 'Segoe UI', Tahoma, sans-serif; background: #0a0a1a; color: #d0d8f0; line-height: 2.1; direction: rtl; }
+        
+        /* ── Hero ── */
+        .hero { background: linear-gradient(135deg, #0a0a2a 0%, #0d0d3a 50%, #151545 100%); border-bottom: 1px solid #2a2a5a; padding: 60px 20px; text-align: center; }
+        .hero h1 { font-size: 2.6em; font-weight: 900; color: #7c8aff; margin-bottom: 8px; text-shadow: 0 0 40px #7c8aff44; }
+        .hero .subtitle { font-size: 1.15em; color: #8890b8; }
+        .hero .badges { margin-top: 16px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .badge { display: inline-block; background: #7c8aff18; border: 1px solid #7c8aff44; color: #7c8aff; padding: 4px 16px; border-radius: 20px; font-size: 0.9em; }
+        .badge.green { background: #4ade8018; border-color: #4ade8044; color: #4ade80; }
+        .badge.purple { background: #a78bfa18; border-color: #a78bfa44; color: #a78bfa; }
+        .badge.orange { background: #fb923c18; border-color: #fb923c44; color: #fb923c; }
+
+        .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+        h2 { font-size: 1.6em; font-weight: 700; color: #7c8aff; margin: 50px 0 20px; padding-right: 16px; border-right: 4px solid #7c8aff; }
+        h3 { font-size: 1.25em; font-weight: 700; color: #a5b4fc; margin: 28px 0 12px; }
+        h4 { font-size: 1.1em; font-weight: 700; color: #c4b5fd; margin: 20px 0 8px; }
+        p { font-size: 1.05em; margin-bottom: 14px; }
+        ul { padding-right: 24px; margin-bottom: 14px; }
+        li { margin-bottom: 6px; font-size: 1em; }
+        .highlight { color: #7c8aff; font-weight: 700; }
+        .green { color: #4ade80; font-weight: 700; }
+        .purple { color: #a78bfa; font-weight: 700; }
+        .orange { color: #fb923c; font-weight: 700; }
+        .red { color: #f87171; font-weight: 700; }
+        .gold { color: #fbbf24; font-weight: 700; }
+
+        .card { background: #0f0f2a; border: 1px solid #2a2a5a; border-radius: 16px; padding: 24px; margin: 20px 0; transition: border-color 0.3s; }
+        .card:hover { border-color: #7c8aff44; }
+        .card-header { font-size: 1.15em; font-weight: 700; color: #7c8aff; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .card-header .icon { font-size: 1.4em; }
+
+        .quote { background: #0d0d2a; border-right: 4px solid #7c8aff; padding: 16px 24px; margin: 20px 0; font-style: italic; color: #8890b8; border-radius: 0 12px 12px 0; }
+        .divider { border: none; height: 1px; background: linear-gradient(to left, transparent, #2a2a5a, transparent); margin: 50px 0; }
+        .footer { text-align: center; padding: 40px 20px; color: #4a4a7a; font-size: 0.9em; }
+
+        /* ── Difficulty Meter ── */
+        .difficulty { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+        .diff-label { font-size: 0.85em; color: #8890b8; min-width: 80px; }
+        .diff-bar { flex: 1; height: 10px; background: #1a1a3a; border-radius: 5px; overflow: hidden; max-width: 200px; }
+        .diff-fill { height: 100%; border-radius: 5px; }
+        .diff-easy { background: linear-gradient(90deg, #22c55e, #4ade80); width: 33%; }
+        .diff-medium { background: linear-gradient(90deg, #eab308, #fbbf24); width: 66%; }
+        .diff-hard { background: linear-gradient(90deg, #ef4444, #f87171); width: 100%; }
+
+        /* ── Paper Card ── */
+        .paper-card { background: #0f0f2a; border: 1px solid #2a2a5a; border-radius: 16px; padding: 28px; margin: 24px 0; transition: all 0.3s; }
+        .paper-card:hover { border-color: #7c8aff66; box-shadow: 0 4px 30px #7c8aff11; transform: translateY(-2px); }
+        .paper-num { display: inline-block; background: #7c8aff22; color: #7c8aff; width: 36px; height: 36px; border-radius: 50%; text-align: center; line-height: 36px; font-weight: 900; font-size: 1.1em; margin-left: 12px; }
+        .paper-title { font-size: 1.2em; font-weight: 700; color: #e0e8ff; display: inline; }
+        .paper-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+        .meta-tag { display: inline-block; padding: 3px 12px; border-radius: 8px; font-size: 0.8em; font-weight: 600; }
+        .meta-tag.type { background: #7c8aff22; color: #7c8aff; }
+        .meta-tag.journal { background: #4ade8022; color: #4ade80; }
+        .meta-tag.impact { background: #fbbf2422; color: #fbbf24; }
+        .meta-tag.time { background: #f8717122; color: #f87171; }
+        .meta-tag.skill { background: #a78bfa22; color: #a78bfa; }
+        .paper-body { margin-top: 12px; }
+        .paper-section { margin-bottom: 14px; }
+        .paper-section-title { font-weight: 700; color: #a5b4fc; margin-bottom: 6px; font-size: 0.95em; }
+
+        /* ── Table ── */
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px 16px; border: 1px solid #2a2a5a; text-align: right; font-size: 0.95em; }
+        th { background: #0d0d2a; color: #7c8aff; font-weight: 700; }
+        tr:nth-child(even) { background: #0d0d25; }
+        tr:hover { background: #15153a; }
+
+        /* ── Timeline ── */
+        .timeline { position: relative; padding-right: 40px; }
+        .timeline::before { content: ''; position: absolute; right: 14px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, #7c8aff, #2a2a5a); }
+        .timeline-item { position: relative; margin-bottom: 32px; padding: 20px 24px; background: #0f0f2a; border: 1px solid #2a2a5a; border-radius: 12px; }
+        .timeline-item::before { content: ''; position: absolute; right: -33px; top: 24px; width: 12px; height: 12px; border-radius: 50%; background: #7c8aff; border: 3px solid #0a0a1a; }
+        .timeline-item.active::before { background: #4ade80; box-shadow: 0 0 12px #4ade8066; }
+        .timeline-item.future::before { background: #2a2a5a; border-color: #7c8aff44; }
+        .timeline-label { font-size: 0.8em; font-weight: 700; color: #7c8aff; background: #7c8aff22; padding: 2px 12px; border-radius: 10px; display: inline-block; margin-bottom: 8px; }
+        .timeline-item.active .timeline-label { color: #4ade80; background: #4ade8022; }
+        .timeline-item.future .timeline-label { color: #8890b8; background: #2a2a5a; }
+        .timeline-title { font-size: 1.15em; font-weight: 700; color: #e0e8ff; margin-bottom: 6px; }
+        .timeline-desc { font-size: 0.95em; color: #8890b8; }
+
+        /* ── Progress ── */
+        .progress-section { margin: 18px 0; }
+        .progress-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .progress-label .name { font-size: 0.95em; color: #d0d8f0; }
+        .progress-label .pct { font-size: 0.95em; color: #7c8aff; font-weight: 700; }
+        .progress-track { background: #1a1a3a; border-radius: 10px; height: 26px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 10px; display: flex; align-items: center; padding-right: 12px; font-size: 0.8em; font-weight: 700; color: #000; }
+        .fill-blue { background: linear-gradient(90deg, #4f46e5, #7c8aff); }
+        .fill-green { background: linear-gradient(90deg, #16a34a, #4ade80); }
+        .fill-purple { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+        .fill-orange { background: linear-gradient(90deg, #ea580c, #fb923c); }
+
+        /* ── Status Grid ── */
+        .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .status-item { background: #0d0d25; border: 1px solid #2a2a5a; border-radius: 12px; padding: 18px; text-align: center; }
+        .status-item .label { font-size: 0.85em; color: #4a4a7a; margin-bottom: 4px; }
+        .status-item .value { font-size: 1.5em; font-weight: 900; color: #7c8aff; }
+        .status-item .detail { font-size: 0.8em; color: #8890b8; margin-top: 4px; }
+
+        /* ── Callout ── */
+        .callout { background: #0d0d2a; border: 1px solid #7c8aff33; border-radius: 12px; padding: 20px 24px; margin: 20px 0; }
+        .callout.warning { border-color: #fbbf2444; background: #1a1a0d; }
+        .callout.success { border-color: #4ade8044; background: #0d1a0d; }
+        .callout.info { border-color: #60a5fa44; background: #0d0d1a; }
+        .callout-title { font-weight: 700; margin-bottom: 8px; }
+        .callout.warning .callout-title { color: #fbbf24; }
+        .callout.success .callout-title { color: #4ade80; }
+        .callout.info .callout-title { color: #60a5fa; }
+
+        /* ── Comparison Grid ── */
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+        .compare-card { background: #0f0f2a; border: 1px solid #2a2a5a; border-radius: 12px; padding: 20px; }
+        .compare-card h4 { margin-top: 0; }
+        .compare-card.yes { border-color: #4ade8044; }
+        .compare-card.no { border-color: #f8717144; }
+        .compare-card.yes h4 { color: #4ade80; }
+        .compare-card.no h4 { color: #f87171; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.8em; }
+            .compare-grid { grid-template-columns: 1fr; }
+            .paper-meta { flex-direction: column; }
+        }
+
+        /* ── Nav ── */
+        .nav { position: sticky; top: 0; background: #0a0a1aee; backdrop-filter: blur(10px); border-bottom: 1px solid #2a2a5a; padding: 12px 20px; z-index: 100; }
+        .nav-inner { max-width: 1000px; margin: 0 auto; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .nav a { color: #8890b8; text-decoration: none; font-size: 0.9em; padding: 4px 12px; border-radius: 8px; transition: all 0.2s; }
+        .nav a:hover { color: #7c8aff; background: #7c8aff11; }
+
+        /* ── Print ── */
+        @media print {
+            body { background: white; color: black; }
+            .nav { display: none; }
+            .card, .paper-card { border-color: #ccc; background: #f8f8f8; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="#profile">پروفایل</a>
+        <a href="#strategy">استراتژی</a>
+        <a href="#papers">مقالات</a>
+        <a href="#journals"> مجلات</a>
+        <a href="#timeline">زمان‌بندی</a>
+        <a href="#tips">نکات</a>
+        <a href="#resources">منابع</a>
+    </div>
+</nav>
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<div class="hero">
+    <h1>📄 راهنمای جامع انتشار مقالات بیوانفرماتیک</h1>
+    <p class="subtitle">برنامه‌ریزی دقیق انتشارات علمی برای ارتقای رزومه — از کارشناسی تا دکترای بین‌المللی</p>
+    <div class="badges">
+        <span class="badge">🎓 کارشناسی زیست‌شناسی سلولی و مولکولی</span>
+        <span class="badge green">🧬 هدف: ارشد بیوانفرماتیک ایران</span>
+        <span class="badge purple">🌍 هدف: دکترای بین‌المللی</span>
+        <span class="badge orange">💻 BioSuite Ultra — 53 ماژول</span>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════════════ SECTION 1: PROFILE ═══════════════════════ -->
+<h2 id="profile">🔍 ۱. تحلیل دقیق وضعیت فعلی شما</h2>
+
+<div class="card">
+    <div class="card-header"><span class="icon">👤</span> پروفایل علمی و مهارتی</div>
+    <div class="status-grid">
+        <div class="status-item">
+            <div class="label">رشته تحصیلی</div>
+            <div class="value">زیست‌شناسی</div>
+            <div class="detail">سلولی و مولکولی — ترم ۲</div>
+        </div>
+        <div class="status-item">
+            <div class="label">پروژه اصلی</div>
+            <div class="value">BioSuite</div>
+            <div class="detail">53 ماژول · 42k+ خط کد</div>
+        </div>
+        <div class="status-item">
+            <div class="label">تست‌ها</div>
+            <div class="value">1428+</div>
+            <div class="detail">passing · MIT License</div>
+        </div>
+        <div class="status-item">
+            <div class="label">وضعیت انتشار</div>
+            <div class="value">PyPI</div>
+            <div class="detail">biosuitestkod — v4.1.0</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">💪</span> نقاط قوت شما (برای مقاله‌نویسی)</div>
+    <ul>
+        <li><span class="green">✅ مهارت برنامه‌نویسی پایتون در سطح پیشرفته</span> — 42,000+ خط کد با معماری تمیز</li>
+        <li><span class="green">✅ درک عمیق الگوریتم‌های بیوانفرماتیک</span> — MCMC فیلوژنتیک، Needleman-Wunsch، ESMFold</li>
+        <li><span class="green">✅ تجربه انتشار نرم‌افزار</span> — PyPI، GitHub، Docker، CI/CD</li>
+        <li><span class="green">✅ پوشش گسترده حوزه‌ها</span> — ترنسکریپتومیکس، ژنومیکس، پروتئومیکس، CRISPR، متیلاسیون</li>
+        <li><span class="green">✅ معماری Dual-Mode</span> — ابتکاری و قابل انتشار</li>
+        <li><span class="green">✅ مستندسازی حرفه‌ای</span> — README، CHANGELOG، CONTRIBUTING</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">⚠️</span> چالش‌هایی که باید مدیریت کنید</div>
+    <ul>
+        <li><span class="orange">🔸 ترم ۲ کارشناسی</span> — هنوز تجربه آزمایشگاهی کمی دارید (ولی مهارت کدنویسی جبران می‌کند)</li>
+        <li><span class="orange">🔸 عدم دسترسی به داده‌های آزمایشگاهی</span> — باید از داده‌های عمومی (GEO, TCGA) استفاده کنید</li>
+        <li><span class="orange">🔸 زمان محدود</span> — باید مقالاتی بنویسید که با برنامه درسی شما هم سازگار باشد</li>
+        <li><span class="orange">🔸 هزینه انتشار</span> — بعضی مجلات APC بالایی دارند (ولی گزینه‌های رایگان هم هست)</li>
+    </ul>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 2: STRATEGY ═══════════════════════ -->
+<h2 id="strategy">🧭 ۲. استراتژی کلی انتشار مقالات</h2>
+
+<div class="callout info">
+    <div class="callout-title">💡 اصل طلایی: مقالات شما باید در سه دسته باشند</div>
+    <p>برای رزومه‌ای قوی که هم برای ارشد ایران و هم دکترای بین‌المللی مناسب باشد، به <strong>حداقل ۳-۵ مقاله</strong> در این سه دسته نیاز دارید:</p>
+</div>
+
+<div class="compare-grid">
+    <div class="compare-card yes">
+        <h4>📝 نوع ۱: مقاله ابزار (Tool Paper)</h4>
+        <p>معرفی و انتشار یک ابزار نرم‌افزاری جدید. <strong>بهترین گزینه برای شما!</strong></p>
+        <ul>
+            <li>بر اساس BioSuite Ultra</li>
+            <li>تایم‌لاین: ۳-۶ ماه</li>
+            <li>هزینه: رایگان تا متوسط</li>
+        </ul>
+    </div>
+    <div class="compare-card yes">
+        <h4>📝 نوع ۲: مقاله مروری (Review Paper)</h4>
+        <p>مرور جامع یک حوزه خاص. <strong>مناسب برای تقویت رزومه</strong></p>
+        <ul>
+            <li>نیاز به آزمایشگاه ندارد</li>
+            <li>تایم‌لاین: ۲-۴ ماه</li>
+            <li>هزینه: معمولاً رایگان</li>
+        </ul>
+    </div>
+    <div class="compare-card yes">
+        <h4>📝 نوع ۳: مقاله پژوهشی (Research Paper)</h4>
+        <p>تحلیل داده‌های عمومی با ابزارهای خودتان. <strong>قوی‌ترین رزومه</strong></p>
+        <ul>
+            <li>استفاده از GEO/TCGA</li>
+            <li>تایم‌لاین: ۴-۸ ماه</li>
+            <li>هزینه: بسته به مجله</li>
+        </ul>
+    </div>
+    <div class="compare-card no">
+        <h4>❌ نوع ۴: مقاله تجربی (Experimental Paper)</h4>
+        <p>مقاله‌ای که نیاز به آزمایش واقعی دارد. <strong>فعلاً مناسب نیست</strong></p>
+        <ul>
+            <li>نیاز به لابراتوار و تجهیزات</li>
+            <li>نیاز به همکاری با استاد</li>
+            <li>زمان‌بر و پرهزینه</li>
+        </ul>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🎯</span> استراتژی پیشنهادی من: «از ساده به سخت»</div>
+    <table>
+        <tr>
+            <th>اولویت</th>
+            <th>نوع مقاله</th>
+            <th>موضوع</th>
+            <th>زمان تقریبی</th>
+            <th>مجله هدف</th>
+        </tr>
+        <tr>
+            <td>🥇 اول</td>
+            <td>مروری + ابزار</td>
+            <td>مرور ابزارهای مولکول کلونینگ + معرفی BioSuite</td>
+            <td>۳-۴ ماه</td>
+            <td>BMC Bioinformatics</td>
+        </tr>
+        <tr>
+            <td>🥈 دوم</td>
+            <td>پژوهشی</td>
+            <td>تحلیل ترنسکریپتومیکس سرطان با BioSuite</td>
+            <td>۵-۷ ماه</td>
+            <td>Scientific Reports</td>
+        </tr>
+        <tr>
+            <td>🥉 سوم</td>
+            <td>ابزار</td>
+            <td>مقاله جامع BioSuite Ultra</td>
+            <td>۴-۶ ماه</td>
+            <td>Bioinformatics</td>
+        </tr>
+        <tr>
+            <td>۴ام</td>
+            <td>مروری</td>
+            <td>مرور ML در بیوانفرماتیک</td>
+            <td>۲-۳ ماه</td>
+            <td>Briefings in Bioinformatics</td>
+        </tr>
+        <tr>
+            <td>۵ام</td>
+            <td>پژوهشی</td>
+            <td>تحلیل CRISPR با طراحی راهنمای BioSuite</td>
+            <td>۴-۶ ماه</td>
+            <td>PLOS ONE</td>
+        </tr>
+    </table>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 3: PAPERS ═══════════════════════ -->
+<h2 id="papers">📄 ۳. جزئیات هر مقاله پیشنهادی</h2>
+
+<!-- ── Paper 1 ── -->
+<div class="paper-card">
+    <span class="paper-num">1</span>
+    <span class="paper-title">مرور جامع ابزارهای مولکول کلونینگ متن‌باز و معرفی BioSuite</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">📝 مروری + ابزار</span>
+        <span class="meta-tag journal">📗 BMC Bioinformatics</span>
+        <span class="meta-tag impact">⭐ IF: 3.0</span>
+        <span class="meta-tag time">⏱️ ۳-۴ ماه</span>
+        <span class="meta-tag skill">🐍 پایتون</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>شما ابزارهای مولکول کلونینگ (SnapGene, Benchling, SnapGene Viewer) را در BioSuite بازسازی کرده‌اید. SnapGene سالانه ۳۵۰ دلار هزینه دارد و بسیاری از دانشگاه‌های ایران توان خرید آن را ندارند. یک مقاله مقایسه‌ای که BioSuite را به عنوان جایگزین رایگان معرفی کند، <strong>بسیار پرکاربرد</strong> خواهد بود.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📋 ساختار پیشنهادی مقاله</div>
+            <ul>
+                <li><strong>مقدمه:</strong> اهمیت مولکول کلونینگ و نیاز به ابزارهای رایگان</li>
+                <li><strong>مرور ادبیات:</strong> مقایسه جامع SnapGene، Benchling، SnapGene Viewer، E-RFLP، و BioSuite</li>
+                <li><strong>روش‌ها:</strong> معماری BioSuite، الگوریتم‌های هضم آنزیمی، شبیه‌سازی PCR، لیگاسیون، Gibson Assembly</li>
+                <li><strong>نتایج:</strong> مقایسه عملکرد، دقت، و پوشش آنزیم‌ها (100+ آنزیم)</li>
+                <li><strong>بحث:</strong> مزایای متن‌باز، قابلیت توسعه، و دسترسی آزاد</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">🎯 داده‌های مورد نیاز</div>
+            <ul>
+                <li>لیست 100+ آنزیم محدودکننده و دقت تشخیص آن‌ها</li>
+                <li>نتایج شبیه‌سازی PCR با پرایمرهای واقعی</li>
+                <li>مقایسه نتایج BioSuite با SnapGene برای چندین پلاسمید استاندارد</li>
+                <li>زمان اجرا و مصرف حافظه</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-easy"></div></div>
+                <span class="green">آسان</span>
+            </div>
+            <p>بیشتر کار تحلیلی و مقایسه‌ای است. نیاز به داده آزمایشگاهی ندارد.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 2 ── -->
+<div class="paper-card">
+    <span class="paper-num">2</span>
+    <span class="paper-title">تحلیل ترنسکریپتومیکس سرطان سینه با استفاده از BioSuite Ultra</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">🔬 پژوهشی</span>
+        <span class="meta-tag journal">📗 Scientific Reports</span>
+        <span class="meta-tag impact">⭐ IF: 4.6</span>
+        <span class="meta-tag time">⏱️ ۵-۷ ماه</span>
+        <span class="meta-tag skill">🧬 ترنسکریپتومیکس</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>ترنسکریپتومیکس سرطان یکی از پرجستجوترین حوزه‌هاست. با استفاده از داده‌های عمومی GEO و TCGA می‌توانید تحلیل جامعی انجام دهید. BioSuite ماژول‌های CPM/TPM، DESeq2-style normalization، و GO/KEGG enrichment را دارد. این مقاله هم رزومه شما را قوی می‌کند و هم BioSuite را اعتبار می‌بخشد.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📋 ساختار پیشنهادی مقاله</div>
+            <ul>
+                <li><strong>مقدمه:</strong> اهمیت ترنسکریپتومیکس در تشخیص سرطان</li>
+                <li><strong>داده‌ها:</strong> مجموعه داده GEO (مثلاً GSE15852 برای سرطان سینه یا GSE48350)</li>
+                <li><strong>روش‌ها:</strong> پردازش با BioSuite — normalization، differential expression، GO enrichment، KEGG pathway analysis</li>
+                <li><strong>نتایج:</strong> ژن‌های کلیدی، مسیرهای(signaling pathways)، شبکه تعامل پروتئین</li>
+                <li><strong>اعتبارسنجی:</strong> مقایسه با DESeq2 اصلی و بررسی ژن‌های شناخته‌شده</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">🎯 داده‌های مورد نیاز</div>
+            <ul>
+                <li>مجموعه داده GEO: سرطان سینه (BRCA) — انتخاب ۲-۳ مجموعه داده</li>
+                <li>لیست ژن‌های differential expression</li>
+                <li>نتایج GO/KEGG enrichment</li>
+                <li>visualizations: Volcano plot, Heatmap, PCA, Pathway diagrams</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-medium"></div></div>
+                <span class="orange">متوسط</span>
+            </div>
+            <p>نیاز به یادگیری تحلیل ترنسکریپتومیکس و آشنایی با داده‌های GEO دارد. ولی مستندات BioSuite کمک می‌کند.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 3 ── -->
+<div class="paper-card">
+    <span class="paper-num">3</span>
+    <span class="paper-title">BioSuite Ultra: یک پلتفرم جامع متن‌باز بیوانفرماتیک با پردازش موازی</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">🛠️ ابزار</span>
+        <span class="meta-tag journal">📗 Bioinformatics (Oxford)</span>
+        <span class="meta-tag impact">⭐ IF: 5.8</span>
+        <span class="meta-tag time">⏱️ ۴-۶ ماه</span>
+        <span class="meta-tag skill">🏗️ معماری نرم‌افزار</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>Bioinformatics (Oxford) مجله مرجع بیوانفرماتیک است و مقالات ابزارهای مهم را منتشر می‌کند. BioSuite با 53 ماژول، معماری Dual-Mode، و پردازش موازی، ویژگی‌های منحصر به فردی دارد. این مقاله <strong>قوی‌ترین مقاله رزومه شما</strong> خواهد بود.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📋 ساختار پیشنهادی مقاله</div>
+            <ul>
+                <li><strong>مقدمه:</strong> چرا به یک پلتفرم یکپارچه نیاز است؟</li>
+                <li><strong>روش‌ها:</strong> معماری Dual-Mode، 53 ماژول، API، CLI، GUI، Docker</li>
+                <li><strong>ارزیابی:</strong> مقایسه عملکرد با ابزارهای تخصصی (DESeq2, Clustal Omega, RAxML)</li>
+                <li><strong>موارد استفاده:</strong> چندین مطالعه موردی با داده‌های واقعی</li>
+                <li><strong>نتیجه‌گیری:</strong> مزایای یکپارچگی و دسترسی آزاد</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-medium"></div></div>
+                <span class="orange">متوسط تا سخت</span>
+            </div>
+            <p>نیاز به benchmarking جامع و نوشتن مقاله در سطح مجله مرجع دارد. اما بخش عمده کار (خود نرم‌افزار) انجام شده.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 4 ── -->
+<div class="paper-card">
+    <span class="paper-num">4</span>
+    <span class="paper-title">مرور: کاربردهای یادگیری ماشین در بیوانفرماتیک — گذشته، حال، و آینده</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">📝 مروری</span>
+        <span class="meta-tag journal">📗 Briefings in Bioinformatics</span>
+        <span class="meta-tag impact">⭐ IF: 9.5</span>
+        <span class="meta-tag time">⏱️ ۲-۳ ماه</span>
+        <span class="meta-tag skill">🤖 یادگیری ماشین</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>Briefings in Bioinformatics یکی از مجلات با IF بالاست و مقالات مروری با کیفیت می‌پذیرد. یادگیری ماشین در بیوانفرماتیک بسیار داغ است و شما در BioSuite ماژول ML با Random Forest, SVM, SHAP دارید. یک مرور جامع که هم نظری و هم عملی باشد، بسیار ارزشمند است.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📋 موضوعات قابل پوشش</div>
+            <ul>
+                <li>یادگیری عمیق در پیش‌بینی ساختار پروتئین (AlphaFold, ESMFold)</li>
+                <li>ML در تحلیل ترنسکریپتومیکس تک‌سلولی (scRNA-seq)</li>
+                <li>شبکه‌های عصبی در طراحی دارو</li>
+                <li>پردازش زبان طبیعی در تحلیل مقالات بیولوژیکی</li>
+                <li>ML در تشخیص واریانت‌های ژنومی</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-easy"></div></div>
+                <span class="green">آسان تا متوسط</span>
+            </div>
+            <p>مرور ادبیات نیاز به زمان و دقت دارد ولی نیاز به آزمایش یا داده خاصی ندارد.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 5 ── -->
+<div class="paper-card">
+    <span class="paper-num">5</span>
+    <span class="paper-title">طراحی و ارزیابی راهنمای CRISPR-Cas9 برای ژن‌های هدف در سرطان با BioSuite</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">🔬 پژوهشی</span>
+        <span class="meta-tag journal">📗 PLOS ONE / Molecular Therapy - Nucleic Acids</span>
+        <span class="meta-tag impact">⭐ IF: 3.7 - 7.2</span>
+        <span class="meta-tag time">⏱️ ۴-۶ ماه</span>
+        <span class="meta-tag skill">✂️ CRISPR</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>CRISPR یکی از پرجستجوترین حوزه‌هاست. BioSuite ماژول CRISPR با طراحی Guide RNA، یافتن PAM، و امتیازدهی off-target دارد. می‌توانید برای ژن‌های هدف در سرطان (مثلاً BRCA1, TP53, EGFR) راهنمای CRISPR طراحی و ارزیابی کنید.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📋 مراحل کار</div>
+            <ul>
+                <li>انتخاب ۵-۱۰ ژن هدف در سرطان</li>
+                <li>طراحی Guide RNA با BioSuite (SpCas9, SaCas9, Cas12a)</li>
+                <li>ارزیابی off-target با الگوریتم‌های مختلف</li>
+                <li>مقایسه با CRISPOR, CHOPCHOP</li>
+                <li>اعتبارسنجی با داده‌های تجربی منتشرشده</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-medium"></div></div>
+                <span class="orange">متوسط</span>
+            </div>
+            <p>نیاز به دانش زیست‌شناسی مولکولی و CRISPR دارد که با رشته شما سازگار است.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 6 ── -->
+<div class="paper-card">
+    <span class="paper-num">6</span>
+    <span class="paper-title">تحلیل فیلوژنتیک مولکولی با روش‌های Bayesian و حداکثر شباهت: مقایسه و پیاده‌سازی</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">🔬 پژوهشی + ابزار</span>
+        <span class="meta-tag journal">📗 Molecular Phylogenetics and Evolution</span>
+        <span class="meta-tag impact">⭐ IF: 5.0</span>
+        <span class="meta-tag time">⏱️ ۴-۶ ماه</span>
+        <span class="meta-tag skill">🌳 فیلوژنتیک</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>BioSuite پیاده‌سازی خالص Python از MCMC Bayesian phylogeny با مدل Jukes-Cantor و الگوریتم Felsenstein pruning دارد. این یک پیاده‌سازی نادر و ارزشمند است. مقایسه روش‌های Bayesian vs ML vs Distance می‌تواند مقاله‌ای عالی باشد.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📋 مراحل کار</div>
+            <ul>
+                <li>انتخاب داده‌های فیلوژنتیک استاندارد (Cytb, COI, 16S rRNA)</li>
+                <li>اجرای UPGMA, Neighbor-Joining, ML, و Bayesian</li>
+                <li>مقایسه درخت‌ها با metrics مختلف (topology, bootstrap, posterior probability)</li>
+                <li>ارزیابی ESS و convergence در MCMC</li>
+                <li>پیشنهاد بهترین روش برای انواع مختلف داده</li>
+            </ul>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-medium"></div></div>
+                <span class="orange">متوسط تا سخت</span>
+            </div>
+            <p>نیاز به درک عمیق آمار و فیلوژنتیک دارد. ولی پیاده‌سازی در BioSuite انجام شده.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 7 ── -->
+<div class="paper-card">
+    <span class="paper-num">7</span>
+    <span class="paper-title">تحلیل جمعیت‌شناختی ژنتیکی با ابزارهای متن‌باز: مطالعه موردی ژنوم انسان</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">🔬 پژوهشی</span>
+        <span class="meta-tag journal">📗 Heredity / Human Genetics</span>
+        <span class="meta-tag impact">⭐ IF: 3.5 - 5.0</span>
+        <span class="meta-tag time">⏱️ ۳-۵ ماه</span>
+        <span class="meta-tag skill">📊 جمعیت‌شناسی</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>BioSuite ماژول جمعیت‌شناسی کاملی با HWE, FST, Tajima's D, LD, PCA دارد. می‌توانید با داده‌های 1000 Genomes تحلیل جمعیت‌شناختی انجام دهید و الگوهای تنوع ژنتیکی در جمعیت‌های مختلف را بررسی کنید.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-medium"></div></div>
+                <span class="orange">متوسط</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Paper 8 ── -->
+<div class="paper-card">
+    <span class="paper-num">8</span>
+    <span class="paper-title">تحلیل متیلاسیون DNA و اپی‌ژنومیکس سرطان با ابزارهای متن‌باز</span>
+    <div class="paper-meta">
+        <span class="meta-tag type">🔬 پژوهشی</span>
+        <span class="meta-tag journal">📗 Epigenetics & Chromatin / Clinical Epigenetics</span>
+        <span class="meta-tag impact">⭐ IF: 4.0 - 7.0</span>
+        <span class="meta-tag time">⏱️ ۴-۶ ماه</span>
+        <span class="meta-tag skill">🧬 اپی‌ژنومیکس</span>
+    </div>
+    <div class="paper-body">
+        <div class="paper-section">
+            <div class="paper-section-title">💡 چرا این مقاله؟</div>
+            <p>BioSuite ماژول Epigenomics با Bisulfite methylation و DMR detection دارد. اپی‌ژنومیکس سرطان حوزه بسیار داغی است و تعداد ابزارهای متن‌باز کم است. با داده‌های TCGA می‌توانید متیلاسیون در انواع مختلف سرطان را تحلیل کنید.</p>
+        </div>
+        <div class="paper-section">
+            <div class="paper-section-title">📊 سطح دشواری</div>
+            <div class="difficulty">
+                <span class="diff-label">دشواری:</span>
+                <div class="diff-bar"><div class="diff-fill diff-hard"></div></div>
+                <span class="red">سخت</span>
+            </div>
+            <p>نیاز به دانش عمیق اپی‌ژنومیکس و پردازش داده‌های Bisulfite-seq دارد.</p>
+        </div>
+    </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 4: JOURNALS ═══════════════════════ -->
+<h2 id="journals">📚 ۴. راهنمای مجلات — از آسان تا سخت</h2>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🟢</span> مجلات سطح شروع (IF: 2-4) — مناسب مقاله اول</div>
+    <table>
+        <tr>
+            <th>مجله</th>
+            <th>IF</th>
+            <th>هزینه انتشار</th>
+            <th>زمان بررسی</th>
+            <th>مناسب برای</th>
+        </tr>
+        <tr>
+            <td><strong>PLOS ONE</strong></td>
+            <td>3.7</td>
+            <td>$1,805 (رایگان برای ایرانی‌ها با waiver)</td>
+            <td>۲-۴ ماه</td>
+            <td>پژوهشی، ابزار</td>
+        </tr>
+        <tr>
+            <td><strong>Scientific Reports</strong></td>
+            <td>4.6</td>
+            <td>£1,790 (waiver دارد)</td>
+            <td>۳-۵ ماه</td>
+            <td>پژوهشی</td>
+        </tr>
+        <tr>
+            <td><strong>Frontiers in Genetics</strong></td>
+            <td>3.7</td>
+            <td>$2,950 (waiver دارد)</td>
+            <td>۲-۴ ماه</td>
+            <td>پژوهشی، مروری</td>
+        </tr>
+        <tr>
+            <td><strong>BMC Genomics</strong></td>
+            <td>4.5</td>
+            <td>£2,190 (waiver دارد)</td>
+            <td>۲-۴ ماه</td>
+            <td>پژوهشی، ابزار</td>
+        </tr>
+        <tr>
+            <td><strong>PeerJ Computer Science</strong></td>
+            <td>3.0</td>
+            <td>رایگان!</td>
+            <td>۲-۳ ماه</td>
+            <td>ابزار، پژوهشی</td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🟡</span> مجلات متوسط (IF: 4-6) — هدف اصلی</div>
+    <table>
+        <tr>
+            <th>مجله</th>
+            <th>IF</th>
+            <th>هزینه انتشار</th>
+            <th>زمان بررسی</th>
+            <th>مناسب برای</th>
+        </tr>
+        <tr>
+            <td><strong>BMC Bioinformatics</strong></td>
+            <td>3.0</td>
+            <td>رایگان!</td>
+            <td>۲-۴ ماه</td>
+            <td>ابزار، مروری</td>
+        </tr>
+        <tr>
+            <td><strong>Bioinformatics (Oxford)</strong></td>
+            <td>5.8</td>
+            <td>رایگان</td>
+            <td>۳-۶ ماه</td>
+            <td>ابزار، روش</td>
+        </tr>
+        <tr>
+            <td><strong>Molecular Phylogenetics and Evolution</strong></td>
+            <td>5.0</td>
+            <td>$3,200</td>
+            <td>۳-۶ ماه</td>
+            <td>فیلوژنتیک</td>
+        </tr>
+        <tr>
+            <td><strong>Briefings in Bioinformatics</strong></td>
+            <td>9.5</td>
+            <td>$3,000</td>
+            <td>۲-۴ ماه</td>
+            <td>مروری</td>
+        </tr>
+        <tr>
+            <td><strong>Computational and Structural Biotechnology Journal</strong></td>
+            <td>6.0</td>
+            <td>رایگان!</td>
+            <td>۱-۳ ماه</td>
+            <td>ابزار، مروری</td>
+        </tr>
+    </table>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🔴</span> مجلات سطح بالا (IF: 6+) — هدف بلندمدت</div>
+    <table>
+        <tr>
+            <th>مجله</th>
+            <th>IF</th>
+            <th>مناسب برای</th>
+            <th>نکته</th>
+        </tr>
+        <tr>
+            <td><strong>Nature Methods</strong></td>
+            <td>48.0</td>
+            <td>ابزارهای نوآورانه</td>
+            <td>بسیار رقابتی — فقط ابزارهای بسیار نوآورانه</td>
+        </tr>
+        <tr>
+            <td><strong>Nucleic Acids Research</strong></td>
+            <td>14.9</td>
+            <td>ابزار، دیتابیس</td>
+            <td>ویژه ابزارهای مولکولی</td>
+        </tr>
+        <tr>
+            <td><strong>Genome Biology</strong></td>
+            <td>12.3</td>
+            <td>ژنومیکس</td>
+            <td>تحلیل‌های جامع ژنومی</td>
+        </tr>
+        <tr>
+            <td><strong>Cell Systems</strong></td>
+            <td>9.3</td>
+            <td>ابزار سیستم‌بیولوژی</td>
+            <td>ابزارهای یکپارچه</td>
+        </tr>
+    </table>
+</div>
+
+<div class="callout success">
+    <div class="callout-title">🎯 نکته مهم درباره Waiver (معافیت از هزینه)</div>
+    <p>بسیاری از مجلات برای محققان کشورهای کم‌درآمد (از جمله ایران) <strong>معافیت از هزینه انتشار (APC waiver)</strong> ارائه می‌دهند. حتماً هنگام ارسال مقاله این را بررسی کنید. BMC, Frontiers, PLOS همه waiver دارند.</p>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 5: TIMELINE ═══════════════════════ -->
+<h2 id="timeline">📅 ۵. زمان‌بندی پیشنهادی</h2>
+
+<div class="timeline">
+    <div class="timeline-item active">
+        <span class="timeline-label">الان — تابستان ۱۴۰۵</span>
+        <div class="timeline-title">🚀 شروع: مقاله مروری + ابزار مولکول کلونینگ</div>
+        <div class="timeline-desc">
+            <ul>
+                <li>مرور ادبیات ابزارهای مولکول کلونینگ</li>
+                <li>آماده‌سازی benchmarking BioSuite vs SnapGene</li>
+                <li>نوشتن مقاله مروری ML در بیوانفرماتیک (در کنارش)</li>
+                <li>هدف: اولین مقاله تا پایان تابستان</li>
+            </ul>
+        </div>
+    </div>
+    <div class="timeline-item">
+        <span class="timeline-label">پاییز ۱۴۰۵</span>
+        <div class="timeline-title">📝 مقاله دوم: تحلیل ترنسکریپتومیکس سرطان</div>
+        <div class="timeline-desc">
+            <ul>
+                <li>یادگیری تحلیل ترنسکریپتومیکس با داده‌های GEO</li>
+                <li>تحلیل ۲-۳ مجموعه داده سرطان</li>
+                <li>نوشتن و ارسال مقاله</li>
+            </ul>
+        </div>
+    </div>
+    <div class="timeline-item">
+        <span class="timeline-label">بهار ۱۴۰۶</span>
+        <div class="timeline-title">📊 مقاله سوم: BioSuite جامع + CRISPR</div>
+        <div class="timeline-desc">
+            <ul>
+                <li>نوشتن مقاله اصلی BioSuite</li>
+                <li>تحلیل CRISPR برای ژن‌های سرطان</li>
+                <li>ارسال به Bioinformatics یا NAR</li>
+            </ul>
+        </div>
+    </div>
+    <div class="timeline-item future">
+        <span class="timeline-label">تابستان ۱۴۰۶</span>
+        <div class="timeline-title">🎯 مقاله چهارم: فیلوژنتیک یا اپی‌ژنومیکس</div>
+        <div class="timeline-desc">
+            <ul>
+                <li>تحلیل فیلوژنتیک یا متیلاسیون DNA</li>
+                <li>تقویت رزومه برای ارشد بیوانفرماتیک</li>
+            </ul>
+        </div>
+    </div>
+    <div class="timeline-item future">
+        <span class="timeline-label">۱۴۰۶-۱۴۰۷</span>
+        <div class="timeline-title">🎓 ارشد بیوانفرماتیک + مقالات بیشتر</div>
+        <div class="timeline-desc">
+            <ul>
+                <li>شروع ارشد با ۳-۴ مقاله منتشرشده</li>
+                <li>نوشتن مقالات مشترک با استاد راهنما</li>
+                <li>آماده‌سازی رزومه برای دکترای بین‌المللی</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 6: TIPS ═══════════════════════ -->
+<h2 id="tips">💡 ۶. نکات حرفه‌ای برای مقاله‌نویسی</h2>
+
+<div class="card">
+    <div class="card-header"><span class="icon">✍️</span> نکات نگارشی</div>
+    <ul>
+        <li><span class="highlight">زبان انگلیسی:</span> حتماً از Grammarly یا ابزارهای ویرایش استفاده کنید. حتی بهتر است مقاله را توسط یک نیتیو اسپیکر ویرایش کنید (سرویس‌های ارزان مثل Fiverr).</li>
+        <li><span class="highlight">ساختار مقاله:</span> از قالب‌های مجله استفاده کنید. هر مجله قالب خاصی دارد.</li>
+        <li><span class="highlight">Abstract:</span> 250 کلمه‌ای، شامل: Background, Methods, Results, Conclusions</li>
+        <li><span class="highlight">Keywords:</span> 5-8 کلمه کلیدی که محققان جستجو می‌کنند</li>
+        <li><span class="highlight">Figures:</span> با کیفیت بالا (300 DPI)، حرفه‌ای، و خوانا. BioSuite 36+ نوع visualization دارد!</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">📊</span> نکات فنی</div>
+    <ul>
+        <li><span class="highlight">Benchmarking:</span> همیشه با ابزارهای مشابه مقایسه کنید. نشان دهید BioSuite چه مزیتی دارد.</li>
+        <li><span class="highlight">Reproducibility:</span> تمام کد را روی GitHub منتشر کنید. Docker image هم بسازید.</li>
+        <li><span class="highlight">Data Availability:</span> داده‌ها را در GEO یا Zenodo آپلود کنید.</li>
+        <li><span class="highlight">Code Availability:</span> لینک GitHub را در مقاله ذکر کنید.</li>
+        <li><span class="highlight">Citation:</span> یک CITATION.cff فایل بسازید تا دیگران BioSuite را cite کنند.</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🤝</span> نکات استراتژیک</div>
+    <ul>
+        <li><span class="highlight">همکاری با استاد:</span> حتی اگر استاد راهنمایتان بیوانفرماتیک نمی‌داند، می‌تواند co-author باشد و مقاله اعتبار بیشتری پیدا کند.</li>
+        <li><span class="highlight">همکاری بین‌المللی:</span> در GitHub issues یا Twitter/X با محققان بین‌المللی ارتباط بگیرید. حتی یک co-author خارجی مقاله را بسیار تقویت می‌کند.</li>
+        <li><span class="highlight">Preprint:</span> قبل از ارسال به مجله، مقاله را در bioRxiv یا arXiv منتشر کنید.</li>
+        <li><span class="highlight">Conference:</span> در کنفرانس‌های بیوانفرماتیک شرکت کنید (ISMB, ECCB, PSB).</li>
+        <li><span class="highlight">Orcid:</span> یک حساب ORCID بسازید و تمام مقالاتتان را لینک کنید.</li>
+        <li><span class="highlight">Google Scholar:</span> پروفایل Google Scholar بسازید.</li>
+    </ul>
+</div>
+
+<div class="callout warning">
+    <div class="callout-title">⚠️ اشتباهات رایج که باید اجتناب کنید</div>
+    <ul>
+        <li>❌ ارسال مقاله بدون ویرایش زبانی</li>
+        <li>❌ عدم مقایسه با ابزارهای موجود</li>
+        <li>❌ نادیده گرفتن محدودیت‌ها در بخش Discussion</li>
+        <li>❌ عدم ذکر لیценس و قابلیت دسترسی کد</li>
+        <li>❌ انتخاب مجله نامناسب (IF خیلی بالا برای مقاله اول)</li>
+        <li>❌ عدم پاسخ به reviewer comments در زمان مقرر</li>
+    </ul>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 7: RESOURCES ═══════════════════════ -->
+<h2 id="resources">📚 ۷. منابع و ابزارهای مفید</h2>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🔧</span> ابزارهای نگارش</div>
+    <ul>
+        <li><span class="highlight">Overleaf:</span> ویرایش LaTeX آنلاین — بسیاری از مجلات قالب LaTeX دارند</li>
+        <li><span class="highlight">Grammarly:</span> ویرایش دستوری و زبانی</li>
+        <li><span class="highlight">Writefull:</span> ویرایش تخصصی علمی</li>
+        <li><span class="highlight">Connected Papers:</span> یافتن مقالات مرتبط</li>
+        <li><span class="highlight">Semantic Scholar:</span> جستجوی مقالات با AI</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">📊</span> داده‌های عمومی</div>
+    <ul>
+        <li><span class="highlight">GEO (Gene Expression Omnibus):</span> داده‌های ترنسکریپتومیکس — <a href="https://www.ncbi.nlm.nih.gov/geo/" style="color:#7c8aff">ncbi.nlm.nih.gov/geo</a></li>
+        <li><span class="highlight">TCGA:</span> داده‌های سرطان — <a href="https://portal.gdc.cancer.gov/" style="color:#7c8aff">portal.gdc.cancer.gov</a></li>
+        <li><span class="highlight">1000 Genomes:</span> داده‌های ژنومیکس جمعیت — <a href="https://www.internationalgenome.org/" style="color:#7c8aff">internationalgenome.org</a></li>
+        <li><span class="highlight">UniProt:</span> داده‌های پروتئینی — <a href="https://www.uniprot.org/" style="color:#7c8aff">uniprot.org</a></li>
+        <li><span class="highlight">PDB:</span> ساختارهای پروتئینی — <a href="https://www.rcsb.org/" style="color:#7c8aff">rcsb.org</a></li>
+        <li><span class="highlight">Ensembl:</span> ژنوم انسان — <a href="https://www.ensembl.org/" style="color:#7c8aff">ensembl.org</a></li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">📖</span> منابع یادگیری</div>
+    <ul>
+        <li><span class="highlight">Rosalind.info:</span> تمرین بیوانفرماتیک — <a href="https://rosalind.info/" style="color:#7c8aff">rosalind.info</a></li>
+        <li><span class="highlight">Coursera — Bioinformatics Specialization:</span> دوره جامع UCSD</li>
+        <li><span class="highlight">Biostars:</span> انجمن بیوانفرماتیک — <a href="https://www.biostars.org/" style="color:#7c8aff">biostars.org</a></li>
+        <li><span class="highlight">Bioconductor:</span> پکیج‌های R برای ژنومیکس</li>
+        <li><span class="highlight">Galaxy:</span> پلتفرم بیوانفرماتیک بدون کدنویسی</li>
+    </ul>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🌐</span> کنفرانس‌ها و رویدادها</div>
+    <ul>
+        <li><span class="highlight">ISMB:</span> بزرگترین کنفرانس بیوانفرماتیک جهان</li>
+        <li><span class="highlight">ECCB:</span> کنفرانس اروپایی بیوانفرماتیک</li>
+        <li><span class="highlight">PSB:</span> Pacific Symposium on Biocomputing</li>
+        <li><span class="highlight">Iran Bioinformatics Conference:</span> کنفرانس داخلی</li>
+    </ul>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ SECTION 8: BONUS ═══════════════════════ -->
+<h2>🎁 ۸. ایده‌های بونوس — مقالات سریع و تأثیرگذار</h2>
+
+<div class="callout info">
+    <div class="callout-title">💡 مقالاتی که خیلی سریع قابل انتشار هستند</div>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="icon">⚡</span> ایده‌های سریع (۱-۲ ماه)</div>
+    <table>
+        <tr>
+            <th>ایده</th>
+            <th>توضیح</th>
+            <th>مجله مناسب</th>
+        </tr>
+        <tr>
+            <td><strong>مصاحبه/نقد کتاب</strong></td>
+            <td>نقد یک کتاب بیوانفرماتیک جدید</td>
+            <td>Briefings in Bioinformatics</td>
+        </tr>
+        <tr>
+            <td><strong>فراخوان ابزار</strong></td>
+            <td>معرفی BioSuite به عنوان ابزار آموزشی</td>
+            <td>PLOS Computational Biology</td>
+        </tr>
+        <tr>
+            <td><strong>مطالعه موردی</strong></td>
+            <td>حل یک مشکل بیولوژیکی خاص با BioSuite</td>
+            <td>GigaScience / F1000Research</td>
+        </tr>
+        <tr>
+            <td><strong>مقاله آموزشی</strong></td>
+            <td>آموزش تحلیل RNA-seq با BioSuite</td>
+            <td>PLOS Computational Biology (Education)</td>
+        </tr>
+        <tr>
+            <td><strong>مرور سریع</strong></td>
+            <td>مرور ابزارهای CRISPR guide design</td>
+            <td>Trends in Biotechnology</td>
+        </tr>
+    </table>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════ FINAL ═══════════════════════ -->
+<h2>🎯 جمع‌بندی نهایی</h2>
+
+<div class="card">
+    <div class="card-header"><span class="icon">🏆</span> برنامه عملیاتی شما</div>
+    
+    <div class="progress-section">
+        <div class="progress-label">
+            <span class="name">📝 مقاله ۱: مرور ابزارهای مولکول کلونینگ</span>
+            <span class="pct">اولویت اول — شروع فوری</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill fill-green" style="width: 100%">شروع کنید!</div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-label">
+            <span class="name">📝 مقاله ۲: مرور ML در بیوانفرماتیک</span>
+            <span class="pct">همزمان — نیاز به آزمایشگاه ندارد</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill fill-blue" style="width: 80%">در کنار مقاله اول</div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-label">
+            <span class="name">🔬 مقاله ۳: تحلیل ترنسکریپتومیکس سرطان</span>
+            <span class="pct">پاییز — نیاز به یادگیری GEO</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill fill-purple" style="width: 60%">بعد از مقاله اول</div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-label">
+            <span class="name">🛠️ مقاله ۴: BioSuite جامع</span>
+            <span class="pct">بهار ۱۴۰۶ — قوی‌ترین مقاله</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill fill-orange" style="width: 40%">هدف بلندمدت</div>
+        </div>
+    </div>
+</div>
+
+<div class="quote">
+    <strong>🔑 کلید موفقیت:</strong> شما یک مزیت بزرگ دارید — یک نرم‌افزار واقعی و کاربردی با 42,000+ خط کد. بسیاری از محققان فقط ایده دارند ولی شما <strong>محصول دارید</strong>. از این مزیت نهایت استفاده را بکنید. هر ماژول BioSuite می‌تواند پایه یک مقاله باشد.
+</div>
+
+<div class="quote">
+    <strong>🌍 برای دکترای بین‌المللی:</strong> ۳-۵ مقاله منتشرشده (حتی در مجلات متوسط) + یک نرم‌افزار متن‌باز محبوب در GitHub = رزومه‌ای بسیار قوی برای بورسیه‌های دکترای آلمان (DAAD), هلند, سوئد, نروژ, و حتی آمریکا.
+</div>
+
+<div class="divider"></div>
+
+<div class="footer">
+    <p>📄 توسط Hermes Agent برای ساهند توری تهیه شده</p>
+    <p>آخرین به‌روزرسانی: تیر ۱۴۰۵ (جولای ۲۰۲۶)</p>
+    <p style="margin-top: 10px; color: #4a4a7a;">این فایل را می‌توانید در مرورگر باز کنید: <code>file:///c/Users/SAHAND/Desktop/papers_guide.html</code></p>
+</div>
+
+</div>
+</body>
+</html>

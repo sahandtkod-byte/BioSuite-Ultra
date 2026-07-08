@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioSuite Ultra - مستندات جامع فارسی</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap');
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --bg-card-hover: #1f2b3d;
+            --bg-code: #0d1117;
+            --accent-green: #00ff88;
+            --accent-cyan: #00d4ff;
+            --accent-purple: #a855f7;
+            --accent-pink: #f472b6;
+            --accent-orange: #f97316;
+            --accent-yellow: #fbbf24;
+            --accent-red: #ef4444;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-dim: #64748b;
+            --border-color: #1e293b;
+            --border-glow: rgba(0, 255, 136, 0.15);
+            --gradient-1: linear-gradient(135deg, #00ff88, #00d4ff);
+            --gradient-2: linear-gradient(135deg, #a855f7, #f472b6);
+            --gradient-3: linear-gradient(135deg, #f97316, #fbbf24);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.9;
+            font-size: 15px;
+            direction: rtl;
+        }
+
+        /* Nav is ALWAYS LTR regardless of language mode */
+        .nav {
+            direction: ltr !important;
+            unicode-bidi: isolate;
+        }
+
+        .nav-inner {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-direction: row;
+            list-style: none;
+            gap: 2px;
+            overflow-x: auto;
+            flex: 1;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        .nav-links li {
+            display: inline;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        .nav-links a {
+            display: inline-block;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        .lang-toggle {
+            display: flex;
+            flex-direction: row;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-green); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, rgba(0,255,136,0.05) 0%, transparent 70%);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(0,212,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(168,85,247,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(249,115,22,0.05) 0%, transparent 50%);
+            animation: heroGlow 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes heroGlow {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .hero-content { position: relative; z-index: 1; max-width: 900px; padding: 2rem; }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 6px 20px;
+            border: 1px solid var(--accent-green);
+            border-radius: 50px;
+            font-size: 13px;
+            color: var(--accent-green);
+            margin-bottom: 2rem;
+            letter-spacing: 1px;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 2rem;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.6s both;
+            direction: ltr;
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat .number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-stat .label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(10, 14, 23, 0.92);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            height: 60px;
+            gap: 1rem;
+            direction: ltr;
+        }
+
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-green);
+            text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.08);
+        }
+
+        /* Language Toggle */
+        .lang-toggle {
+            align-items: center;
+            gap: 0;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .lang-toggle button {
+            padding: 5px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: 'Vazirmatn', sans-serif;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+            direction: ltr;
+            unicode-bidi: isolate;
+        }
+
+        .lang-toggle button.active {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+            font-weight: 600;
+        }
+
+        .lang-toggle button:hover:not(.active) {
+            color: var(--accent-green);
+        }
+
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-green);
+            text-decoration: none;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: nowrap;
+            list-style: none;
+            overflow-x: auto;
+            flex: 1;
+            justify-content: center;
+            padding: 0 0.5rem;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.08);
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 4rem;
+            scroll-margin-top: 80px;
+        }
+
+        .section-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-header h2 .icon {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            text-align: center;
+            line-height: 40px;
+            margin-left: 12px;
+            font-size: 1.2rem;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+        }
+
+        /* Module Card */
+        .module-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            border-radius: 0 16px 16px 0;
+        }
+
+        .module-card:hover {
+            border-color: var(--border-glow);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .module-card.green::before { background: var(--accent-green); }
+        .module-card.cyan::before { background: var(--accent-cyan); }
+        .module-card.purple::before { background: var(--accent-purple); }
+        .module-card.pink::before { background: var(--accent-pink); }
+        .module-card.orange::before { background: var(--accent-orange); }
+        .module-card.yellow::before { background: var(--accent-yellow); }
+        .module-card.red::before { background: var(--accent-red); }
+
+        .module-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+
+        .module-filename {
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.08);
+            padding: 3px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 1rem;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .module-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        /* Feature List */
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            padding-right: 24px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.93rem;
+        }
+
+        .feature-list li::before {
+            content: '▸';
+            position: absolute;
+            right: 0;
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+            direction: ltr;
+            text-align: left;
+            font-family: 'Consolas', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+        }
+
+        .code-block .comment { color: #6a9955; }
+        .code-block .keyword { color: #c586c0; }
+        .code-block .string { color: #ce9178; }
+        .code-block .function { color: #dcdcaa; }
+        .code-block .number { color: #b5cea8; }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(0, 212, 255, 0.06);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .info-box.green {
+            background: rgba(0, 255, 136, 0.06);
+            border-color: rgba(0, 255, 136, 0.2);
+        }
+
+        .info-box.purple {
+            background: rgba(168, 85, 247, 0.06);
+            border-color: rgba(168, 85, 247, 0.2);
+        }
+
+        .info-box.orange {
+            background: rgba(249, 115, 22, 0.06);
+            border-color: rgba(249, 115, 22, 0.2);
+        }
+
+        .info-box strong {
+            color: var(--accent-cyan);
+        }
+
+        .info-box.green strong { color: var(--accent-green); }
+        .info-box.purple strong { color: var(--accent-purple); }
+        .info-box.orange strong { color: var(--accent-orange); }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .badge.green { background: rgba(0,255,136,0.15); color: var(--accent-green); }
+        .badge.cyan { background: rgba(0,212,255,0.15); color: var(--accent-cyan); }
+        .badge.purple { background: rgba(168,85,247,0.15); color: var(--accent-purple); }
+        .badge.orange { background: rgba(249,115,22,0.15); color: var(--accent-orange); }
+        .badge.pink { background: rgba(244,114,182,0.15); color: var(--accent-pink); }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 1rem 0;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--bg-secondary);
+            padding: 12px 16px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--accent-green);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(0, 255, 136, 0.03);
+        }
+
+        /* Architecture Diagram */
+        .arch-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            direction: ltr;
+            text-align: left;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .arch-diagram .folder { color: var(--accent-cyan); font-weight: bold; }
+        .arch-diagram .file { color: var(--accent-green); }
+        .arch-diagram .comment { color: var(--text-dim); }
+
+        /* Glossary */
+        .glossary-term {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .glossary-term dt {
+            min-width: 200px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        .glossary-term dd {
+            color: var(--text-secondary);
+        }
+
+        /* TOC Sidebar */
+        .toc {
+            position: fixed;
+            top: 80px;
+            right: 2rem;
+            width: 260px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            padding: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            z-index: 999;
+        }
+
+        .toc h3 {
+            font-size: 0.85rem;
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .toc ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .toc li {
+            margin-bottom: 4px;
+        }
+
+        .toc a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: block;
+            transition: all 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.06);
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .toc { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .hero-stats { gap: 1.5rem; }
+            .hero-stat .number { font-size: 1.8rem; }
+            .nav-links { display: none; }
+            .container { padding: 1rem; }
+            .module-card { padding: 1.5rem; }
+            .lang-toggle { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
+            .nav { padding: 0 1rem 0 5rem; }
+        }
+
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+            margin: 3rem 0;
+            opacity: 0.3;
+        }
+
+        /* Subsection */
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin: 1.5rem 0 0.8rem;
+            color: var(--text-primary);
+        }
+
+        h4 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin: 1.2rem 0 0.5rem;
+            color: var(--accent-cyan);
+        }
+
+        p { margin-bottom: 0.8rem; }
+
+        .en-name {
+            color: var(--accent-cyan);
+            font-family: 'Consolas', monospace;
+            direction: ltr;
+            display: inline-block;
+        }
+
+        .highlight {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .footer a {
+            color: var(--accent-green);
+            text-decoration: none;
+        }
+
+        /* Language Toggle */
+        .lang-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .lang-toggle button {
+            padding: 6px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: 'Vazirmatn', sans-serif;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .lang-toggle button.active {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+            font-weight: 600;
+        }
+
+        .lang-toggle button:hover:not(.active) {
+            color: var(--text-primary);
+            background: rgba(0,255,136,0.1);
+        }
+
+        /* Language spans always visible */
+        .lang-en { display: none !important; }
+
+        /* In English mode, switch direction to LTR */
+        body.en-mode {
+            direction: ltr;
+            text-align: left;
+        }
+
+        body.en-mode .container { direction: ltr; text-align: left; }
+        body.en-mode .module-card { direction: ltr; text-align: left; }
+        body.en-mode .feature-list li { padding-right: 0; padding-left: 24px; }
+        body.en-mode .feature-list li::before { right: auto; left: 0; }
+        body.en-mode .section-header { text-align: left; }
+        body.en-mode .info-box { direction: ltr; }
+        body.en-mode .table-wrapper { direction: ltr; }
+        body.en-mode .toc { direction: ltr; right: auto; left: 2rem; text-align: left; }
+        body.en-mode .glossary-term { flex-direction: row; }
+        body.en-mode .glossary-term dt { min-width: 250px; text-align: left; }
+    </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="#top" class="nav-brand">BioSuite Ultra</a>
+        <ul class="nav-links">
+            <li><a href="#overview">معرفی</a></li>
+            <li><a href="#install">نصب</a></li>
+            <li><a href="#architecture">معماری</a></li>
+            <li><a href="#seq">توالی</a></li>
+            <li><a href="#align">تراز</a></li>
+            <li><a href="#phylo">فیلوژنتیک</a></li>
+            <li><a href="#expression">بیان ژن</a></li>
+            <li><a href="#ngs">NGS</a></li>
+            <li><a href="#blast">BLAST</a></li>
+            <li><a href="#msa">MSA</a></li>
+            <li><a href="#modules">ماژول‌ها</a></li>
+            <li><a href="#gui">GUI</a></li>
+            <li><a href="#cli">CLI</a></li>
+            <li><a href="#tests">تست</a></li>
+            <li><a href="#glossary">واژه‌نامه</a></li>
+        </ul>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="top">
+    <div class="hero-content">
+        <div class="hero-badge">OPEN SOURCE &bull; MIT LICENSE &bull; v3.0.5</div>
+        <h1>BioSuite Ultra</h1>
+        <div class="lang-fa">
+            <p>جامع‌ترین پلتفرم بیوانفورماتیک متن‌باز با ۴۸ ماژول تحلیلی، ۳۶+ نوع نمودار، رابط گرافیکی سایبرپانک و خط فرمان با ۹۹+ گزینه — همه در پایتون خالص</p>
+        </div>
+        <div class="lang-en">
+            <p>The most comprehensive open-source bioinformatics platform with 48 analysis modules, 36+ visualization types, a cyberpunk GUI, and a 99+ option CLI — all in pure Python.</p>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="number">48</div>
+                <div class="label">ماژول تحلیلی</div>
+            </div>
+            <div class="hero-stat">
+                <div class="number">36+</div>
+                <div class="label">نوع نمودار</div>
+            </div>
+            <div class="hero-stat">
+                <div class="number">271</div>
+                <div class="label">تست خودکار</div>
+            </div>
+            <div class="hero-stat">
+                <div class="number">21K+</div>
+                <div class="label">خط کد</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Table of Contents Sidebar -->
+<aside class="toc">
+    <h3>فهرست مطالب</h3>
+    <ul>
+        <li><a href="#overview">معرفی کلی پروژه</a></li>
+        <li><a href="#install">نصب و شروع سریع</a></li>
+        <li><a href="#architecture">معماری نرم‌افزار</a></li>
+        <li><a href="#seq">تحلیل توالی</a></li>
+        <li><a href="#align">تراز توالی</a></li>
+        <li><a href="#phylo">فیلوژنتیک</a></li>
+        <li><a href="#expression">بیان ژن</a></li>
+        <li><a href="#ngs">NGS و ژنومیکس</a></li>
+        <li><a href="#blast">جستجوی BLAST</a></li>
+        <li><a href="#msa">تراز چندگانه</a></li>
+        <li><a href="#enrichment">غنی‌سازی ژن</a></li>
+        <li><a href="#singlecell">تک‌سلولی</a></li>
+        <li><a href="#modules">تمام ماژول‌ها</a></li>
+        <li><a href="#plotting">سیستم نمودار</a></li>
+        <li><a href="#gui">رابط گرافیکی</a></li>
+        <li><a href="#cli">خط فرمان</a></li>
+        <li><a href="#tests">تست‌ها</a></li>
+        <li><a href="#deps">وابستگی‌ها</a></li>
+        <li><a href="#glossary">واژه‌نامه</a></li>
+    </ul>
+</aside>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: OVERVIEW -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="overview">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,255,136,0.15)"></span>>🧬
+            معرفی کلی پروژه
+            
+        </h2>
+        <p>BioSuite Ultra چیست و چه کاری انجام می‌دهد؟
+           </p>
+    </div>
+
+    <div class="module-card green">
+        <h3>BioSuite Ultra چیست؟</h3>
+        <div class="lang-fa"><p><span class="highlight"></span>>BioSuite Ultra یک پلتفرم جامع بیوانفورماتیک (Bioinformatics) متن‌باز است که توسط <span class="en-name"></span>>Sahand Touri توسعه یافته. این پروژه یک ابزار حرفه‌ای و کامل برای تحلیل داده‌های زیست‌شناختی است که شامل ۴۸ ماژول تحلیلی، بیش از ۳۶ نوع نمودار، یک رابط گرافیکی (GUI) با طراحی سایبرپانک و یک خط فرمان (CLI) با بیش از ۹۹ گزینه می‌باشد.</p></div>
+        <div class="lang-en"><p><span class="highlight"></span>>BioSuite Ultra is a comprehensive open-source bioinformatics (Bioinformatics) platform developed by <span class="en-name"></span>>Sahand Touri. This project is a professional and complete tool for biological data analysis featuring 48 analysis modules, over 36 visualization types, a cyberpunk-styled GUI, and a CLI with over 99 options.</p></div>
+
+        <div class="info-box green">
+            <strong>نکته مهم:</strong>
+            تمام ویژگی‌های BioSuite فقط با دستور <span class="en-name"></span>>pip install قابل استفاده هستند. هیچ نیازی به نصب ابزارهای خارجی (External Binaries) نیست. ابزارهای خارجی مثل BLAST+ یا Clustal Omega فقط سرعت را افزایش می‌دهند اما الزامی نیستند.
+            . No external binaries are required. External tools like BLAST+ or Clustal Omega only provide speed boosts but are optional.
+        </div>
+
+        <h3>چرا BioSuite متفاوت است؟</h3>
+        <ul class="feature-list">
+            <li><strong>معماری دوگانه (Dual-Mode Architecture):</strong>
+                هر ماژول ابتدا ابزار خارجی سریع را امتحان می‌کند، سپس به نسخه پایتون خالص برمی‌گردد. نتیجه: همیشه کار می‌کند!
+                
+            </li>
+            <li><strong>بدون وابستگی سخت‌افزاری:</strong>
+                نیازی به GPU نیست. فقط CPU و ۴ تا ۸ گیگابایت رم کافیست.
+                
+            </li>
+            <li><strong>پوشش ۲۰+ حوزه بیوانفورماتیک:</strong>
+                از توالی‌یابی تا یادگیری ماشین، از ژنتیک جمعیت تا متابولیسم.
+                
+            </li>
+            <li><strong>طراحی حرفه‌ای:</strong>
+                GUI با ۳ تم سایبرپانک، ۲۹ تب تحلیلی، میانبرهای صفحه‌کلید و نوار پیشرفت.
+                
+            </li>
+            <li><strong>تست‌های خودکار:</strong>
+                ۲۷۱ تست برای تضمین کیفیت کد.
+                
+            </li>
+        </ul>
+    </div>
+
+    <div class="module-card cyan">
+        <h3>چه کسی می‌تواند از BioSuite استفاده کند؟</h3>
+        <ul class="feature-list">
+            <li><strong>دانشجویان زیست‌شناسی و بیوانفورماتیک:</strong> برای یادگیری و انجام پروژه‌های تحقیقاتی</li>
+            <li><strong>پژوهشگران آزمایشگاهی:</strong> برای تحلیل سریع داده‌های توالی‌یابی، RNA-seq، GWAS و غیره</li>
+            <li><strong>برنامه‌نویسان:</strong> به عنوان API پایتونی برای ادغام در پایپ‌لاین‌های خودکار</li>
+            <li><strong>متخصصان یادگیری ماشین:</strong> برای اعمال مدل‌های ML روی داده‌های بیولوژیکی</li>
+        </ul>
+    </div>
+
+    <div class="module-card purple">
+        <h3>آمار کلی پروژه</h3>
+        <div class="table-wrapper">
+            <table>
+                <tr><th>شاخص</th><th>مقدار</th><th>توضیح</th></tr>
+                <tr><td>تعداد ماژول‌ها</td><td>۴۸</td><td>ماژول‌های تحلیلی اصلی</td></tr>
+                <tr><td>تعداد فایل‌های پایتون</td><td>۶۹</td><td>فایل‌های .py در پکیج اصلی</td></tr>
+                <tr><td>خطوط کد</td><td>~۱۵,۰۰۰</td><td>خطوط کد در bioplatter</td></tr>
+                <tr><td>تست‌ها</td><td>۲۷۱</td><td>تست‌های خودکار pytest</td></tr>
+                <tr><td>نوع نمودار</td><td>۳۶+</td><td>انواع مختلف رسم نمودار</td></tr>
+                <tr><td>وابستگی‌ها</td><td>۲۳</td><td>پکیج‌های pip مورد نیاز</td></tr>
+                <tr><td>نسخه</td><td>3.0.5</td><td>آخرین نسخه منتشر شده</td></tr>
+                <tr><td>لایسنس</td><td>MIT</td><td>رایگان برای استفاده تجاری و آکادمیک</td></tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1.5: INSTALLATION & QUICK START -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="install">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,255,136,0.15)"></span>>🚀
+            نصب و شروع سریع
+            
+        </h2>
+        <p>نحوه نصب و شروع استفاده از BioSuite به صورت گام به گام
+           </p>
+    </div>
+
+    <div class="module-card green">
+        <h3>گزینه ۱: نصب از PyPI (توصیه شده)</h3>
+        <div class="code-block">
+<span class="comment"></span>># Just one command:
+pip install biosuitestkod
+
+<span class="comment"></span>># Then run:
+biosuite          <span class="comment"></span>># CLI mode
+biosuite-gui      <span class="comment"></span>># GUI mode
+        </div>
+    </div>
+
+    <div class="module-card cyan">
+        <h3>گزینه ۲: نصب از سورس</h3>
+        <div class="code-block">
+<span class="comment"></span>># Clone the repository
+git clone https://github.com/sahandtouri/BioSuite-Better.git
+cd BioSuite-Better
+
+<span class="comment"></span>># Install dependencies
+pip install -r requirements.txt
+
+<span class="comment"></span>># Run directly
+python run.py              <span class="comment"></span>># CLI mode
+python run.py --gui        <span class="comment"></span>># GUI mode
+        </div>
+    </div>
+
+    <div class="module-card orange">
+        <h3>کاربران ویندوز — اگر pysam نصب نشد:</h3>
+        <p><span class="en-name"></span>>pysam به ابزارهای C build نیاز دارد. دو گزینه:</p>
+        <h4>گزینه A: Visual Studio Build Tools</h4>
+        <ul class="feature-list">
+            <li>Download: <span class="en-name"></span>>https://visualstudio.microsoft.com/visual-cpp-build-tools/</li>
+            <li>Run installer, select <strong>"Desktop development with C++"</strong>, Install</li>
+            <li>Open <strong>"x64 Native Tools Command Prompt for VS"</strong> from Start Menu</li>
+            <li>Run: <span class="en-name"></span>>pip install pysam</li>
+        </ul>
+        <h4>گزینه B: استفاده از Conda (آسان‌تر)</h4>
+        <ul class="feature-list">
+            <li>Install Anaconda: <span class="en-name"></span>>https://anaconda.com/download</li>
+            <li>Run: <span class="en-name"></span>>conda install -c bioconda pysam</li>
+        </ul>
+    </div>
+
+    <div class="module-card purple">
+        <h3>نیازمندی‌های سیستم</h3>
+        <div class="table-wrapper">
+            <table>
+                <tr><th>Requirement</th><th>Minimum</th><th>Recommended</th></tr>
+                <tr><td>Python</td><td>3.9+</td><td>3.10 - 3.12</td></tr>
+                <tr><td>RAM</td><td>4 GB</td><td>8 GB</td></tr>
+                <tr><td>OS</td><td colspan="2">Windows, macOS, Linux</td></tr>
+                <tr><td>GPU</td><td colspan="2">Not required (CPU-only)</td></tr>
+                <tr><td>Disk Space</td><td colspan="2">~500 MB (with all dependencies)</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-card green">
+        <h3>شروع سریع — ۳ راه استفاده از BioSuite</h3>
+
+        <h4>راه ۱: CLI تعاملی (آسان‌ترین)</h4>
+        <div class="code-block">
+python run.py
+
+<span class="comment"></span>># You'll see a menu like this:
+<span class="comment"></span>># ╔══════════════════════════════════════╗
+<span class="comment"></span>># ║       BioSuite Ultra — Main Menu    ║
+<span class="comment"></span>># ╠══════════════════════════════════════╣
+<span class="comment"></span>># ║  1.  Sequence Analysis              ║
+<span class="comment"></span>># ║  2.  Pairwise Alignment             ║
+<span class="comment"></span>># ║  3.  Multiple Sequence Alignment    ║
+<span class="comment"></span>># ║  4.  Phylogenetic Tree              ║
+<span class="comment"></span>># ║  5.  BLAST Search                   ║
+<span class="comment"></span>># ║  ... (99+ options)                  ║
+<span class="comment"></span>># ╚══════════════════════════════════════╝
+        </div>
+
+        <h4>راه ۲: رابط گرافیکی (بصری)</h4>
+        <div class="code-block">
+python run.py --gui
+<span class="comment"></span>># Opens a modern cyberpunk-styled window with 29 analysis tabs
+        </div>
+
+        <h4>راه ۳: API پایتون (برای برنامه‌نویسان)</h4>
+        <div class="code-block">
+<span class="keyword"></span>>from bioplatter.core.sequence <span class="keyword"></span>>import gc_content, reverse_complement, translate
+<span class="keyword"></span>>from bioplatter.core.alignment <span class="keyword"></span>>import needleman_wunsch, smith_waterman
+<span class="keyword"></span>>from bioplatter.core.phylogeny <span class="keyword"></span>>import distance_matrix, upgma_tree
+<span class="keyword"></span>>from bioplatter.core.workflow.pipeline <span class="keyword"></span>>import Pipeline
+
+<span class="comment"></span>># Quick analysis
+gc = <span class="function"></span>>gc_content(<span class="string"></span>>"ATCGATCG")        <span class="comment"></span>># Returns: 50.0
+rc = <span class="function"></span>>reverse_complement(<span class="string"></span>>"ATCG")   <span class="comment"></span>># Returns: "CGAT"
+protein = <span class="function"></span>>translate(<span class="string"></span>>"ATGAAATTTTAA") <span class="comment"></span>># Returns: "MKF*"
+
+<span class="comment"></span>># Pairwise alignment
+a1, a2, score = <span class="function"></span>>needleman_wunsch(<span class="string"></span>>"AGTACGCA", <span class="string"></span>>"TATGC")
+
+<span class="comment"></span>># Build a pipeline
+p = <span class="function"></span>>Pipeline(<span class="string"></span>>"my_analysis")
+p.<span class="function"></span>>add_step(<span class="string"></span>>"gc", gc_content, args=(<span class="string"></span>>"ATCGATCG",))
+p.<span class="function"></span>>add_step(<span class="string"></span>>"revcomp", reverse_complement, args=(<span class="string"></span>>"ATCGATCG",))
+p.<span class="function"></span>>run()
+<span class="function"></span>>print(p.results)
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: ARCHITECTURE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="architecture">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,212,255,0.15)"></span>>🏗️
+            معماری نرم‌افزار
+            
+        </h2>
+        <p>ساختار کلی پروژه و نحوه ارتباط ماژول‌ها با یکدیگر
+           </p>
+    </div>
+
+    <div class="module-card cyan">
+        <h3>ساختار پوشه‌ها (Project Structure)</h3>
+        <div class="arch-diagram">
+<span class="folder"></span>>BioSuite-Better/
+├── <span class="file"></span>>run.py                      <span class="comment"></span>># نقطه شروع اجرا (Entry Point)
+├── <span class="file"></span>>pyproject.toml               <span class="comment"></span>># تنظیمات ساخت پکیج (Package Config)
+├── <span class="file"></span>>requirements.txt             <span class="comment"></span>># لیست وابستگی‌ها (Dependencies)
+├── <span class="folder"></span>>bioplatter/                   <span class="comment"></span>># پکیج اصلی (Main Package)
+│   ├── <span class="folder"></span>>core/                     <span class="comment"></span>># ۴۸ ماژول تحلیلی
+│   │   ├── <span class="file"></span>>sequence.py           <span class="comment"></span>># تحلیل توالی: FASTA/FASTQ I/O، GC%، معکوس-مکمل
+│   │   ├── <span class="file"></span>>alignment.py          <span class="comment"></span>># تراز جفتی: Needleman-Wunsch، Smith-Waterman
+│   │   ├── <span class="file"></span>>blast.py              <span class="comment"></span>># جستجوی شباهت: موتور k-mer + BLAST+
+│   │   ├── <span class="file"></span>>msa.py                <span class="comment"></span>># تراز چندگانه: Progressive + Clustal/MUSCLE/MAFFT
+│   │   ├── <span class="file"></span>>phylogeny.py          <span class="comment"></span>># درخت فیلوژنتیک: p-distance، UPGMA
+│   │   ├── <span class="file"></span>>ml_phylogeny.py       <span class="comment"></span>># درخت ML: NJ + RAxML
+│   │   ├── <span class="file"></span>>bayesian_phylogeny.py <span class="comment"></span>># درخت بیزین: MrBayes
+│   │   ├── <span class="file"></span>>expression.py         <span class="comment"></span>># تحلیل بیان ژن: CPM/TPM، DE، BH correction
+│   │   ├── <span class="file"></span>>enrichment.py         <span class="comment"></span>># غنی‌سازی: ORA، GSEA، KEGG
+│   │   ├── <span class="file"></span>>single_cell.py        <span class="comment"></span>># تک‌سلولی: Scanpy pipeline
+│   │   ├── <span class="file"></span>>ngs.py                <span class="comment"></span>># NGS: BAM/VCF parsing، Manhattan plots
+│   │   ├── <span class="file"></span>>read_aligner.py       <span class="comment"></span>># تراز خواندن: Seed-and-extend + BWA/Bowtie2
+│   │   ├── <span class="file"></span>>variant_calling.py    <span class="comment"></span>># فراخوانی واریانت + SV/CNV detection
+│   │   ├── <span class="file"></span>>peak_calling.py       <span class="comment"></span>># ChIP-seq peak calling
+│   │   ├── <span class="file"></span>>assembly.py           <span class="comment"></span>># مونتاژ ژنوم: Overlap assembler + SPAdes/MEGAHIT
+│   │   ├── <span class="file"></span>>metagenomics.py       <span class="comment"></span>># متاژنومیکس: طبقه‌بندی k-mer + 16S rRNA
+│   │   ├── <span class="file"></span>>trimming.py           <span class="comment"></span>># کیفیت خواندن + Cutadapt
+│   │   ├── <span class="file"></span>>quantification.py     <span class="comment"></span>># کمی‌سازی RNA-seq: K-mer + Salmon/Kallisto
+│   │   ├── <span class="file"></span>>structure.py          <span class="comment"></span>># تحلیل PDB: پروتئین‌ها
+│   │   ├── <span class="file"></span>>structure_prediction.py <span class="comment"></span>># پیش‌بینی ساختار: ESMFold + AlphaFold API
+│   │   ├── <span class="file"></span>>docking.py            <span class="comment"></span>># داکینگ مولکولی + AutoDock Vina
+│   │   ├── <span class="file"></span>>crispr.py             <span class="comment"></span>># طراحی Guide RNA + CRISPOR API
+│   │   ├── <span class="file"></span>>metabolism.py         <span class="comment"></span>># FBA: توازن جریان + COBRApy
+│   │   ├── <span class="file"></span>>popgen.py             <span class="comment"></span>># ژنتیک جمعیت: HWE، FST، Tajima's D
+│   │   ├── <span class="file"></span>>epigenomics.py        <span class="comment"></span>># متیلاسیون + DMR detection
+│   │   ├── <span class="file"></span>>metabolomics.py       <span class="comment"></span>># پیک تشخیص + ANOVA
+│   │   ├── <span class="file"></span>>md_simulation.py      <span class="comment"></span>># شبیه‌سازی مولکولی + OpenMM
+│   │   ├── <span class="file"></span>>bio_ml.py             <span class="comment"></span>># یادگیری ماشین: RF، SVM، SHAP
+│   │   ├── <span class="file"></span>>survival.py           <span class="comment"></span>># Kaplan-Meier، Cox PH
+│   │   ├── <span class="file"></span>>orf_finder.py         <span class="comment"></span>># ORF، آنزیم‌های محدودکننده، پرایمر
+│   │   ├── <span class="file"></span>>codon_usage.py        <span class="comment"></span>># جداول کدونی، k-mer، پیچیدگی
+│   │   ├── <span class="file"></span>>file_formats.py       <span class="comment"></span>># BED/GFF/Newick/Stockholm parsers
+│   │   ├── <span class="file"></span>>databases.py          <span class="comment"></span>># API: NCBI/UniProt/PDB/KEGG/Ensembl
+│   │   ├── <span class="file"></span>>go_browser.py         <span class="comment"></span>># مرورگر Gene Ontology
+│   │   ├── <span class="file"></span>>pathway_viz.py        <span class="comment"></span>># رسم مسیرهای متابولیکی
+│   │   ├── <span class="file"></span>>gwas.py               <span class="comment"></span>># GWAS: Chi-squared، Manhattan/QQ plots
+│   │   ├── <span class="file"></span>>epitope.py            <span class="comment"></span>># پیش‌بینی اپی‌توپ: T-cell، B-cell
+│   │   ├── <span class="file"></span>>utils.py              <span class="comment"></span>># ابزارهای کمکی: config، session، theme
+│   │   └── <span class="folder"></span>>workflow/             <span class="comment"></span>># Pipeline، Batch، Report
+│   ├── <span class="folder"></span>>plotting/                 <span class="comment"></span>># ۳۶+ نوع نمودار
+│   │   ├── <span class="file"></span>>biological_plots.py   <span class="comment"></span>># Volcano، PCA، Manhattan، Heatmap و ۱۶ نوع دیگر
+│   │   ├── <span class="file"></span>>interactive_plots.py  <span class="comment"></span>># نمودارهای Plotly تعاملی
+│   │   ├── <span class="file"></span>>network_plots.py      <span class="comment"></span>># شبکه‌های PPI/تنظیمی/متابولیکی
+│   │   ├── <span class="file"></span>>genome_browser.py     <span class="comment"></span>># مرورگر ژنوم
+│   │   └── <span class="file"></span>>specialized_plots.py  <span class="comment"></span>># Motif Logo، Sankey، Circos و ...
+│   ├── <span class="folder"></span>>gui/                      <span class="comment"></span>># رابط گرافیکی سایبرپانک
+│   │   ├── <span class="file"></span>>main_window.py        <span class="comment"></span>># پنجره اصلی با ۸ Mixin تب
+│   │   ├── <span class="file"></span>>themes.py             <span class="comment"></span>># ۳ تم: Dark-Green، Dark-Purple، Light-Blue
+│   │   ├── <span class="file"></span>>dialogs.py            <span class="comment"></span>># دیالوگ‌های سفارشی + Splash Screen
+│   │   └── <span class="folder"></span>>tabs/                 <span class="comment"></span>># تب‌های تحلیلی
+│   └── <span class="folder"></span>>cli/                      <span class="comment"></span>># خط فرمان تعاملی
+│       └── <span class="file"></span>>menu.py               <span class="comment"></span>># منوی حرفه‌ای با ۹۹+ گزینه
+├── <span class="folder"></span>>tests/                        <span class="comment"></span>># ۱۸ فایل تست
+├── <span class="folder"></span>>examples/                     <span class="comment"></span>># ۵ دفترچه Jupyter
+└── <span class="folder"></span>>docs/                         <span class="comment"></span>># مستندات HTML
+        </div>
+    </div>
+
+    <div class="module-card green">
+        <h3>معماری دوگانه (Dual-Mode Architecture)</h3>
+        <p>یکی از مهم‌ترین ویژگی‌های BioSuite معماری دوگانه آن است. هر ماژول تحلیلی الگوی زیر را دنبال می‌کند:</p>
+        <div class="code-block">
+<span class="comment"></span>># الگوی معماری دوگانه در هر ماژول
+<span class="keyword"></span>>def <span class="function"></span>>analyze(input, ...):
+    <span class="comment"></span>># مرحله ۱: ابتدا ابزار خارجی سریع را امتحان کن
+    <span class="keyword"></span>>if <span class="function"></span>>_has_external_tool():
+        <span class="keyword"></span>>return <span class="function"></span>>_run_external(input, ...)
+
+    <span class="comment"></span>># مرحله ۲: اگر ابزار خارجی نیست، از پایتون خالص استفاده کن
+    <span class="keyword"></span>>return <span class="function"></span>>_run_builtin(input, ...)
+        </div>
+
+        <div class="info-box">
+            <strong>مثال عملی:</strong> در ماژول <span class="en-name"></span>>blast.py، اگر BLAST+ روی سیستم نصب باشد، از آن استفاده می‌شود (سریع‌تر). اگر نباشد، یک موتور جستجوی k-mer خالص پایتون اجرا می‌شود که همیشه کار می‌کند.
+        </div>
+    </div>
+
+    <div class="module-card purple">
+        <h3>نحوه ورود به برنامه</h3>
+        <div class="code-block">
+<span class="comment"></span>># نقطه شروع: run.py
+
+<span class="comment"></span>># حالت خط فرمان (CLI) - تعاملی
+python run.py
+
+<span class="comment"></span>># حالت رابط گرافیکی (GUI)
+python run.py --gui
+
+<span class="comment"></span>># صادرات انبوه نمودار به PDF
+python run.py --batch --pdf report.pdf
+
+<span class="comment"></span>># صادرات نمودارها به پوشه
+python run.py --export-folder myplots
+
+<span class="comment"></span>># اجرای بنچمارک عملکرد
+python run.py --benchmark
+
+<span class="comment"></span>># ویرایش تنظیمات
+python run.py --config
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: SEQUENCE ANALYSIS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="seq">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,255,136,0.15)"></span>>🧬
+            تحلیل توالی
+            
+            <span class="en-name"></span>>(Sequence Analysis)
+        </h2>
+        <p>خواندن، نوشتن و تحلیل توالی‌های DNA و پروتئین
+           </p>
+    </div>
+
+    <div class="module-card green">
+        <div class="module-title">sequence.py — موتور تحلیل توالی</div>
+        <div class="module-filename">bioplatter/core/sequence.py</div>
+        <div class="module-desc">این ماژول قلب تپنده BioSuite است. تمام توابع روی رشته‌های متنی ساده کار می‌کنند و نیازی به Biopython ندارند (به جز خواندن GenBank).</div>
+
+        <h3>توابع اصلی:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>read_fasta(filepath)</strong> — خواندن فایل FASTA به لیست تاپل‌های (هدر، توالی). فرمت FASTA رایج‌ترین فرمت ذخیره توالی‌های DNA و پروتئینی است. هر رکورد با علامت <code>&gt;</code> شروع می‌شود و شامل یک هدر و یک توالی چندخطی است.</li>
+            <li><strong><span class="en-name"></span>>read_fastq(filepath)</strong> — خواندن فایل FASTQ به تاپل‌های (نام، توالی، کیفیت). فرمت FASTQ از خروجی دستگاه‌های توالی‌یابی نسل جدید (NGS) به دست می‌آید. هر رکورد ۴ خط دارد: هدر (@)، توالی، + و رشته کیفیت.</li>
+            <li><strong><span class="en-name"></span>>read_genbank(filepath)</strong> — خواندن فایل GenBank (نیاز به Biopython). فرمت GenBank شامل اطلاعات توالی + تمام آنوتیشن‌ها (CDS، ژن، mRNA و غیره) است.</li>
+            <li><strong><span class="en-name"></span>>gc_content(seq)</strong> — محاسبه درصد GC. محتوای GC (تعداد نوکلئوتیدهای G و C تقسیم بر کل) یک ویژگی بنیادی DNA است. در طراحی پرایمر، شناسایی ایزوکورها و طبقه‌بندی تاکسونومیکی استفاده می‌شود.</li>
+            <li><strong><span class="en-name"></span>>reverse_complement(seq)</strong> — محاسبه معکوس-مکمل. هر نوکلئوتید با مکمل خود جایگزین شده و توالی معکوس می‌شود (A↔T، C↔G). برای خواندن توالی از رشته مخالف و طراحی پروب ضروری است.</li>
+            <li><strong><span class="en-name"></span>>translate(seq, frame, table)</strong> — ترجمه نوکلئوتید به پروتئین. کدون‌های سه‌تایی را به اسیدآمینه ترجمه می‌کند. از جدول کدونی استاندارد (Table 1) استفاده می‌شود. کدون‌های توقف با * و کدون‌های ناشناخته با X نشان داده می‌شوند.</li>
+            <li><strong><span class="en-name"></span>>sequence_stats(seq)</strong> — آمار ترکیبی نوکلئئوتیدها: تعداد و درصد A، T، G، C، N و درصد AT/GC.</li>
+            <li><strong><span class="en-name"></span>>quality_stats(qual_string)</strong> — آمار امتیاز کیفیت Phred: میانگین، حداقل، حداکثر امتیاز. کیفیت Q30 به معنی دقت ۹۹.۹٪ (یک خطای هزارم).</li>
+        </ul>
+
+        <div class="code-block">
+<span class="comment"></span>># مثال استفاده از ماژول توالی
+<span class="keyword"></span>>from bioplatter.core.sequence <span class="keyword"></span>>import gc_content, reverse_complement, translate
+
+<span class="comment"></span>># محاسبه محتوای GC
+gc = <span class="function"></span>>gc_content(<span class="string"></span>>"ATCGATCG")  <span class="comment"></span>># خروجی: 50.0
+
+<span class="comment"></span>># معکوس-مکمل
+rc = <span class="function"></span>>reverse_complement(<span class="string"></span>>"ATCG")  <span class="comment"></span>># خروجی: "CGAT"
+
+<span class="comment"></span>># ترجمه به پروتئین
+protein = <span class="function"></span>>translate(<span class="string"></span>>"ATGAAATTTTAA")  <span class="comment"></span>># خروجی: "MKF*"
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: ALIGNMENT -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="align">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,212,255,0.15)"></span>>🔗
+            تراز توالی
+            
+            <span class="en-name"></span>>(Pairwise Alignment)
+        </h2>
+        <p>مقایسه دو توالی با الگوریتم‌های برنامه‌ریزی پویا
+           </p>
+    </div>
+
+    <div class="module-card cyan">
+        <div class="module-title">alignment.py — الگوریتم‌های تراز جفتی</div>
+        <div class="module-filename">bioplatter/core/alignment.py</div>
+        <div class="module-desc">دو الگوریتم کلاسیک تراز توالی با بهینه‌سازی numpy. مرحله پر کردن ماتریس DP با عملیات برداری numpy انجام می‌شود که ۵ تا ۱۰ برابر سریع‌تر از حلقه‌های پایتون خالص است.</div>
+
+        <h3>Needleman-Wunsch — تراز سراسری (Global Alignment)</h3>
+        <div class="info-box">
+            <strong>چه زمانی استفاده می‌شود؟</strong> وقتی می‌خواهیم دو توالی با طول مشابه و شباهت بالا را مقایسه کنیم (مثلاً ژن‌های ارتولوگ). تراز سراسری کل طول هر دو توالی را در بر می‌گیرد و جای خالی (Gap) در صورت نیاز اضافه می‌شود.
+        </div>
+        <ul class="feature-list">
+            <li>ورودی: دو توالی + امتیاز تطابق (match=1) + جریمه عدم تطابق (mismatch=-1) + جریمه گپ (gap=-2)</li>
+            <li>خروجی: (توالی تراز شده ۱، توالی تراز شده ۲، امتیاز نهایی)</li>
+            <li>پیاده‌سازی: ماتریس DP با numpy + بازگشت (Traceback)</li>
+        </ul>
+
+        <h3>Smith-Waterman — تراز محلی (Local Alignment)</h3>
+        <div class="info-box">
+            <strong>چه زمانی استفاده می‌شود؟</strong> وقتی می‌خواهیم مناطق مشترک بین دو توالی طولانی را پیدا کنیم (مثلاً دومین‌های حفاظت‌شده در پروتئین‌ها). تراز محلی فقط بخشی از توالی را شامل می‌شود که بیشترین امتیاز را دارد.
+        </div>
+        <ul class="feature-list">
+            <li>متفاوت با Needleman-Wunsch: سلول‌های ماتریس می‌توانند به صفر ریست شوند (امتیاز منفی منتشر نمی‌شود)</li>
+            <li>بازگشت از بالاترین سلول امتیاز شروع می‌شود</li>
+        </ul>
+
+        <div class="code-block">
+<span class="comment"></span>># مثال تراز جفتی
+<span class="keyword"></span>>from bioplatter.core.alignment <span class="keyword"></span>>import needleman_wunsch, smith_waterman
+
+<span class="comment"></span>># تراز سراسری
+align1, align2, score = <span class="function"></span>>needleman_wunsch(
+    <span class="string"></span>>"AGTACGCA", <span class="string"></span>>"TATGC"
+)
+
+<span class="comment"></span>># تراز محلی
+align1, align2, score = <span class="function"></span>>smith_waterman(
+    <span class="string"></span>>"AGTACGCA", <span class="string"></span>>"TATGC"
+)
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: PHYLOGENY -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="phylo">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(168,85,247,0.15)"></span>>🌳
+            فیلوژنتیک
+            
+            <span class="en-name"></span>>(Phylogenetics)
+        </h2>
+        <p>ساخت درخت‌های تکاملی از فاصله توالی‌ها
+           </p>
+    </div>
+
+    <div class="module-card purple">
+        <div class="module-title">phylogeny.py — درخت‌های مبتنی بر فاصله</div>
+        <div class="module-filename">bioplatter/core/phylogeny.py</div>
+        <div class="module-desc">محاسبه ماتریس فاصله و ساخت درخت فیلوژنتیک با روش UPGMA. برای درخت‌های ML و بیزین ماژول‌های جداگانه وجود دارند.</div>
+
+        <h3>توابع اصلی:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>p_distance(seq1, seq2)</strong> — فاصله تناسبی (Proportion of Differing Sites). درصد جایگاه‌هایی که دو توالی در آن‌ها متفاوت هستند (بدون احتساب گپ‌ها).</li>
+            <li><strong><span class="en-name"></span>>distance_matrix(sequences)</strong> — ماتریس فاصله pairwise برای لیستی از توالی‌ها. از مقایسه‌های برداری numpy استفاده می‌کند.</li>
+            <li><strong><span class="en-name"></span>>upgma_tree(distance_mat, labels)</strong> — ساخت درخت UPGMA (Unweighted Pair Group Method with Arithmetic Mean) با استفاده از SciPy. روشی ساده و سریع برای ساخت درخت از ماتریس فاصله.</li>
+            <li><strong><span class="en-name"></span>>plot_phylogenetic_tree(...)</strong> — رسم دندروگرام (Dendrogram) از درخت فیلوژنتیک.</li>
+        </ul>
+    </div>
+
+    <div class="module-card orange">
+        <div class="module-title">ml_phylogeny.py — درخت‌های حداکثر احتمال (ML)</div>
+        <div class="module-filename">bioplatter/core/ml_phylogeny.py</div>
+        <div class="module-desc">پیاده‌سازی درخت Neighbor-Joining (NJ) خالص پایتون و اتصال به RAxML/IQ-TREE به عنوان ابزار خارجی اختیاری.</div>
+    </div>
+
+    <div class="module-card pink">
+        <div class="module-title">bayesian_phylogeny.py — درخت‌های بیزین</div>
+        <div class="module-filename">bioplatter/core/bayesian_phylogeny.py</div>
+        <div class="module-desc">نمونه‌برداری MCMC برای درخت‌های بیزین. MrBayes به عنوان ابزار خارجی اختیاری پشتیبانی می‌شود.</div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: EXPRESSION -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="expression">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(244,114,182,0.15)"></span>>📊
+            تحلیل بیان ژن
+            
+            <span class="en-name"></span>>(Expression Analysis)
+        </h2>
+        <p>نرمال‌سازی و آزمون بیان متفاوت ژن‌ها بین شرایط مختلف
+           </p>
+    </div>
+
+    <div class="module-card pink">
+        <div class="module-title">expression.py — نرمال‌سازی و بیان متفاوت</div>
+        <div class="module-filename">bioplatter/core/expression.py</div>
+        <div class="module-desc">ابزارهای تحلیل داده‌های RNA-seq شامل نرمال‌سازی CPM/TPM، آزمون بیان متفاوت و اصلاح چندگانه آزمون‌ها.</div>
+
+        <h3>توابع اصلی:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>read_counts_matrix(filepath)</strong> — خواندن ماتریس شمارش ژن‌ها (از featureCounts یا HTSeq). فایل‌های CSV/TSV با ستون اول شناسه ژن و بقیه ستون‌ها شمارش نمونه‌ها.</li>
+            <li><strong><span class="en-name"></span>>cpm_normalization(counts_df)</strong> — نرمال‌سازی CPM (Counts Per Million). هر شمارش تقسیم بر اندازه کتابخانه نمونه در آن ضربدر ۱۰^۶. برای مقایسه سطوح بیان بین نمونه‌هایی با عمق توالی‌یابی متفاوت مفید است.</li>
+            <li><strong><span class="en-name"></span>>tpm_normalization(counts_df, gene_lengths)</strong> — نرمال‌سازی TPM (Transcripts Per Million). ابتدا RPK (Reads Per Kilobase) و سپس نرمال‌سازی. TPM هم عمق توالی‌یابی و هم طول ژن را در نظر می‌گیرد.</li>
+            <li><strong><span class="en-name"></span>>_benjamini_hochberg(pvalues)</strong> — اصلاح Benjamini-Hochberg برای نرخ کشف نادرست (FDR). وقتی ۲۰,۰۰۰ ژن را همزمان آزمایش می‌کنیم، بدون این اصلاح ~۵٪ ژن‌های غیرمعنادار به طور تصادفی معنادار به نظر می‌رسند.</li>
+            <li><strong><span class="en-name"></span>>differential_expression(counts_df, conditions)</strong> — تحلیل بیان متفاوت بین دو گروه. محاسبه log2 Fold-Change و p-value با استفاده از Welch's t-test. خروجی: DataFrame با gene، log2FC، pvalue و padj.</li>
+        </ul>
+
+        <div class="code-block">
+<span class="comment"></span>># مثال تحلیل بیان متفاوت
+<span class="keyword"></span>>from bioplatter.core.expression <span class="keyword"></span>>import differential_expression
+
+<span class="comment"></span>># شرایط آزمایشی
+conditions = [<span class="string"></span>>'ctrl'] * <span class="number"></span>>3 + [<span class="string"></span>>'treat'] * <span class="number"></span>>3
+
+<span class="comment"></span>># اجرای تحلیل
+result = <span class="function"></span>>differential_expression(counts_df, conditions)
+<span class="comment"></span>># خروجی: gene, log2FC, pvalue, padj
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: NGS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="ngs">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(249,115,22,0.15)"></span>>🔬
+            NGS و ژنومیکس
+            
+            <span class="en-name"></span>>(Next Generation Sequencing)
+        </h2>
+        <p>تحلیل فایل‌های BAM، SAM، VCF و محاسبه پوشش
+           </p>
+    </div>
+
+    <div class="module-card orange">
+        <div class="module-title">ngs.py — ابزارهای NGS</div>
+        <div class="module-filename">bioplatter/core/ngs.py</div>
+        <div class="module-desc">ابزارهای تحلیل داده‌های توالی‌یابی نسل جدید. پشتیبانی از فرمت‌های BAM/SAM (خواندن از pysam) و VCF (فایل‌های واریانت). محاسبه کوریج (پوشش) و ساخت نمودار Manhattan.</div>
+
+        <h3>توابع اصلی:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>read_bam_header(bam_path)</strong> — خواندن هدر فایل BAM. فایل BAM فرمت باینری فایل SAM است و شامل اطلاعات خواندن‌ها (Reads) تراز شده روی ژنوم مرجع است.</li>
+            <li><strong><span class="en-name"></span>>compute_coverage(bam_path, region)</strong> — محاسبه پوشش (Coverage) به ازای هر جایگاه. پوشش نشان می‌دهد هر ناحیه از ژنوم چند بار توسط خواندن‌ها پوشش داده شده است.</li>
+            <li><strong><span class="en-name"></span>>read_vcf(vcf_path)</strong> — خواندن فایل VCF (Variant Call Format). VCF فرمت استاندارد برای ذخیره واریانت‌های ژنتیکی (SNPs، InDels) است.</li>
+            <li><strong><span class="en-name"></span>>manhattan_from_vcf(vcf_df)</strong> — تبدیل DataFrame واریانت به داده نمودار Manhattan. نمودار Manhattan برای نمایش نتایج GWAS و توزیع واریانت‌ها در سراسر ژنوم استفاده می‌شود.</li>
+        </ul>
+    </div>
+
+    <div class="module-card red">
+        <div class="module-title">variant_calling.py — فراخوانی واریانت + SV/CNV</div>
+        <div class="module-filename">bioplatter/core/variant_calling.py</div>
+        <div class="module-desc">فراخوانی واریانت از فایل‌های BAM/SAM. نسخه پایتون خالص: Pileup-based caller. نسخه خارجی: FreeBayes. همچنین تشخیص Structural Variants (SV) و Copy Number Variations (CNV).</div>
+
+        <h3>توابع اصلی:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>call_variants(sam_bam_file)</strong> — فراخوانی واریانت‌ها. خواندن فایل SAM، ایجاد Pileup و شناسایی SNP‌ها و InDels.</li>
+            <li><strong><span class="en-name"></span>>detect_structural_variants(coverage_data)</strong> — تشخیص واریانت‌های ساختاری (حذف، درج، تکثیر، وارونگی) از تحلیل پوشش.</li>
+            <li><strong><span class="en-name"></span>>detect_cnv(coverage_data)</strong> — تشخیص تغییرات عدد نسخه (Copy Number Variation) از داده‌های پوشش.</li>
+            <li><strong><span class="en-name"></span>>filter_variants(variants)</strong> — فیلتر کردن واریانت‌ها بر اساس کیفیت، پوشش و فرکانس آلل.</li>
+        </ul>
+    </div>
+
+    <div class="module-card orange">
+        <div class="module-title">read_aligner.py — تراز خواندن‌ها</div>
+        <div class="module-filename">bioplatter/core/read_aligner.py</div>
+        <div class="module-desc">تراز خواندن‌های کوتاه روی ژنوم مرجع. الگوریتم پایتون خالص: Seed-and-extend aligner. ابزارهای خارجی: BWA-MEM / Bowtie2.</div>
+    </div>
+
+    <div class="module-card yellow">
+        <div class="module-title">peak_calling.py — فراخوانی پیک ChIP-seq</div>
+        <div class="module-filename">bioplatter/core/peak_calling.py</div>
+        <div class="module-desc">شناسایی پیک‌ها (مناطق اتصال پروتئین به DNA) از داده‌های ChIP-seq. موتور پایتون خالص: تحلیل پوشش. ابزار خارجی: MACS2.</div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: BLAST -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="blast">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,255,136,0.15)"></span>>🔍
+            جستجوی شباهت توالی
+            
+            <span class="en-name"></span>>(BLAST Search)
+        </h2>
+        <p>جستجوی توالی در پایگاه داده با موتور k-mer یا BLAST+
+           </p>
+    </div>
+
+    <div class="module-card green">
+        <div class="module-title">blast.py — موتور جستجوی شباهت</div>
+        <div class="module-filename">bioplatter/core/blast.py</div>
+        <div class="module-desc">جستجوی شباهت توالی (Sequence Similarity Search) با معماری دوگانه. اگر BLAST+ نصب باشد از آن استفاده می‌شود، در غیر این صورت موتور k-mer خالص پایتون اجرا می‌شود.</div>
+
+        <h3>موتور k-mer خالص (Built-in):</h3>
+        <ul class="feature-list">
+            <li><strong>ایندکس‌سازی k-mer:</strong> ساخت ایندکس از توالی‌های پایگاه داده با طول k=15. هر k-mer (زیررشته طول ۱۵) به موقعیت‌هایش در پایگاه داده نگاشت می‌شود.</li>
+            <li><strong>یافتن Seed Hits:</strong> توالی query را به k-merهای ۱۵ تایی تقسیم و در ایندکس جستجو می‌کند. بیشترین تطابق‌ها ذخیره می‌شوند.</li>
+            <li><strong>تراز Banded:</strong> برای هر hit، یک تراز محلی محدود (banded) اجرا می‌شود.</li>
+            <li><strong>تخمین E-value:</strong> محاسبه ارزش E (E-value) با فرمول تقریبی بر اساس اندازه پایگاه داده و امتیاز تراز.</li>
+        </ul>
+
+        <h3>ساختار داده:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>BlastHit</strong> — اطلاعات یک hit شامل: شناسه سوژه، درصد تطابق، طول تراز، E-value، Bit-score و پوشش query.</li>
+            <li><strong><span class="en-name"></span>>BlastResult</strong> — نتیجه کلی جستجو شامل لیست hitها، تعداد hitها و موتور استفاده شده.</li>
+        </ul>
+
+        <div class="code-block">
+<span class="comment"></span>># مثال جستجوی BLAST
+<span class="keyword"></span>>from bioplatter.core.blast <span class="keyword"></span>>import run_blast, run_blast_quick
+
+<span class="comment"></span>># جستجوی سریع با یک توالی
+result = <span class="function"></span>>run_blast_quick(<span class="string"></span>>"ATCGATCGATCG")
+
+<span class="comment"></span>># مشاهده نتایج
+<span class="keyword"></span>>for hit <span class="keyword"></span>>in result.top_hits(<span class="number"></span>>10):
+    <span class="function"></span>>print(hit)
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: MSA -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="msa">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(168,85,247,0.15)"></span>>📐
+            تراز چندگانه توالی
+            
+            <span class="en-name"></span>>(Multiple Sequence Alignment)
+        </h2>
+        <p>تراز همزمان چندین توالی برای یافتن مناطق حفاظت‌شده
+           </p>
+    </div>
+
+    <div class="module-card purple">
+        <div class="module-title">msa.py — تراز چندگانه با معماری دوگانه</div>
+        <div class="module-filename">bioplatter/core/msa.py</div>
+        <div class="module-desc">تراز همزمان چندین توالی با چندین ابزار. اولویت: Clustal Omega → MUSCLE → MAFFT → Progressive خالص پایتون.</div>
+
+        <h3>موتور Progressive خالص پایتون:</h3>
+        <ul class="feature-list">
+            <li><strong>محاسبه فاصله k-mer:</strong> محاسبه فاصله بین هر جفت توالی با مقایسه k-merها (Jaccard distance).</li>
+            <li><strong>ساخت درخت راهنما (Guide Tree):</strong> ساخت درخت UPGMA از ماتریس فاصله برای تعیین ترتیب تراز.</li>
+            <li><strong>تراز Progressive:</strong> توالی‌ها به ترتیب درخت راهنما با یکدیگر تراز می‌شوند.</li>
+            <li><strong>ادغام پروفایل (Profile-Profile Alignment):</strong> هر دو مجموعه تراز شده با روش DP پروفایل-پروفایل ادغام می‌شوند.</li>
+        </ul>
+
+        <h3>توابع مفید:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>auto_align(sequences)</strong> — تراز خودکار با بهترین ابزار موجود.</li>
+            <li><strong><span class="en-name"></span>>consensus_sequence(msa_result)</strong> — توالی اجماعی از نتیجه تراز.</li>
+            <li><strong><span class="en-name"></span>>alignment_statistics(msa_result)</strong> — آمار تراز: درصد گپ، میانگین حفاظت، تعداد جایگاه‌های حفاظت‌شده.</li>
+        </ul>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 10: ENRICHMENT -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="enrichment">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,212,255,0.15)"></span>>🧩
+            غنی‌سازی ژن
+            
+            <span class="en-name"></span>>(GO/KEGG Enrichment)
+        </h2>
+        <p>شناسایی مسیرهای زیستی غنی‌شده در لیست ژن‌های مورد نظر
+           </p>
+    </div>
+
+    <div class="module-card cyan">
+        <div class="module-title">enrichment.py — غنی‌سازی ORA، GSEA و KEGG</div>
+        <div class="module-filename">bioplatter/core/enrichment.py</div>
+        <div class="module-desc">تحلیل غنی‌سازی برای یافتن مسیرهای زیستی و اصطلاحات Gene Ontology که در یک لیست ژن بیش از حد انتظار حضور دارند.</div>
+
+        <h3>سه نوع تحلیل:</h3>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>run_ora() — Over-Representation Analysis:</strong> آزمون آماری ساده. آیا ژن‌های لیست شما بیش از انتظار در یک مسیر خاص هستند؟ از Fishers exact test یا Hypergeometric test استفاده می‌کند.</li>
+            <li><strong><span class="en-name"></span>>run_gsea() — Gene Set Enrichment Analysis:</strong> برخلاف ORA، GSEA از لیست رتبه‌بندی شده ژن‌ها (با امتیاز مثلاً log2FC) استفاده می‌کند و تغییرات هماهنگ در مجموعه‌های ژن از پیش تعریف شده را شناسایی می‌کند.</li>
+            <li><strong><span class="en-name"></span>>run_kegg_enrichment() — KEGG Pathway Enrichment:</strong> غنی‌سازی مسیرهای KEGG (مثلاً مسیرهای متابولیکی، سیگنالینگ).</li>
+        </ul>
+
+        <h3>ابزار مورد نیاز:</h3>
+        <div class="info-box">
+            <strong>goatools</strong> برای ORA و <strong>gseapy</strong> برای GSEA/KEGG. هر دو با pip قابل نصب هستند. فایل GO ontology (<span class="en-name"></span>>go-basic.obo) به صورت خودکار دانلود می‌شود.
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 11: SINGLE CELL -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section fade-in" id="singlecell">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(244,114,182,0.15)"></span>>🔴
+            تحلیل تک‌سلولی
+            
+            <span class="en-name"></span>>(Single-Cell RNA-seq)
+        </h2>
+        <p>پایپ‌لاین کامل scRNA-seq با Scanpy
+           </p>
+    </div>
+
+    <div class="module-card pink">
+        <div class="module-title">single_cell.py — پایپ‌لاین تک‌سلولی</div>
+        <div class="module-filename">bioplatter/core/single_cell.py</div>
+        <div class="module-desc">پایپ‌لاین کامل تحلیل RNA-seq تک‌سلولی (scRNA-seq) بر پایه Scanpy. شامل QC، نرمال‌سازی، کاهش ابعاد، خوشه‌بندی و شناسایی ژن‌های نشانگر.</div>
+
+        <h3>مراحل پایپ‌لاین:</h3>
+        <ul class="feature-list">
+            <li><strong>مرحله ۱ — بارگذاری:</strong> <span class="en-name"></span>>load_count_matrix(). پشتیبانی از فرمت‌های h5ad، 10x h5، CSV، TSV و mtx.</li>
+            <li><strong>مرحله ۲ — کنترل کیفیت (QC):</strong> <span class="en-name"></span>>qc_filter(). فیلتر سلول‌ها بر اساس حداقل ژن‌ها، حداقل سلول‌ها و حداکثر درصد میتوکندری.</li>
+            <li><strong>مرحله ۳ — نرمال‌سازی:</strong> <span class="en-name"></span>>normalize_and_log(). نرمال‌سازی هدف ۱۰,۰۰۰ خواندن + تبدیل log1p.</li>
+            <li><strong>مرحله ۴ — ژن‌های متغیر بالا (HVG):</strong> <span class="en_name"></span>>find_highly_variable_genes(). شناسایی ۲,۰۰۰ ژن با بیشترین تنوع بین سلول‌ها.</li>
+            <li><strong>مرحله ۵ — مقیاس‌بندی و PCA:</strong> <span class="en-name"></span>>scale_and_pca(). استانداردسازی و کاهش ابعاد با PCA.</li>
+            <li><strong>مرحله ۶ — همسایگی و UMAP:</strong> <span class="en-name"></span>>compute_neighbors() + <span class="en-name"></span>>run_umap(). ساخت نمودار UMAP برای تجسم سلول‌ها.</li>
+            <li><strong>مرحله ۷ — خوشه‌بندی:</strong> <span class="en-name"></span>>cluster_leiden() یا <span class="en-name"></span>>cluster_louvain(). خوشه‌بندی سلول‌ها.</li>
+            <li><strong>مرحله ۸ — ژن‌های نشانگر:</strong> <span class="en-name"></span>>find_marker_genes(). شناسایی ژن‌هایی که هر خوشه را مشخص می‌کنند.</li>
+        </ul>
+
+        <div class="info-box pink" style="background:rgba(244,114,182,0.06); border-color:rgba(244,114,182,0.2);">
+            <strong>ابزار مورد نیاز:</strong> scanpy و anndata (هر دو با pip قابل نصب). این ماژول قابلیت خودکار <span class="en-name"></span>>run_full_pipeline() را نیز دارد که تمام مراحل را یکجا اجرا می‌کند.
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 12: REMAINING MODULES -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="modules">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(251,191,36,0.15)"></span>>⚙️
+            سایر ماژول‌های تحلیلی
+            
+        </h2>
+        <p>توضیح کامل هر ماژول باقیمانده
+           </p>
+    </div>
+
+    <!-- CRISPR -->
+    <div class="module-card green" id="crispr">
+        <div class="module-title">crispr.py — طراحی Guide RNA</div>
+        <div class="module-filename">bioplatter/core/crispr.py</div>
+        <div class="module-desc">طراحی راهنمای RNA برای ویرایش ژنوم با CRISPR/Cas9. شناسایی سایت‌های PAM و امتیازدهی guide RNA.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>PAM_PATTERNS:</strong> الگوهای PAM برای SpCas9 (NGG)، SaCas9 (NNGRRT)، Cas12a (TTTV)</li>
+            <li><strong><span class="en-name"></span>>_find_pam_sites():</strong> جستجوی سایت‌های PAM در هر دو رشته DNA</li>
+            <li><strong><span class="en-name"></span>>_score_guide():</strong> امتیازدهی بر اساس محتوای GC، حضور پلی-N و اجرای GC</li>
+            <li><strong><span class="en-name"></span>>design_guides():</strong> API اصلی. موتور: built-in یا CRISPOR API</li>
+        </ul>
+    </div>
+
+    <!-- PopGen -->
+    <div class="module-card purple" id="popgen">
+        <div class="module-title">popgen.py — ژنتیک جمعیت</div>
+        <div class="module-filename">bioplatter/core/popgen.py</div>
+        <div class="module-desc">تحلیل‌های ژنتیک جمعیت: تعادل هاردی-واینبرگ، FST، تنوع نوکلئوتیدی، Tajima's D، PCA و ناهمتابُعدی لینکیج.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>hardy_weinberg_test():</strong> آزمون تعادل هاردی-واینبرگ (HWE). آیا فرکانس‌های ژنوتیپی در یک جمعیت با تعادل انتظاری مطابقت دارند؟</li>
+            <li><strong><span class="en-name"></span>>calculate_fst():</strong> محاسبه FST بین جمعیت‌ها. FST اندازه‌گیری تمایز ژنتیکی بین جمعیت‌هاست (۰ = بدون تفاوت، ۱ = کاملاً متفاوت).</li>
+            <li><strong><span class="en-name"></span>>nucleotide_diversity():</strong> تنوع نوکلئوتیدی (π). میانگین تعداد تفاوت‌ها بین هر جفت توالی.</li>
+            <li><strong><span class="en-name"></span>>tajimas_d():</strong> D تاجیما. عدد منفی نشان‌دهنده گسترش مثبت (Positive Selection) و عدد مثبت نشان‌دهنده گلوگاه ژنتیکی (Bottleneck) است.</li>
+            <li><strong><span class="en-name"></span>>linkage_disequilibrium():</strong> ناهمتابُعدی لینکیج (LD) با محاسبه r² بین جایگاه‌ها.</li>
+            <li><strong><span class="en-name"></span>>pca_genotypes():</strong> تحلیل مولفه‌های اصلی (PCA) روی داده‌های ژنوتیپی.</li>
+        </ul>
+    </div>
+
+    <!-- Metabolism -->
+    <div class="module-card orange" id="metabolism">
+        <div class="module-title">metabolism.py — توازن جریان متابولیکی</div>
+        <div class="module-filename">bioplatter/core/metabolism.py</div>
+        <div class="module-desc">تحلیل شبکه‌های متابولیکی: توازن جریان (FBA) و تحلیل حذف ژن (Knockout Analysis).</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>run_fba():</strong> اجرای FBA با scipy.optimize.linprog (پایتون خالص) یا COBRApy.</li>
+            <li><strong><span class="en-name"></span>>knockout_analysis():</strong> شبیه‌سازی حذف ژن و تأثیر آن بر رشد. آیا حذف یک ژن باعث توقف رشد می‌شود؟ (ژن ضروری)</li>
+            <li><strong><span class="en-name"></span>>create_stoichiometric_matrix():</strong> ساخت ماتریس استوکیومتریک از واکنش‌ها.</li>
+        </ul>
+    </div>
+
+    <!-- Metagenomics -->
+    <div class="module-card cyan" id="metagenomics">
+        <div class="module-title">metagenomics.py — متاژنومیکس</div>
+        <div class="module-filename">bioplatter/core/metagenomics.py</div>
+        <div class="module-desc">طبقه‌بندی تاکسونومیکی خواندن‌ها و تحلیل تنوع. موتور: k-mer classifier. ابزار خارجی: Kraken2. همچنین پایپ‌لاین 16S rRNA.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>shannon_entropy():</strong> آنتروپی شانون — معیار تنوع alpha. هرچه بالاتر، تنوع بیشتر.</li>
+            <li><strong><span class="en-name"></span>>simpson_index():</strong> شاخص سیمپسون — احتمال اینکه دو خواندن تصادفی از نمونه متعلق به گونه متفاوت باشند.</li>
+            <li><strong><span class="en-name"></span>>chao1_estimator():</strong> تخمین Chao1 — تعداد کل گونه‌های واقعی (شامل گونه‌های دیده نشده).</li>
+            <li><strong><span class="en-name"></span>>bray_curtis_distance():</strong> فاصله Bray-Curtis — معیار تنوع beta بین دو نمونه.</li>
+            <li><strong><span class="en-name"></span>>classify_16s_rna():</strong> طبقه‌بندی توالی‌های 16S rRNA علیه پایگاه داده مرجع.</li>
+        </ul>
+    </div>
+
+    <!-- Epitope -->
+    <div class="module-card pink" id="epitope">
+        <div class="module-title">epitope.py — پیش‌بینی اپی‌توپ</div>
+        <div class="module-filename">bioplatter/core/epitope.py</div>
+        <div class="module-desc">پیش‌بینی اپی‌توپ‌های T-cell و B-cell برای طراحی واکسن. پیاده‌سازی خالص پایتون با استفاده از خواص اسیدآمینه‌ها.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>predict_t_cell_epitopes():</strong> پیش‌بینی اپی‌توپ‌های T-cell بر اساس اتصال MHC. از جداول اتصال anchor (P2 و P9) و هیدروفوبیسیته استفاده می‌کند.</li>
+            <li><strong><span class="en-name"></span>>predict_b_cell_epitopes():</strong> پیش‌بینی اپی‌توپ‌های B-cell بر اساس دسترسی سطحی، انعطاف‌پذیری و تمایل اتصال.</li>
+            <li><strong><span class="en-name"></span>>predict_linear_epitopes():</strong> پیش‌بینی اپی‌توپ‌های خطی با ترکیب چند خاصیت.</li>
+            <li><strong><span class="en-name"></span>>cleavage_site_prediction():</strong> پیش‌بینی محل‌های برش پروتئازوم ایمنی.</li>
+        </ul>
+    </div>
+
+    <!-- GWAS -->
+    <div class="module-card yellow" id="gwas">
+        <div class="module-title">gwas.py — مطالعات GWAS</div>
+        <div class="module-filename">bioplatter/core/gwas.py</div>
+        <div class="module-desc">مطالعات ارتباط ژنوم-واید (GWAS): آزمون مجذور کای، نمودار Manhattan/QQ و شناسایی SNPهای سرنخ.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>gwas_chi_squared():</strong> آزمون مجذور کای (Chi-squared test) برای یک SNP. محاسبه Odds Ratio و p-value.</li>
+            <li><strong><span class="en-name"></span>>run_gwas():</strong> اجرای GWAS روی DataFrame از SNPها. شامل اصلاح BH برای تست‌های چندگانه.</li>
+            <li><strong><span class="en-name"></span>>detect_lead_snps():</strong> شناسایی SNPهای سرنخ (Lead SNPs) در هر لocus مستقل.</li>
+            <li><strong><span class="en-name"></span>>generate_g_significance_data():</strong> تولید داده GWAS شبیه‌سازی شده برای تست و نمایش.</li>
+        </ul>
+    </div>
+
+    <!-- Epigenomics -->
+    <div class="module-card red" id="epigenomics">
+        <div class="module-title">epigenomics.py — تحلیل اپی‌ژنومیکس</div>
+        <div class="module-filename">bioplatter/core/epigenomics.py</div>
+        <div class="module-desc">تحلیل متیلاسیون DNA، ATAC-seq و حالت‌های کروماتین.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>parse_bisulfite_bed():</strong> خواندن فایل BED متیلاسیشن بیسولفیت.</li>
+            <li><strong><span class="en-name"></span>>calculate_methylation_levels():</strong> محاسبه آمار متیلاسیون: میانگین، توزیع و تفکیک بر اساس زمینه (CpG، CHG، CHH).</li>
+            <li><strong><span class="en-name"></span>>find_dmrs():</strong> شناسایی مناطق متیلاسیون متفاوت (DMR) بین دو گروه با آزمون Mann-Whitney U.</li>
+            <li><strong><span class="en-name"></span>>parse_atac_peaks():</strong> خواندن فایل پیک ATAC-seq.</li>
+        </ul>
+    </div>
+
+    <!-- Metabolomics -->
+    <div class="module-card orange" id="metabolomics">
+        <div class="module-title">metabolomics.py — تحلیل متابولومیکس</div>
+        <div class="module-filename">bioplatter/core/metabolomics.py</div>
+        <div class="module-desc">تشخیص پیک، تراز ویژگی‌ها و آزمون‌های آماری در داده‌های متابولومیکس.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>detect_peaks():</strong> تشخیص پیک در کروماتوگرام یا طیف جرمی با scipy.signal.</li>
+            <li><strong><span class="en-name"></span>>align_features():</strong> تراز ویژگی‌ها بین نمونه‌ها بر اساس م容忍 m/z و زمان نگه‌داری (RT).</li>
+            <li><strong><span class="en-name"></span>>anova_test():</strong> آزمون ANOVA برای هر ویژگی بین گروه‌ها.</li>
+            <li><strong><span class="en-name"></span>>pca_feature_matrix():</strong> PCA روی ماتریس ویژگی‌ها.</li>
+        </ul>
+    </div>
+
+    <!-- Machine Learning -->
+    <div class="module-card purple" id="ml">
+        <div class="module-title">bio_ml.py — یادگیری ماشین برای زیست‌شناسی</div>
+        <div class="module-filename">bioplatter/core/bio_ml.py</div>
+        <div class="module-desc">Random Forest، SVM، اعتبارسنجی متقابل، منحنی‌های ROC و تفسیرپذیری SHAP.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>train_random_forest():</strong> آموزش Random Forest Classifier با ۵-fold CV. خروجی: دقت، AUC، اهمیت ویژگی‌ها و مقادیر SHAP.</li>
+            <li><strong><span class="en-name"></span>>train_svm():</strong> آموزش Support Vector Machine با kernelهای rbf، linear و poly.</li>
+            <li><strong><span class="en-name"></span>>train_random_forest_regressor():</strong> Random Forest Regressor برای پیش‌بینی مقادیر پیوسته.</li>
+            <li><strong><span class="en-name"></span>>compute_roc_curve():</strong> محاسبه نقاط منحنی ROC و AUC.</li>
+            <li><strong><span class="en-name"></span>>select_features():</strong> انتخاب ویژگی بر اساس اهمیت Random Forest یا واریانس.</li>
+        </ul>
+    </div>
+
+    <!-- Survival -->
+    <div class="module-card pink" id="survival">
+        <div class="module-title">survival.py — تحلیل بقا</div>
+        <div class="module-filename">bioplatter/core/survival.py</div>
+        <div class="module-desc">منحنی‌های Kaplan-Meier، آزمون Log-rank و مدل Cox Proportional Hazards.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>kaplan_meier():</strong> برآورد Kaplan-Meier شامل منحنی بقا، بازه اطمینان و بقای میانه.</li>
+            <li><strong><span class="en-name"></span>>log_rank_test():</strong> آزمون Log-rank برای مقایسه دو منحنی بقا.</li>
+            <li><strong><span class="en-name"></span>>cox_ph_summary():</strong> تحلیل ساده‌شده Cox PH. محاسبه Hazard Ratio و p-value.</li>
+        </ul>
+    </div>
+
+    <!-- Docking -->
+    <div class="module-card cyan" id="docking">
+        <div class="module-title">docking.py — داکینگ مولکولی</div>
+        <div class="module-filename">bioplatter/core/docking.py</div>
+        <div class="module-desc">شبیه‌سازی اتصال لیگاند به گیرنده. موتور: محاسبه انرژی اتصال بر اساس فاصله. ابزار خارجی: AutoDock Vina.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>_parse_pdb_atoms():</strong> خواندن اتم‌ها از فایل PDB.</li>
+            <li><strong><span class="en-name"></span>>_compute_binding_energy():</strong> محاسبه انرژی اتصال بر اساس فاصله اتم‌ها.</li>
+            <li><strong><span class="en-name"></span>>dock():</strong> API اصلی. تولید چندین Pose با انرژی‌های مختلف.</li>
+        </ul>
+    </div>
+
+    <!-- MD Simulation -->
+    <div class="module-card green" id="md">
+        <div class="module-title">md_simulation.py — شبیه‌سازی مولکولی</div>
+        <div class="module-filename">bioplatter/core/md_simulation.py</div>
+        <div class="module-desc">کمینه‌سازی انرژی و شبیه‌سازی مولکولی. موتور: Steepest Descent خالص پایتون. ابزار خارجی: OpenMM.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>_builtin_minimize():</strong> کمینه‌سازی انرژی با روش Steepest Descent ساده‌شده.</li>
+            <li><strong><span class="en-name"></span>>run_simulation():</strong> API اصلی. محاسبه RMSD، شعاع ژیراسیون و انرژی.</li>
+        </ul>
+    </div>
+
+    <!-- Assembly -->
+    <div class="module-card yellow" id="assembly">
+        <div class="module-title">assembly.py — مونتاژ ژنوم</div>
+        <div class="module-filename">bioplatter/core/assembly.py</div>
+        <div class="module-desc">مونتاژ ژنوم از خواندن‌های کوتاه. موتور: Overlap assembler خالص پایتون. ابزارهای خارجی: SPAdes / MEGAHIT.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>_compute_assembly_stats():</strong> آمار مونتاژ: تعداد کانتیگ‌ها، N50، L50، محتوای GC.</li>
+            <li><strong><span class="en-name"></span>>_compute_n50() / <span class="en-name"></span>>_compute_l50():</strong> N50 طول کانتیگی است که ۵۰٪ ژنوم مونتاژ شده را پوشش می‌دهد.</li>
+        </ul>
+    </div>
+
+    <!-- ORF Finder -->
+    <div class="module-card green" id="orf">
+        <div class="module-title">orf_finder.py — یافتن ORF و آنزیم‌های محدودکننده</div>
+        <div class="module-filename">bioplatter/core/orf_finder.py</div>
+        <div class="module-desc">یافتن چارچوب‌های باز خواندن (ORF)، نقشه‌برداری آنزیم‌های محدودکننده و طراحی پرایمر.</div>
+        <ul class="feature-list">
+            <li><strong>ORF Finder:</strong> جستجوی چارچوب‌های خواندن با کدون شروع (ATG) و کدون توقف (TAA/TAG/TGA).</li>
+            <li><strong>Restriction Enzyme Mapper:</strong> شناسایی محل‌های برش بیش از ۳۰ آنزیم محدودکننده رایج (EcoRI، BamHI، HindIII و غیره).</li>
+            <li><strong>Primer Design:</strong> طراحی پرایمر با محاسبه Tm (دمای ذوب)، محتوای GC و طول.</li>
+        </ul>
+    </div>
+
+    <!-- Codon Usage -->
+    <div class="module-card cyan" id="codon">
+        <div class="module-title">codon_usage.py — جداول کدونی و k-mer</div>
+        <div class="module-filename">bioplatter/core/codon_usage.py</div>
+        <div class="module-desc">تحلیل سوگیری استفاده کدونی، ترکیب k-mer و پیچیدگی توالی.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>codon_usage_table():</strong> جدول استفاده از هر کدون به عنوان درصد کل کدون‌ها.</li>
+            <li><strong><span class="en-name"></span>>kmer_composition():</strong> ترکیب و فرکانس k-merها (زیررشته‌های طول k).</li>
+            <li><strong><span class="en-name"></span>>sequence_complexity():</strong> پیچیدگی توالی بر اساس تعداد k-merهای منحصربفرد.</li>
+        </ul>
+    </div>
+
+    <!-- File Formats -->
+    <div class="module-card purple" id="fileformats">
+        <div class="module-title">file_formats.py — پارسرهای فرمت فایل</div>
+        <div class="module-filename">bioplatter/core/file_formats.py</div>
+        <div class="module-desc">پارسرهای خالص پایتون برای فرمت‌های رایج بیوانفورماتیک.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>BED:</strong> فرمت BED3/BED6/BED12 برای ناحیه‌های ژنومی (chrom، start، end و غیره).</li>
+            <li><strong><span class="en-name"></span>>GFF/GTF:</strong> فرمت GFF3 برای آنوتیشن ژنومی (ویژگی‌ها، منابع، فاز و غیره).</li>
+            <li><strong><span class="en-name"></span>>Newick:</strong> فرمت درخت فیلوژنتیک با پرانتز و طول شاخه.</li>
+            <li><strong><span class="en-name"></span>>Stockholm:</strong> فرمت تراز چندگانه با اطلاعات حفاظت.</li>
+        </ul>
+    </div>
+
+    <!-- Databases -->
+    <div class="module-card orange" id="databases">
+        <div class="module-title">databases.py — اتصال به پایگاه‌داده‌ها</div>
+        <div class="module-filename">bioplatter/core/databases.py</div>
+        <div class="module-desc">اتصال به APIهای رایج بیوانفورماتیک: NCBI Entrez، UniProt، RCSB PDB، KEGG و Ensembl.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>NCBI Entrez:</strong> جستجوی توالی‌های نوکلئوتیدی و پروتئینی. بدون کلید API: ۳ درخواست/ثانیه. با کلید: ۱۰ درخواست/ثانیه.</li>
+            <li><strong><span class="en-name"></span>>UniProt:</strong> جستجوی پایگاه داده پروتئین‌ها. بدون نیاز به ثبت‌نام.</li>
+            <li><strong><span class="en-name"></span>>RCSB PDB:</strong> جستجوی ساختارهای پروتئینی. بدون نیاز به ثبت‌نام.</li>
+            <li><strong><span class="en-name"></span>>KEGG:</strong> جستجوی مسیرهای متابولیکی. برای کاربران آکادمیک رایگان.</li>
+            <li><strong><span class="en-name"></span>>Ensembl:</strong> جستجوی آنوتیشن‌های ژنومی. بدون نیاز به ثبت‌نام.</li>
+        </ul>
+    </div>
+
+    <!-- GO Browser -->
+    <div class="module-card green" id="goweb">
+        <div class="module-title">go_browser.py — مرورگر Gene Ontology</div>
+        <div class="module-filename">bioplatter/core/go_browser.py</div>
+        <div class="module-desc">مرور سلسله‌مراتبی اصطلاحات GO، جستجوی روابط اصطلاحات و تحلیل غنی‌سازی. شامل دیتاست آفلاین GO با بیش از ۳۰ اصطلاح رایج.</div>
+    </div>
+
+    <!-- Pathway Viz -->
+    <div class="module-card cyan" id="pathway">
+        <div class="module-title">pathway_viz.py — رسم مسیرهای متابولیکی</div>
+        <div class="module-filename">bioplatter/core/pathway_viz.py</div>
+        <div class="module-desc">رسم نمودارهای مسیرهای متابولیکی شبیه KEGG با استفاده از NetworkX و Matplotlib.</div>
+    </div>
+
+    <!-- Workflow -->
+    <div class="module-card purple" id="workflow">
+        <div class="module-title">workflow/ — سیستم گردش کار</div>
+        <div class="module-filename">bioplatter/core/workflow/</div>
+        <div class="module-desc">شامل سه ماژول برای ایجاد پایپ‌لاین‌های خودکار.</div>
+        <ul class="feature-list">
+            <li><strong><span class="en-name"></span>>pipeline.py — Pipeline:</strong> ساخت زنجیره‌ای از مراحل تحلیلی. هر مرحله یک تابع پایتون است که خروجی مرحله قبل را دریافت می‌کند. پشتیبانی از Context و Report.</li>
+            <li><strong><span class="en-name"></span>>batch.py — BatchProcessor:</strong> اجرای همزمان یک تابع روی چندین نمونه. پشتیبانی از ThreadPool برای پردازش موازی.</li>
+            <li><strong><span class="en-name"></span>>report.py — Report:</strong> تولید گزارش HTML از نتایج پایپ‌لاین.</li>
+        </ul>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 13: PLOTTING -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="plotting">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,255,136,0.15)"></span>>📈
+            سیستم رسم نمودار
+            
+            <span class="en-name"></span>>(Visualization Engine)
+        </h2>
+        <p>بیش از ۳۶ نوع نمودار برای تجسم داده‌های بیولوژیکی
+           </p>
+    </div>
+
+    <div class="module-card green">
+        <div class="module-title">biological_plots.py — نمودارهای زیستی</div>
+        <div class="module-filename">bioplatter/plotting/biological_plots.py</div>
+        <div class="module-desc">بزرگ‌ترین فایل نمودار (~۱,۰۴۲ خط). شامل ۱۸+ نوع نمودار بیولوژیکی اصلی.</div>
+        <div class="table-wrapper">
+            <table>
+                <tr><th>نمودار</th><th>کاربرد</th><th>وقتی استفاده می‌شود</th></tr>
+                <tr><td><strong>Volcano Plot</strong></td><td>بیان متفاوت ژن</td><td>مقایسه log2FC vs -log10(p-value) برای هزاران ژن</td></tr>
+                <tr><td><strong>PCA Plot</strong></td><td>کاهش ابعاد</td><td>تشخیص الگوهای کلی در داده‌های چندبعدی</td></tr>
+                <tr><td><strong>Manhattan Plot</strong></td><td>GWAS</td><td>نمایش SNPهای معنادار در سراسر کروموزوم‌ها</td></tr>
+                <tr><td><strong>MA Plot</strong></td><td>بیان ژن</td><td>مقایسه میانگین بیان vs تغییر بیان</td></tr>
+                <tr><td><strong>Venn Diagram</strong></td><td>مجموعه‌ها</td><td>نمایش همپوشانی بین ۲ یا ۳ مجموعه ژن</td></tr>
+                <tr><td><strong>Heatmap</strong></td><td>بیان ژن</td><td>نمایش الگوی بیان ژن‌ها در نمونه‌ها</td></tr>
+                <tr><td><strong>Boxplot</strong></td><td>آمار توصیفی</td><td>مقایسه توزیع داده‌ها بین گروه‌ها</td></tr>
+                <tr><td><strong>Volcano/MA</strong></td><td>DE</td><td>ت viz تغییرات بیان</td></tr>
+                <tr><td><strong>Circos Plot</strong></td><td>ژنومیکس</td><td>نمایش دایره‌ای تغییرات ژنومی</td></tr>
+                <tr><td><strong>Alignment Viewer</strong></td><td>تراز</td><td>نمایش بصری تراز توالی‌ها</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-card cyan">
+        <div class="module-title">سایر فایل‌های نمودار</div>
+        <div class="table-wrapper">
+            <table>
+                <tr><th>فایل</th><th>انواع نمودار</th></tr>
+                <tr><td><span class="en-name"></span>>interactive_plots.py</td><td>نمودارهای Plotly تعاملی: scatter، bar، line، heatmap تعاملی</td></tr>
+                <tr><td><span class="en-name"></span>>network_plots.py</td><td>شبکه‌های PPI (تعامل پروتئین-پروتئین)، تنظیمی و متابولیکی</td></tr>
+                <tr><td><span class="en-name"></span>>genome_browser.py</td><td>مرورگر ژنوم برای نمایش خواندن‌ها و واریانت‌ها</td></tr>
+                <tr><td><span class="en-name"></span>>specialized_plots.py</td><td>Motif Logo، Sankey، UpSet، GSEA plot و بیشتر</td></tr>
+                <tr><td><span class="en-name"></span>>conservation_plots.py</td><td>نمودارهای حفاظت توالی</td></tr>
+                <tr><td><span class="en-name"></span>>math_plots.py</td><td>نمودارهای ریاضی: سینوسی، خطی، نمایی و غیره</td></tr>
+                <tr><td><span class="en-name"></span>>upset_plots.py</td><td>نمودار UpSet به جای Venn برای مجموعه‌های بیشتر</td></tr>
+                <tr><td><span class="en-name"></span>>synteny.py</td><td>نمودار Dotplot هم‌ترتیبی بین ژنوم‌ها</td></tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 14: GUI -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="gui">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(168,85,247,0.15)"></span>>🖥️
+            رابط گرافیکی
+            
+            <span class="en-name"></span>>(Cyberpunk GUI)
+        </h2>
+        <p>رابط گرافیکی حرفه‌ای با ۳ تم سایبرپانک و ۲۹ تب تحلیلی
+           </p>
+    </div>
+
+    <div class="module-card purple">
+        <div class="module-title">main_window.py — پنجره اصلی</div>
+        <div class="module-filename">bioplatter/gui/main_window.py</div>
+        <div class="module-desc">کلاس اصلی <span class="en-name"></span>>BioSuiteApp با الگوی Mixin. هر حوزه تحلیلی یک Mixin جداگانه دارد.</div>
+
+        <h3>معماری Mixin:</h3>
+        <div class="code-block">
+<span class="keyword"></span>>class <span class="function"></span>>BioSuiteApp(
+    VisualizationTabMixin,        <span class="comment"></span>># تب نمودارها
+    SequenceAnalysisTabMixin,     <span class="comment"></span>># تب تحلیل توالی
+    TranscriptomicsTabMixin,      <span class="comment"></span>># تب ترنسکریپتومیکس
+    GenomicsTabMixin,             <span class="comment"></span>># تب ژنومیکس
+    AdvancedTabMixin,             <span class="comment"></span>># تب ابزارهای پیشرفته
+    DatabasesTabMixin,            <span class="comment"></span>># تب پایگاه داده‌ها
+    WorkflowTabMixin,             <span class="comment"></span>># تب گردش کار
+    HelpTabMixin,                 <span class="comment"></span>># تب راهنما
+    ctk.CTk,                      <span class="comment"></span>># CustomTkinter base
+):
+        </div>
+
+        <h3>ویژگی‌های GUI:</h3>
+        <ul class="feature-list">
+            <li><strong>۳ تم سایبرپانک:</strong> Dark-Green-Cyber، Dark-Purple-Cyber، Light-Blue-Cyber</li>
+            <li><strong>۲۹ تب تحلیلی</strong> با sidebar قابل اسکرول</li>
+            <li><strong>میانبرهای صفحه‌کلید:</strong> Ctrl+S (ذخیره)، Ctrl+Q (خروج)، F1 (راهنما)، F5 (بازخوانی)، Escape</li>
+            <li><strong>نوار پیشرفت</strong> برای عملیات طولانی</li>
+            <li><strong>تاریخچه نمودارها</strong> (۱۰ نمودار آخر)</li>
+            <li><strong>پنل تنظیمات API Key</strong></li>
+            <li><strong>۱۵ راهنمای داخلی</strong> در تب Help</li>
+            <li><strong>Splash Screen</strong> با انیمیشن لودینگ</li>
+            <li><strong>دیالوگ‌های سفارشی</strong> به جای دیالوگ‌های پیش‌فرض سیستم</li>
+        </ul>
+    </div>
+
+    <div class="module-card cyan">
+        <div class="module-title">themes.py — سیستم تم‌ها</div>
+        <div class="module-filename">bioplatter/gui/themes.py</div>
+        <div class="module-desc">تعریف ۳ تم رنگی با تمام رنگ‌ها، فونت‌ها و تنظیمات بصری. همچنین شامل نقشه‌های دسته‌بندی نمودارها و توابع رسم.</div>
+    </div>
+
+    <div class="module-card green">
+        <div class="module-title">dialogs.py — دیالوگ‌های سفارشی</div>
+        <div class="module-filename">bioplatter/gui/dialogs.py</div>
+        <div class="module-desc">دیالوگ‌های سفارشی با طراحی تم: پیام، تأیید، ورودی، انتخاب فایل، انتخاب لیست کشویی و Splash Screen.</div>
+    </div>
+
+    <div class="module-card pink">
+        <div class="module-title">tabs/ — تب‌های تحلیلی</div>
+        <div class="module-filename">bioplatter/gui/tabs/</div>
+        <div class="module-desc">۸ فایل Mixin برای هر حوزه تحلیلی.</div>
+        <div class="table-wrapper">
+            <table>
+                <tr><th>فایل</th><th>اندازه</th><th>محتوا</th></tr>
+                <tr><td><span class="en-name"></span>>visualization.py</td><td>28.8 KB</td><td>تب نمودارها با تمام انواع رسم</td></tr>
+                <tr><td><span class="en-name"></span>>help.py</td><td>20.9 KB</td><td>۱۵ راهنمای آموزشی</td></tr>
+                <tr><td><span class="en-name"></span>>workflow.py</td><td>14.1 KB</td><td>سازنده پایپ‌لاین و پردازشگر انبوه</td></tr>
+                <tr><td><span class="en-name"></span>>genomics.py</td><td>13.5 KB</td><td>ابزارهای ژنومیکس و NGS</td></tr>
+                <tr><td><span class="en-name"></span>>sequence_analysis.py</td><td>13.2 KB</td><td>ابزارهای تحلیل توالی و تراز</td></tr>
+                <tr><td><span class="en-name"></span>>advanced.py</td><td>12 KB</td><td>CRISPR، PopGen، ML و سایر تحلیل‌ها</td></tr>
+                <tr><td><span class="en-name"></span>>databases.py</td><td>10.5 KB</td><td>جستجوی پایگاه داده‌ها و تنظیمات API</td></tr>
+                <tr><td><span class="en-name"></span>>transcriptomics.py</td><td>8.9 KB</td><td>بیان ژن، غنی‌سازی و تک‌سلولی</td></tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 15: CLI -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="cli">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(249,115,22,0.15)"></span>>⌨️
+            خط فرمان
+            
+            <span class="en-name"></span>>(CLI)
+        </h2>
+        <p>منوی تعاملی با ۹۹+ گزینه برای تمام تحلیل‌ها
+           </p>
+    </div>
+
+    <div class="module-card orange">
+        <div class="module-title">menu.py — منوی حرفه‌ای خط فرمان</div>
+        <div class="module-filename">bioplatter/cli/menu.py</div>
+        <div class="module-desc">منوی تعاملی متنی با بیش از ۹۹ گزینه سازمان‌دهی شده در دسته‌بندی‌ها. همچنین شامل نقاط ورود <span class="en-name"></span>>main_cli() و <span class="en-name"></span>>main_cli_gui() برای استفاده به عنوان دستور pip.</div>
+
+        <h3>دسترسی از pip:</h3>
+        <div class="code-block">
+<span class="comment"></span>># پس از نصب با pip install biosuitestkod
+biosuite              <span class="comment"></span>># اجرای خط فرمان
+biosuite-gui          <span class="comment"></span>># اجرای رابط گرافیکی
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 16: TESTS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="tests">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,255,136,0.15)"></span>>✅
+            تست‌ها
+            
+            <span class="en-name"></span>>(Test Suite)
+        </h2>
+        <p>۲۷۱ تست خودکار برای تضمین کیفیت کد
+           </p>
+    </div>
+
+    <div class="module-card green">
+        <div class="module-title">ساختار تست‌ها</div>
+        <div class="module-desc">تست‌ها با pytest نوشته شده‌اند و هر فایل یک حوزه تحلیلی را پوشش می‌دهد.</div>
+        <div class="table-wrapper">
+            <table>
+                <tr><th>فایل تست</th><th>حوزه</th></tr>
+                <tr><td><span class="en-name"></span>>test_sequence.py</td><td>تست توابع توالی: FASTA/FASTQ I/O، GC%، translate</td></tr>
+                <tr><td><span class="en-name"></span>>test_alignment.py</td><td>تست Needleman-Wunsch و Smith-Waterman</td></tr>
+                <tr><td><span class="en-name"></span>>test_blast.py</td><td>تست موتور جستجوی k-mer و BLAST</td></tr>
+                <tr><td><span class="en-name"></span>>test_msa.py</td><td>تست تراز چندگانه و progressive alignment</td></tr>
+                <tr><td><span class="en-name"></span>>test_phylogeny.py</td><td>تست درخت فیلوژنتیک و فاصله</td></tr>
+                <tr><td><span class="en-name"></span>>test_expression.py</td><td>تست CPM/TPM و بیان متفاوت</td></tr>
+                <tr><td><span class="en-name"></span>>test_enrichment_gwas.py</td><td>تست غنی‌سازی و GWAS</td></tr>
+                <tr><td><span class="en-name"></span>>test_crispr_popgen_epitope.py</td><td>تست CRISPR، ژنتیک جمعیت و اپی‌توپ</td></tr>
+                <tr><td><span class="en-name"></span>>test_databases.py</td><td>تست اتصال به پایگاه داده‌ها</td></tr>
+                <tr><td><span class="en-name"></span>>test_file_formats.py</td><td>تست پارسرهای BED، GFF، Newick</td></tr>
+                <tr><td><span class="en-name"></span>>test_assembly_trimming.py</td><td>تست مونتاژ و خواندن QC</td></tr>
+                <tr><td><span class="en-name"></span>>test_orf_finder.py</td><td>تست ORF، آنزیم‌ها و پرایمر</td></tr>
+                <tr><td><span class="en-name"></span>>test_phase3_integration.py</td><td>تست یکپارچه Phase 3</td></tr>
+                <tr><td><span class="en-name"></span>>test_phase3_plotting.py</td><td>تست نمودارها</td></tr>
+                <tr><td><span class="en-name"></span>>test_phase4.py</td><td>تست Workflow، GO Browser، GWAS، Epitope</td></tr>
+                <tr><td><span class="en-name"></span>>test_phase5.py</td><td>تست‌های پایانی Phase 5</td></tr>
+                <tr><td><span class="en-name"></span>>test_gui_all_modules.py</td><td>تست GUI (بدون نمایش)</td></tr>
+                <tr><td><span class="en-name"></span>>test_utils_shared.py</td><td>تست ابزارهای مشترک</td></tr>
+            </table>
+        </div>
+
+        <div class="info-box green">
+            <strong> نحوه اجرا:</strong>
+            <div class="code-block" style="margin-top:0.5rem">
+python -m pytest tests/ -v
+python -m pytest tests/test_phase4.py -v
+python -m pytest tests/ -v --tb=short
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 17: DEPENDENCIES -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="deps">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(251,191,36,0.15)"></span>>📦
+            وابستگی‌ها
+            
+            <span class="en-name"></span>>(Dependencies)
+        </h2>
+        <p>پکیج‌های مورد نیاز و نقش هر کدام
+           </p>
+    </div>
+
+    <div class="module-card yellow">
+        <div class="table-wrapper">
+            <table>
+                <tr><th>پکیج</th><th>حداقل نسخه</th><th>نقش</th><th>دسته</th></tr>
+                <tr><td><span class="en-name"></span>>numpy</td><td>1.24</td><td>محاسبات عددی برداری، ماتریس‌ها</td><td>هسته</td></tr>
+                <tr><td><span class="en-name"></span>>pandas</td><td>2.0</td><td>تحلیل داده‌های جدولی (DataFrame)</td><td>هسته</td></tr>
+                <tr><td><span class="en-name"></span>>matplotlib</td><td>3.7</td><td>رسم نمودارهای پایه</td><td>هسته</td></tr>
+                <tr><td><span class="en-name"></span>>seaborn</td><td>0.12</td><td>نمودارهای آماری پیشرفته</td><td>هسته</td></tr>
+                <tr><td><span class="en-name"></span>>scipy</td><td>1.10</td><td>آزمون‌های آماری، بهینه‌سازی، خوشه‌بندی</td><td>هسته</td></tr>
+                <tr><td><span class="en-name"></span>>scikit-learn</td><td>1.3</td><td>یادگیری ماشین: RF، SVM، PCA</td><td>هسته</td></tr>
+                <tr><td><span class="en-name"></span>>customtkinter</td><td>5.2</td><td>رابط گرافیکی مدرن</td><td>GUI</td></tr>
+                <tr><td><span class="en-name"></span>>tqdm</td><td>4.65</td><td>نوار پیشرفت</td><td>ابزاری</td></tr>
+                <tr><td><span class="en-name"></span>>biopython</td><td>1.81</td><td>پارسر GenBank، BLAST XML</td><td>زیستی</td></tr>
+                <tr><td><span class="en-name"></span>>goatools</td><td>1.3</td><td>غنی‌سازی GO (ORA)</td><td>زیستی</td></tr>
+                <tr><td><span class="en-name"></span>>gseapy</td><td>1.0</td><td>GSEA و غنی‌سازی KEGG</td><td>زیستی</td></tr>
+                <tr><td><span class="en-name"></span>>cutadapt</td><td>4.0</td><td>خواندن QC و تریمینگ</td><td>NGS</td></tr>
+                <tr><td><span class="en-name"></span>>scanpy</td><td>1.9</td><td>تحلیل تک‌سلولی scRNA-seq</td><td>تک‌سلولی</td></tr>
+                <tr><td><span class="en-name"></span>>anndata</td><td>0.9</td><td>ساختار داده AnnData برای scanpy</td><td>تک‌سلولی</td></tr>
+                <tr><td><span class="en-name"></span>>pysam</td><td>0.21</td><td>خواندن فایل‌های BAM/SAM</td><td>NGS</td></tr>
+                <tr><td><span class="en-name"></span>>scikit-bio</td><td>0.5</td><td>ابزارهای بیوانفورماتیک</td><td>زیستی</td></tr>
+                <tr><td><span class="en-name"></span>>biotite</td><td>0.37</td><td>ابزارهای زیست‌شناسی ساختاری</td><td>زیستی</td></tr>
+                <tr><td><span class="en-name"></span>>networkx</td><td>3.0</td><td>تحلیل شبکه‌ها و گراف‌ها</td><td>شبکه</td></tr>
+                <tr><td><span class="en-name"></span>>plotly</td><td>5.0</td><td>نمودارهای تعاملی</td><td>نمودار</td></tr>
+                <tr><td><span class="en-name"></span>>ete3</td><td>3.1</td><td>ابزارهای درخت فیلوژنتیک</td><td>فیلوژنتیک</td></tr>
+                <tr><td><span class="en-name"></span>>cobra</td><td>3.0</td><td>تحلیل متابولیکی (COBRApy)</td><td>متابولیسم</td></tr>
+                <tr><td><span class="en-name"></span>>shap</td><td>0.42</td><td>تفسیرپذیری مدل‌های ML</td><td>ML</td></tr>
+                <tr><td><span class="en-name"></span>>statsmodels</td><td>0.14</td><td>مدل‌های آماری</td><td>آمار</td></tr>
+                <tr><td><span class="en-name"></span>>umap-learn</td><td>0.5</td><td>کاهش ابعاد UMAP</td><td>تک‌سلولی</td></tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 18: GLOSSARY -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="glossary">
+    <div class="section-header">
+        <h2><span class="icon" style="background:rgba(0,212,255,0.15)"></span>>📖
+            واژه‌نامه
+            
+            <span class="en-name"></span>>(Glossary)
+        </h2>
+        <p>توضیح اصطلاحات تخصصی به زبان ساده
+           </p>
+    </div>
+
+    <div class="module-card cyan">
+        <dl>
+            <div class="glossary-term">
+                <dt>بیوانفورماتیک<br><span class="en-name"></span>>(Bioinformatics)</dt>
+                <dd>استفاده از ابزارهای کامپیوتری برای تحلیل و درک داده‌های بیولوژیکی. ترکیبی از زیست‌شناسی، علوم کامپیوتر و آمار.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>توالی<br><span class="en-name"></span>>(Sequence)</dt>
+                <dd>ترتیب نوکلئوتیدها در DNA/RNA یا اسیدآمینه‌ها در پروتئین. مثلاً: ATCGATCG</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>تراز توالی<br><span class="en-name"></span>>(Sequence Alignment)</dt>
+                <dd>قرار دادن دو یا چند توالی در کنار هم برای یافتن مناطق مشترک. مثل قرار دادن دو جمله زیر هم برای دیدن کلمات مشابه.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>گپ<br><span class="en-name"></span>>(Gap)</dt>
+                <dd>جای خالی در تراز که نشان‌دهنده حذف یا درج نوکلئوتید در طول تکامل است. با علامت - نمایش داده می‌شود.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>درخت فیلوژنتیک<br><span class="en-name"></span>>(Phylogenetic Tree)</dt>
+                <dd>نمودار شاخه‌ای که روابط تکاملی بین موجودات زنده را نشان می‌دهد. هر شاخه نشان‌دهنده یک خط تکاملی است.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>NGS<br><span class="en-name"></span>>(Next Generation Sequencing)</dt>
+                <dd>تکنیک‌های توالی‌یابی نسل جدید که میلیون‌ها خواندن (Read) را همزمان تولید می‌کنند.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>فراخوانی واریانت<br><span class="en-name"></span>>(Variant Calling)</dt>
+                <dd>شناسایی تفاوت‌های ژنتیکی (SNP، InDel) بین ژنوم فرد و ژنوم مرجع.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>SNP<br><span class="en-name"></span>>(Single Nucleotide Polymorphism)</dt>
+                <dd>تغییر یک نوکلئوتید در یک جایگاه خاص. رایج‌ترین نوع تنوع ژنتیکی در انسان.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>GWAS<br><span class="en-name"></span>>(Genome-Wide Association Study)</dt>
+                <dd>مطالعه ارتباط ژنوم-واید: جستجوی SNPهایی که با یک ویژگی یا بیماری ارتباط دارند.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>RNA-seq<br><span class="en-name"></span>>(RNA Sequencing)</dt>
+                <dd>توالی‌یابی RNA برای اندازه‌گیری سطح بیان ژن‌ها در شرایط مختلف.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>scRNA-seq<br><span class="en-name"></span>>(Single-Cell RNA-seq)</dt>
+                <dd>توالی‌یابی RNA از تک‌سلول‌ها. به ما امکان می‌دهد بیان ژن هر سلول را جداگانه ببینیم.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>CRISPR/Cas9<br><span class="en-name"></span>>(Clustered Regularly Interspaced Short Palindromic Repeats)</dt>
+                <dd>ابزار ویرایش ژنوم. Cas9 مثل قیچی مولکولی عمل می‌کند و DNA را در نقطه خاصی برش می‌دهد.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>GO<br><span class="en-name"></span>>(Gene Ontology)</dt>
+                <dd>واژه‌نامه استاندارد برای توصیف عملکرد ژن‌ها در سه دسته: فرایند زیستی (BP)، عملکرد مولکولی (MF) و جزئیات سلولی (CC).</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>KEGG<br><span class="en-name"></span>>(Kyoto Encyclopedia of Genes and Genomes)</dt>
+                <dd>پایگاه داده مسیرهای متابولیکی و زیست‌شناختی. شامل نقشه‌های مسیرهای سلولی.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>FBA<br><span class="en-name"></span>>(Flux Balance Analysis)</dt>
+                <dd>تحلیل توازن جریان: ریاضی برای پیش‌بینی سرعت واکنش‌های متابولیکی در یک شبکه.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>Epitope<br><span class="en-name"></span>>(اپی‌توپ)</dt>
+                <dd>بخشی از پروتئین که توسط سیستم ایمنی شناسایی می‌شود. برای طراحی واکسن مهم است.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>N50<br><span class="en-name"></span>>(N50 Metric)</dt>
+                <dd>معیار کیفیت مونتاژ ژنوم. طول کانتیگی که ۵۰٪ ژنوم مونتاژ شده را پوشش می‌دهد. هرچه N50 بالاتر، مونتاژ بهتر.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>Hardy-Weinberg Equilibrium<br><span class="en-name"></span>>(تعادل هاردی-واینبرگ)</dt>
+                <dd>در یک جمعیت بزرگ بدون انتخاب طبیعی، مهاجرت و جهش، فرکانس ژنوتیپی از نسلی به نسل دیگر ثابت می‌ماند.</dd>
+            </div>
+            <div class="glossary-term">
+                <dt>Log2 Fold-Change<br><span class="en-name"></span>>(tغییر لگاریتمی)</dt>
+                <dd>اندازه‌گیری تغییر بیان ژن. مقدار 1 به معنی دو برابر شدن و مقدار -1 به معنی نصف شدن بیان است.</dd>
+            </div>
+        </dl>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Footer -->
+<footer class="footer">
+    <p>BioSuite Ultra — v3.0.5 — MIT License</p>
+    <p style="margin-top:0.5rem">ساخته شده توسط <a href="https://github.com/sahandtouri/BioSuite-Better">Sahand Touri</a> — دانشجوی زیست‌شناسی سلولی مولکولی، دانشگاه ارومیه</p>
+    <p style="margin-top:0.5rem; color:var(--text-dim)">این مستندات در تاریخ ژوئیه ۲۰۲۶ تولید شده است</p>
+</footer>
+
+</div>
+
+<!-- Scroll Animation Script -->
+<script>
+    // Language Toggle - just toggles a class, CSS handles visibility
+    function setLang(lang) {
+        document.body.className = lang === 'en' ? 'en-mode' : '';
+        localStorage.setItem('biosuite-lang', lang);
+        document.querySelectorAll('.lang-toggle button').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent.trim() === (lang === 'fa' ? 'فارسی' : 'English'));
+        });
+    }
+    const savedLang = localStorage.getItem('biosuite-lang');
+    if (savedLang) setLang(savedLang);
+
+    // Intersection Observer for fade-in animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.05, rootMargin: '0px 0px -50px 0px' });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Fallback: make all fade-in elements visible after 1 second
+    setTimeout(() => {
+        document.querySelectorAll('.fade-in').forEach(el => {
+            el.classList.add('visible');
+        });
+    }, 1000);
+
+    // Smooth scroll for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    // Nav background change on scroll
+    window.addEventListener('scroll', () => {
+        const nav = document.querySelector('.nav');
+        if (window.scrollY > 100) {
+            nav.style.background = 'rgba(10, 14, 23, 0.98)';
+            nav.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+        } else {
+            nav.style.background = 'rgba(10, 14, 23, 0.92)';
+            nav.style.boxShadow = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>

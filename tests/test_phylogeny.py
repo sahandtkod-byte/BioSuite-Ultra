@@ -1,5 +1,5 @@
 """
-Unit tests for bioplatter.core.phylogeny module.
+Unit tests for biosuite.core.phylogeny module.
 """
 import os
 import sys
@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bioplatter.core.phylogeny import p_distance, distance_matrix, upgma_tree
+from biosuite.core.phylogeny import p_distance, distance_matrix, upgma_tree
 
 
 # ─── p_distance ──────────────────────────────────────────────────────────────

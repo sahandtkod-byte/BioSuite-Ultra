@@ -1,0 +1,134 @@
+{
+    "name": "BioSuite Ultra",
+    "description": "Comprehensive open-source bioinformatics platform with 53 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis",
+    "homepage": "https://github.com/sahandtouri/BioSuite-Ultra",
+    "repository": "https://github.com/sahandtouri/BioSuite-Ultra",
+    "license": "MIT",
+    "languages": ["Python"],
+    "programmingLanguage": ["Python"],
+    "operatingSystem": ["Linux", "Windows", "macOS"],
+    "categories": [
+        {
+            "name": "Sequence analysis",
+            "description": "DNA/RNA sequence analysis tools"
+        },
+        {
+            "name": "Alignment",
+            "description": "Sequence alignment algorithms"
+        },
+        {
+            "name": "Phylogenetics",
+            "description": "Phylogenetic tree construction"
+        },
+        {
+            "name": "Transcriptomics",
+            "description": "Gene expression analysis"
+        },
+        {
+            "name": "Genomics",
+            "description": "NGS analysis and variant calling"
+        },
+        {
+            "name": "Proteomics",
+            "description": "Protein structure and function analysis"
+        },
+        {
+            "name": "Molecular cloning",
+            "description": "Restriction digestion, PCR, ligation, Gibson assembly"
+        },
+        {
+            "name": "CRISPR",
+            "description": "Guide RNA design and off-target analysis"
+        },
+        {
+            "name": "Metagenomics",
+            "description": "16S rRNA and taxonomic classification"
+        },
+        {
+            "name": "Machine learning",
+            "description": "ML applications in biology"
+        },
+        {
+            "name": "Visualization",
+            "description": "36+ plot types for bioinformatics data"
+        },
+        {
+            "name": "Single-cell analysis",
+            "description": "scRNA-seq analysis pipeline"
+        }
+    ],
+    "function": [
+        "Sequence analysis (GC content, translation, ORF finding)",
+        "Sequence alignment (Needleman-Wunsch, Smith-Waterman)",
+        "Multiple sequence alignment",
+        "Phylogenetics (UPGMA, NJ, Bayesian MCMC)",
+        "Differential gene expression",
+        "GO/KEGG enrichment analysis",
+        "CRISPR guide RNA design",
+        "Molecular cloning simulation",
+        "Restriction enzyme digestion",
+        "PCR simulation",
+        "Virtual gel electrophoresis",
+        "Plasmid map visualization",
+        "Protein structure prediction (ESMFold)",
+        "Molecular docking",
+        "Metagenomics classification",
+        "Population genetics (HWE, FST, Tajima's D)",
+        "GWAS analysis",
+        "Epitope prediction",
+        "Metabolomics analysis",
+        "Machine learning (RF, SVM, SHAP)",
+        "Parallel processing",
+        "REST API",
+        "Cyberpunk GUI",
+        "CLI with 99+ options"
+    ],
+    "isAbout": [
+        {
+            "name": "Bioinformatics",
+            "description": "Computational tools for biological data analysis"
+        },
+        {
+            "name": "Genomics",
+            "description": "Analysis of genome sequences and variants"
+        },
+        {
+            "name": "Transcriptomics",
+            "description": "Gene expression and regulation analysis"
+        }
+    ],
+    "mentions": [
+        {
+            "name": "Python",
+            "url": "https://python.org"
+        },
+        {
+            "name": "BioPython",
+            "url": "https://biopython.org"
+        },
+        {
+            "name": "NumPy",
+            "url": "https://numpy.org"
+        },
+        {
+            "name": "Matplotlib",
+            "url": "https://matplotlib.org"
+        }
+    ],
+    "version": "4.1.0",
+    "dateCreated": "2026-01-01",
+    "dateModified": "2026-07-07",
+    "isSourceCode": true,
+    "codeRepository": "https://github.com/sahandtouri/BioSuite-Ultra",
+    "downloadUrl": "https://pypi.org/project/biosuite-ultra/",
+    "documentation": "https://biosuite.readthedocs.io",
+    "identifier": "biosuite-ultra",
+    "alternateName": ["BioSuite", "BioSuite Ultra"],
+    "status": "active",
+    "maturityLevel": "production",
+    "issues": "https://github.com/sahandtouri/BioSuite-Ultra/issues",
+    "contactPoint": {
+        "type": "source-code-support",
+        "url": "https://github.com/sahandtouri/BioSuite-Ultra/issues"
+    }
+}

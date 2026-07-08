@@ -1,5 +1,5 @@
 """
-Unit tests for bioplatter.core.alignment module.
+Unit tests for biosuite.core.alignment module.
 """
 import os
 import sys
@@ -8,7 +8,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bioplatter.core.alignment import needleman_wunsch, smith_waterman, _match_array
+from biosuite.core.alignment import needleman_wunsch, smith_waterman, _match_array
 
 
 # ─── Needleman-Wunsch ────────────────────────────────────────────────────────

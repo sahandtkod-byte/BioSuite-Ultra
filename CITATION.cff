@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+title: "BioSuite Ultra"
+message: "If you use this software, please cite it using the metadata from this file and the associated GitHub repository."
+type: software
+authors:
+  - family-names: Touri
+    given-names: Sahand
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+repository-code: "https://github.com/sahandtkod-byte/BioSuite-Ultra"
+doi: "10.5281/zenodo.21256296"
+url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"
+abstract: >-
+  BioSuite Ultra is a comprehensive open-source bioinformatics platform
+  with 53 analysis modules, 36+ visualization types, a cyberpunk GUI,
+  a 99+ option CLI, molecular cloning tools, parallel processing, and
+  a REST API — all in pure Python. No external binaries required.
+  100% free and open source under the MIT license.
+keywords:
+  - bioinformatics
+  - genomics
+  - proteomics
+  - transcriptomics
+  - sequence-analysis
+  - ngs
+  - machine-learning
+  - molecular-cloning
+  - plasmid-maps
+  - virtual-gel
+  - restriction-enzymes
+  - parallel-processing
+  - phylogenetics
+  - crispr
+  - single-cell
+license: MIT
+version: 4.1.0
+date-released: "2026-07-07"
+preferred-citation:
+  type: software
+  title: "BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform"
+  authors:
+    - family-names: Touri
+      given-names: Sahand
+  year: 2026
+  version: 4.1.0
+  doi: "10.5281/zenodo.21256296"
+url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"

@@ -1,0 +1,15 @@
+{
+  "theme": "dark-green",
+  "default_dpi": 180,
+  "save_format": "png",
+  "interactive": false,
+  "downsample_threshold": 5000,
+  "quiet": true,
+  "api_keys": {
+    "ncbi_email": "",
+    "ncbi_api_key": "",
+    "uniprot_email": "",
+    "kegg_email": "",
+    "alphafold_email": ""
+  }
+}

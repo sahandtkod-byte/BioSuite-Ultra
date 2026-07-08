@@ -1,2 +1,24 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Python
+*.py text diff=python
+*.pyw text diff=python
+
+# Documentation
+*.md text diff=markdown
+*.rst text
+*.txt text
+
+# Config
+*.toml text
+*.json text
+*.yml text
+*.yaml text
+
+# Docker
+Dockerfile text
+
+# Scripts
+*.sh text eol=lf
+*.ps1 text eol=crlf

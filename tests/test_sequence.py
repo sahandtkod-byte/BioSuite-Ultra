@@ -1,5 +1,5 @@
 """
-Unit tests for bioplatter.core.sequence module.
+Unit tests for biosuite.core.sequence module.
 """
 import os
 import sys
@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bioplatter.core.sequence import (
+from biosuite.core.sequence import (
     read_fasta, read_fastq, read_genbank,
     gc_content, reverse_complement, translate,
     sequence_stats, quality_stats

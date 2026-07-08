@@ -1,5 +1,5 @@
 """
-Unit tests for bioplatter.core.expression module.
+Unit tests for biosuite.core.expression module.
 """
 import os
 import sys
@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bioplatter.core.expression import (
+from biosuite.core.expression import (
     read_counts_matrix, cpm_normalization, tpm_normalization,
     differential_expression, _benjamini_hochberg
 )

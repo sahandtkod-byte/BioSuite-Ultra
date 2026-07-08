@@ -7,4 +7,10 @@ build/
 *.egg
 .env
 *.exe
-bioplatter_session.json
+biosuite_session.json
+*.log
+htmlcov/
+.coverage
+.tox/
+.nox/
+.pytest_cache/
