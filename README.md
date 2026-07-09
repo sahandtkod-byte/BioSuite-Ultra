@@ -2,15 +2,16 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Tests](https://img.shields.io/badge/Tests-1428%2B%20passing-brightgreen)
-![Modules](https://img.shields.io/badge/Modules-53-orange)
-![Lines](https://img.shields.io/badge/Lines-42%2C000%2B-yellow)
-![Version](https://img.shields.io/badge/Version-4.1.0-blueviolet)
+![Tests](https://img.shields.io/badge/Tests-1444%20passing-brightgreen)
+![Modules](https://img.shields.io/badge/Modules-47-orange)
+![Lines](https://img.shields.io/badge/Lines-33%2C600%2B-yellow)
+![Version](https://img.shields.io/badge/Version-4.1.1-blueviolet)
+![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21256296.svg)
 ![Cloning](https://img.shields.io/badge/Molecular%20Cloning-Free-brightgreen)
 
 **The most comprehensive open-source bioinformatics platform.**
 
-BioSuite Ultra is a full-stack bioinformatics platform with 53 analysis modules, 36+ visualization types, a cyberpunk GUI, a 99+ option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external binaries required. **100% free.**
+BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules, 26 visualization types (123 functions), a cyberpunk GUI, a 99+ option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external bioinformatics tools required. **100% free.**
 
 ---
 
@@ -22,6 +23,24 @@ BioSuite Ultra is a full-stack bioinformatics platform with 53 analysis modules,
 - **Improved MD Simulation**: Velocity Verlet integrator, Berendsen thermostat
 - **Bug Fixes**: 30+ bug fixes across all modules
 - **Better Documentation**: Comprehensive changelog and improved docs
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# Install
+pip install biosuite-ultra
+
+# Run GUI
+python -m biosuite
+
+# Or use Docker
+docker pull sahandtkod/biosuite-ultra:latest
+docker run -p 8000:8000 sahandtkod/biosuite-ultra
+```
+
+**Binder:** [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sahandtkod-byte/BioSuite-Ultra/main)
 
 ---
 
