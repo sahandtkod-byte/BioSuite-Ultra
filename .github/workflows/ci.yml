@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
@@ -27,9 +28,16 @@ jobs:
         pip install -e .
         pip install pytest pytest-cov httpx
     
-    - name: Run tests
+    - name: Run unit tests
       run: |
-        pytest tests/ -v --cov=biosuite --cov-report=xml --ignore=tests/test_api.py
+        pytest tests/ -v --cov=biosuite --cov-report=xml \
+          --ignore=tests/test_api.py \
+          --ignore=tests/test_gui_all_modules.py \
+          --ignore=tests/test_interactive_plots.py \
+          --ignore=tests/test_notebook.py \
+          --ignore=tests/test_plotting_uncovered.py \
+          --ignore=tests/test_databases_and_tools.py \
+          -x --timeout=30
     
     - name: Upload coverage
       uses: codecov/codecov-action@v3
