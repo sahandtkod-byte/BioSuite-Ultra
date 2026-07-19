@@ -25,7 +25,13 @@ from fastapi import FastAPI, HTTPException, Query, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-
+from fastapi import Depends
+from biosuite.api.auth import verify_api_key
+from biosuite.api.security import verify_admin_token, create_access_token, ADMIN_USERNAME, ADMIN_PASSWORD
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 # ── App Setup ────────────────────────────────────────────────────────────────
 
 app = FastAPI(
@@ -35,8 +41,11 @@ app = FastAPI(
     version="4.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    dependencies=[Depends(verify_api_key)],
 )
-
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 # CORS for web frontends
 # In production, set BIOPATTER_CORS_ORIGINS env var to comma-separated origins
 _cors_origins_env = os.environ.get('BIOPATTER_CORS_ORIGINS', '')
@@ -176,7 +185,22 @@ async def list_modules():
         "total_endpoints": 50,
         "documentation": "/docs"
     }
+# ── Admin (JWT) ──────────────────────────────────────────────────────────────
 
+@app.post("/api/v1/admin/login")
+async def admin_login(username: str, password: str):
+    """Exchange admin credentials for a JWT access token."""
+    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    return {"access_token": create_access_token(username), "token_type": "bearer"}
+
+@app.get("/api/v1/admin/status")
+async def admin_status(user: str = Depends(verify_admin_token)):
+    """Example protected admin route."""
+    return {"admin": user, "status": "ok"}
+
+#Limiter for rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 # ── Sequence Analysis ────────────────────────────────────────────────────────
 
 @app.post("/api/v1/sequence/gc-content")

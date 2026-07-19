@@ -32,7 +32,8 @@ umap-learn>=0.5
 # === Tier 4: API/Web ===
 fastapi>=0.100
 uvicorn>=0.23
-
+python-jose[cryptography]>=3.3
+slowapi>=0.1.9
 # === Tier 5: Jupyter ===
 ipython>=8.0
 ipywidgets>=8.0
