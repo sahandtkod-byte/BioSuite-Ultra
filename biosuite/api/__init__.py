@@ -46,6 +46,10 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+#Limiter for rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+
 # CORS for web frontends
 # In production, set BIOPATTER_CORS_ORIGINS env var to comma-separated origins
 _cors_origins_env = os.environ.get('BIOPATTER_CORS_ORIGINS', '')
@@ -198,9 +202,6 @@ async def admin_login(username: str, password: str):
 async def admin_status(user: str = Depends(verify_admin_token)):
     """Example protected admin route."""
     return {"admin": user, "status": "ok"}
-
-#Limiter for rate limiting
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 # ── Sequence Analysis ────────────────────────────────────────────────────────
 
 @app.post("/api/v1/sequence/gc-content")
