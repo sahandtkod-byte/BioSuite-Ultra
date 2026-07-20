@@ -710,29 +710,20 @@ def search_all(query, databases=None):
         databases = ['ncbi', 'uniprot', 'pdb', 'kegg']
 
     results = {}
-    search_funcs = {
-        'ncbi': search_ncbi,
-        'uniprot': search_uniprot,
-        'pdb': search_pdb,
-        'kegg': search_kegg,
-        'ensembl': search_ensembl,
-    }
-
     for db in databases:
-        if db in search_funcs:
-            try:
-                results[db] = search_funcs[db](query)
-            except Exception as exc:
-                logger.warning("[search_all] %s failed: %s", db, exc)
-                results[db] = DBResult(
-                    source=db,
-                    query=query,
-                    error=str(exc),
-                )
-        else:
-            logger.warning("[search_all] Unknown database: %s", db)
+        if db == 'ncbi':
+            results['ncbi'] = search_ncbi(query)
+        elif db == 'uniprot':
+            results['uniprot'] = search_uniprot(query)
+        elif db == 'pdb':
+            results['pdb'] = search_pdb(query)
+        elif db == 'kegg':
+            results['kegg'] = search_kegg(query)
+        elif db == 'ensembl':
+            results['ensembl'] = search_ensembl(query)
 
     return results
+
 
 def format_search_results(results, source=None):
     """Format search results as readable string."""
