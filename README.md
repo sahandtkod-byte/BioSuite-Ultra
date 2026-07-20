@@ -405,3 +405,12 @@ If you use BioSuite Ultra in your research, please cite:
 - **PyPI**: https://pypi.org/project/biosuite-ultra/
 - **Issues**: https://github.com/sahandtkod-byte/BioSuite-Ultra/issues
 - **JOSSPaper**: https://joss.theoj.org/papers/6efd11d9995ddc82d5d76403c32a4a2d
+
+---
+
+## Contributors
+
+We thank the following people for their contributions to BioSuite Ultra:
+
+- **Faiz Mulla** ([@faizmullaa](https://github.com/faizmullaa)) — India — REST API authentication and rate limiting
+
