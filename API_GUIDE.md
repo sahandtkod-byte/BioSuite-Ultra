@@ -1,5 +1,42 @@
 # BioSuite Ultra — API Key Guide
+## REST API Server Authentication
 
+> This section covers securing the BioSuite **REST API server** itself (`biosuite.api`). It is separate from the external database keys (NCBI, UniProt, etc.) described below.
+
+The REST API requires two things:
+
+| Requirement | Header | Purpose |
+|---|---|---|
+| API key | `X-API-Key: <key>` | Required on every endpoint |
+| JWT token | `Authorization: Bearer <token>` | Required only on `/api/v1/admin/*` routes |
+
+Set these environment variables before running the server (defaults are for local dev only — **do not use them in production**):
+
+```bash
+export BIOSUITE_API_KEY="your-secret-key"
+export BIOSUITE_JWT_SECRET="your-jwt-signing-secret"
+export BIOSUITE_ADMIN_USER="admin"
+export BIOSUITE_ADMIN_PASSWORD="your-admin-password"
+```
+
+Get an admin token:
+```bash
+curl -X POST "http://localhost:8000/api/v1/admin/login?username=admin&password=your-admin-password"
+```
+
+Call a protected endpoint:
+```bash
+curl "http://localhost:8000/api/v1/sequence/gc-content" \
+     -H "X-API-Key: your-secret-key" \
+     -H "Content-Type: application/json" \
+     -d '{"sequence": "ATCGATCG"}'
+```
+
+The API is also rate-limited to **100 requests/minute per client**; exceeding it returns `429 Too Many Requests`.
+
+Both the API key and JWT bearer schemes are registered in the OpenAPI schema, so you can authenticate directly from the Swagger UI ("Authorize" button at `/docs`).
+
+---
 ## Which Sections Work Without Any Setup
 
 Everything in BioSuite works out of the box with just `pip install`. The database search features (NCBI, UniProt, PDB, KEGG, Ensembl) function without keys but have slower rate limits. Adding keys makes them faster.

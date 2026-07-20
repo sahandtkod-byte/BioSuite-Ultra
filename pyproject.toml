@@ -65,6 +65,8 @@ cloning = [
 api = [
     "fastapi>=0.100",
     "uvicorn>=0.23",
+    "python-jose[cryptography]>=3.3",
+    "slowapi>=0.1.9"
 ]
 notebook = [
     "ipython>=8.0",

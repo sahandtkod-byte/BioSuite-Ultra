@@ -211,6 +211,8 @@ python -m biosuite.api.server
 # Open http://localhost:8000/docs for Swagger UI
 ```
 
+**Authentication:** All endpoints require an `X-API-Key` header. Admin endpoints (`/api/v1/admin/*`) additionally require a JWT `Authorization: Bearer <token>` obtained from `/api/v1/admin/login`. Requests are rate-limited to 100/minute. See [API_GUIDE.md](API_GUIDE.md#rest-api-server-authentication) for setup and env vars.
+
 ### Programmatic API
 
 #### Basic Sequence Analysis
