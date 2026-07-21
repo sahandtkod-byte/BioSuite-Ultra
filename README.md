@@ -5,7 +5,7 @@
 ![Tests](https://img.shields.io/badge/Tests-1444%20passing-brightgreen)
 ![Modules](https://img.shields.io/badge/Modules-47-orange)
 ![Lines](https://img.shields.io/badge/Lines-33%2C600%2B-yellow)
-![Version](https://img.shields.io/badge/Version-4.2.0-blueviolet)
+![Version](https://img.shields.io/badge/Version-4.2.1-blueviolet)
 ![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21256296.svg)
 ![Cloning](https://img.shields.io/badge/Molecular%20Cloning-Free-brightgreen)
 ![JOSS](https://img.shields.io/badge/JOSS-Submitted-blue.svg)
@@ -16,7 +16,7 @@ BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules,
 
 ---
 
-## What's New in v4.2.0
+## What's New in v4.2.1
 
 - **Parallel Processing**: Multi-threaded/multi-process execution for all modules
 - **100+ Restriction Enzymes**: Expanded from 18 to 100+ enzymes
