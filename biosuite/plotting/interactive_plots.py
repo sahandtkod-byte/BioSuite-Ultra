@@ -306,7 +306,7 @@ def interactive_boxplot(data_dict, title="Boxplot", y_label="Value",
         return fig
     else:
         fig, ax = plt.subplots(figsize=figsize)
-        ax.boxplot(data_dict.values(), labels=data_dict.keys())
+        ax.boxplot(data_dict.values(), tick_labels=data_dict.keys())
         ax.set_ylabel(y_label)
         ax.set_title(title + " (static fallback)")
         return fig

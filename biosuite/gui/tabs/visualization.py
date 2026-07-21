@@ -128,20 +128,53 @@ class VisualizationTabMixin:
     def _generate_plot_by_id(self, plot_id):
         self._set_status(f"Generating {plot_id}...")
         def run():
+            import matplotlib
+            matplotlib.use('Agg')  # Non-interactive backend for thread safety
+            import matplotlib.pyplot as plt
+            # Monkey-patch plt.show to be a no-op in background thread
+            _original_show = plt.show
+            plt.show = lambda *a, **k: None
             original_input = builtins.input
             builtins.input = self._gui_input
             try:
                 func = PLOT_FUNCS.get(plot_id)
                 if func:
                     func()
+                    # Save last figure to temp file and display on main thread
+                    if plt.get_fignums():
+                        fig = plt.gcf()
+                        import tempfile, os
+                        tmp = os.path.join(tempfile.gettempdir(), f"biosuite_plot_{plot_id}.png")
+                        fig.savefig(tmp, dpi=150, bbox_inches='tight')
+                        plt.close('all')
+                        self.after(0, lambda p=tmp: self._show_plot_image(p))
                 else:
                     self.after(0, lambda: self._msg_error("Error", f"Plot '{plot_id}' not found."))
             except Exception as e:
                 self.after(0, lambda: self._msg_error("Plot Error", str(e)))
             finally:
                 builtins.input = original_input
+                plt.show = _original_show
                 self.after(0, lambda: self._set_status("Ready"))
         threading.Thread(target=run, daemon=True).start()
+
+    def _show_plot_image(self, path):
+        """Display a saved plot image in a new window."""
+        import tkinter as tk
+        from tkinter import ttk
+        from PIL import Image, ImageTk
+        win = tk.Toplevel(self)
+        win.title("Plot Result")
+        win.geometry("900x700")
+        try:
+            img = Image.open(path)
+            img.thumbnail((850, 650), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            label = ttk.Label(win, image=photo)
+            label.image = photo
+            label.pack(fill='both', expand=True, padx=10, pady=10)
+        except Exception as e:
+            ttk.Label(win, text=f"Error: {e}").pack()
 
     def _gui_input(self, prompt):
         result = [None]
@@ -253,7 +286,8 @@ class VisualizationTabMixin:
             self.upset_stats.insert("end", f"Intersection: {stats['total_intersection']}\n")
             self.upset_stats.insert("end", f"Unique per set: {stats['unique_per_set']}\n")
             fig = plot_upset(sets_dict, title="UpSet Plot")
-            plt.show()
+            fig.savefig('upset_plot.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
             plt.close()
         except Exception as e:
             self._msg_error("Error", str(e))
@@ -321,8 +355,8 @@ class VisualizationTabMixin:
                 self.gb_info.insert("end", f"Error loading {path}: {e}\n")
         if tracks:
             fig = plot_genome_tracks(tracks, title="Genome Browser")
-            plt.show()
-            plt.close()
+            fig.savefig('genome_browser.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
             self.gb_info.delete("1.0", "end")
             self.gb_info.insert("end", f"Loaded {len(tracks)} tracks\n")
         else:
@@ -373,8 +407,8 @@ class VisualizationTabMixin:
                 bar = '#' * int(score * 30)
                 self.cons_stats.insert("end", f"Pos {pos:2d}: {score:.3f} {bar}\n")
             fig = plot_logo_with_conservation(seqs)
-            plt.show()
-            plt.close()
+            fig.savefig('conservation.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
         except Exception as e:
             self._msg_error("Error", str(e))
 
@@ -389,8 +423,8 @@ class VisualizationTabMixin:
         motif_list = [m.strip() for m in motifs.split(',')]
         try:
             fig = plot_motif_enrichment(seqs, motif_list)
-            plt.show()
-            plt.close()
+            fig.savefig('motif_enrichment.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
         except Exception as e:
             self._msg_error("Error", str(e))
 
@@ -449,8 +483,8 @@ class VisualizationTabMixin:
             self.syn_stats.insert("end", f"Genome 2: {len(g2)} genes\n")
             self.syn_stats.insert("end", f"Common: {len(set(g1) & set(g2))}\n")
             fig = plot_synteny_dotplot(g1, g2, title="Synteny Dotplot")
-            plt.show()
-            plt.close()
+            fig.savefig('synteny.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
         except Exception as e:
             self._msg_error("Error", str(e))
 

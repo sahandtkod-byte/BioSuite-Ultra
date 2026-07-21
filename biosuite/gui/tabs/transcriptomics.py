@@ -81,7 +81,8 @@ class TranscriptomicsTabMixin:
             ax.set_ylabel('-log10(p-value)')
             ax.set_title(f'DE Analysis (BH-corrected) — {sig.sum()} significant genes')
             ax.legend()
-            plt.show()
+            plt.savefig('volcano_plot.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
             self._set_status(f"DE complete: {sig.sum()} significant genes (FDR < 0.05)")
         except Exception as e:
             self._msg_error("Error", str(e))

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "4.1.0"
-description = "BioSuite Ultra - Comprehensive open-source bioinformatics platform with 53 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis"
+version = "4.2.0"
+description = "BioSuite Ultra - Comprehensive open-source bioinformatics platform with 47 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
@@ -93,10 +93,10 @@ biosuite = "biosuite.cli.menu:main_cli"
 biosuite-gui = "biosuite.cli.menu:main_cli_gui"
 
 [project.urls]
-Homepage = "https://github.com/sahandtouri/BioSuite-Ultra"
+Homepage = "https://github.com/sahandtkod-byte/BioSuite-Ultra"
 Documentation = "https://biosuite.readthedocs.io"
-Repository = "https://github.com/sahandtouri/BioSuite-Ultra"
-Issues = "https://github.com/sahandtouri/BioSuite-Ultra/issues"
+Repository = "https://github.com/sahandtkod-byte/BioSuite-Ultra"
+Issues = "https://github.com/sahandtkod-byte/BioSuite-Ultra/issues"
 
 [tool.setuptools.packages.find]
 include = ["biosuite*"]

@@ -14,3 +14,4 @@ htmlcov/
 .tox/
 .nox/
 .pytest_cache/
+*.png

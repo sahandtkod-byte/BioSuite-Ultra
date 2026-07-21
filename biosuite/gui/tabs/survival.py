@@ -53,7 +53,7 @@ class SurvivalTabMixin:
             self._msg_warning("Input Required", "Please load a CSV file with time and event columns.")
             return
         try:
-            from ..core.survival import kaplan_meier, log_rank_test, format_survival_report
+            from ...core.survival import kaplan_meier, log_rank_test, format_survival_report
             df = pd.read_csv(path)
             if 'time' not in df.columns or 'event' not in df.columns:
                 self._msg_error("Error", "CSV must have 'time' and 'event' columns.")
@@ -69,7 +69,7 @@ class SurvivalTabMixin:
     def _surv_demo(self):
         try:
             import numpy as np
-            from ..core.survival import kaplan_meier, format_survival_report
+            from ...core.survival import kaplan_meier, format_survival_report
             np.random.seed(42)
             times = np.random.exponential(30, 50)
             events = np.random.binomial(1, 0.6, 50)

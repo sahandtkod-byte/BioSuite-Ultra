@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include CITATION.cff
+include CHANGELOG.md
+include requirements.txt
+include pyproject.toml
+recursive-include biosuite *.py
+recursive-include biosuite *.json

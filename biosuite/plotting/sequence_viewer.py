@@ -231,8 +231,9 @@ def draw_sequence_view(
         fig_tmp, axes = plt.subplots(
             len(track_heights), 1, figsize=figsize, gridspec_kw=gridspec_kw,
         )
-        fig.axes.clear()
-        fig._axstack.clear()
+        # Remove existing axes safely (compatible with matplotlib 3.8+)
+        for ax in fig.axes[:]:
+            fig.delaxes(ax)
         for i, a in enumerate(axes):
             fig.add_subplot(len(track_heights), 1, i + 1, axes[i] if hasattr(axes[i], 'figure') else axes[i])
     else:

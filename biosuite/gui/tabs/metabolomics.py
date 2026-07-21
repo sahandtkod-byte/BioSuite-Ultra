@@ -66,7 +66,7 @@ class MetabolomicsTabMixin:
             self._msg_warning("Input Required", "Please load a CSV intensity matrix.")
             return
         try:
-            from ..core.metabolomics import detect_peaks, format_metabolomics_report
+            from ...core.metabolomics import detect_peaks, format_metabolomics_report
             df = pd.read_csv(path)
             matrix = df.select_dtypes(include=[np.number]).values
             all_features = []
@@ -88,7 +88,7 @@ class MetabolomicsTabMixin:
     def _meta_demo(self):
         try:
             import numpy as np
-            from ..core.metabolomics import detect_peaks, MetabolomicsReport
+            from ...core.metabolomics import detect_peaks, MetabolomicsReport
             np.random.seed(42)
             # Simulate chromatogram
             x = np.linspace(0, 100, 1000)
@@ -101,7 +101,7 @@ class MetabolomicsTabMixin:
                 total_features=len(peaks),
                 detected_peaks=len(peaks),
                 message=f"Demo analysis: {len(peaks)} peaks detected in simulated chromatogram")
-            from ..core.metabolomics import format_metabolomics_report
+            from ...core.metabolomics import format_metabolomics_report
             self.meta_result.delete("1.0", "end")
             self.meta_result.insert("1.0", format_metabolomics_report(report))
             self._set_status("Demo metabolomics analysis complete")
@@ -111,7 +111,7 @@ class MetabolomicsTabMixin:
     def _meta_pca(self):
         try:
             import numpy as np
-            from ..core.metabolomics import pca_feature_matrix, detect_peaks
+            from ...core.metabolomics import pca_feature_matrix, detect_peaks
             np.random.seed(42)
             # Generate sample data
             matrix = np.random.rand(10, 50) * 100
@@ -134,6 +134,7 @@ class MetabolomicsTabMixin:
     def _show_plot_figure(self, fig):
         import matplotlib
         matplotlib.use('TkAgg')
+        import matplotlib.pyplot as plt
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         win = ctk.CTkToplevel(self)
         win.title("Plot")
@@ -142,6 +143,14 @@ class MetabolomicsTabMixin:
         canvas = FigureCanvasTkAgg(fig, master=win)
         canvas.draw()
         canvas.get_tk_widget().pack(fill='both', expand=True)
-        btn = ctk.CTkButton(win, text="Close", command=win.destroy,
+
+        def on_close():
+            canvas.get_tk_widget().destroy()
+            fig.clear()
+            plt.close(fig)
+            win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", on_close)
+        btn = ctk.CTkButton(win, text="Close", command=on_close,
                            fg_color=self.T['accent'], text_color='#000000')
         btn.pack(pady=8)

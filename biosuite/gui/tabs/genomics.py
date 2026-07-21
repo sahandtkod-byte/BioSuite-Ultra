@@ -56,8 +56,9 @@ class GenomicsTabMixin:
             ax.set_xlabel('Position')
             ax.set_ylabel('-log10(p)')
             ax.set_title('Manhattan Plot from VCF')
-            plt.show()
-            self._set_status("VCF loaded, Manhattan plot displayed")
+            plt.savefig('manhattan_plot.png', dpi=150, bbox_inches='tight')
+            plt.close('all')
+            self._set_status("VCF loaded, Manhattan plot saved")
         except Exception as e:
             self._msg_error("Error", str(e))
 

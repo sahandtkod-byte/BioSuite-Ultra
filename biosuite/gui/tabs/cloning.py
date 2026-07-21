@@ -96,7 +96,7 @@ class CloningTabMixin:
         path = filedialog.askopenfilename(
             filetypes=[("FASTA", "*.fasta *.fa"), ("GenBank", "*.gb *.genbank"), ("All", "*.*")])
         if path:
-            from ..core.sequence import read_fasta
+            from ...core.sequence import read_fasta
             seqs = read_fasta(path)
             if seqs:
                 self.cloning_seq.delete(0, 'end')
@@ -111,7 +111,7 @@ class CloningTabMixin:
         enzyme = self.cloning_enzyme.get()
         topo = self.cloning_topo.get()
         try:
-            from ..core.cloning import simulate_digestion, format_digest_report
+            from ...core.cloning import simulate_digestion, format_digest_report
             result = simulate_digestion(seq, enzyme, topology=topo)
             report = format_digest_report(result)
             self.cloning_result.delete("1.0", "end")
@@ -127,7 +127,7 @@ class CloningTabMixin:
             return
         enzyme = self.cloning_enzyme.get()
         try:
-            from ..core.cloning import simulate_digestion, plot_virtual_gel
+            from ...core.cloning import simulate_digestion, plot_virtual_gel
             result = simulate_digestion(seq, enzyme)
             fig = plot_virtual_gel(result['fragments'])
             self._record_plot(fig, f"Virtual Gel ({enzyme})")
@@ -144,7 +144,7 @@ class CloningTabMixin:
             self._msg_warning("Input Required", "Please enter template and both primers.")
             return
         try:
-            from ..core.cloning import simulate_pcr
+            from ...core.cloning import simulate_pcr
             result = simulate_pcr(seq, fwd, rev)
             self.cloning_result.delete("1.0", "end")
             self.cloning_result.insert("1.0",
@@ -161,7 +161,7 @@ class CloningTabMixin:
             self._msg_warning("Input Required", "Please enter a target sequence.")
             return
         try:
-            from ..core.cloning import design_primers, format_primer_report
+            from ...core.cloning import design_primers, format_primer_report
             primers = design_primers(seq)
             report = format_primer_report(primers)
             self.cloning_result.delete("1.0", "end")
@@ -186,6 +186,14 @@ class CloningTabMixin:
         canvas.draw()
         canvas.get_tk_widget().pack(fill='both', expand=True)
 
-        btn = ctk.CTkButton(win, text="Close", command=win.destroy,
+        def on_close():
+            canvas.get_tk_widget().destroy()
+            fig.clear()
+            plt.close(fig)
+            win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", on_close)
+
+        btn = ctk.CTkButton(win, text="Close", command=on_close,
                            fg_color=self.T['accent'], text_color='#000000')
         btn.pack(pady=8)
