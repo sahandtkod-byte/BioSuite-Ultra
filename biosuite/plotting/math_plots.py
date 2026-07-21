@@ -18,7 +18,7 @@ def sine_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('sine', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
@@ -37,7 +37,7 @@ def cosine_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('cosine', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
@@ -55,7 +55,7 @@ def linear_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('linear', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
@@ -74,7 +74,7 @@ def quadratic_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('quadratic', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
@@ -94,7 +94,7 @@ def cubic_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('cubic', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
@@ -113,7 +113,7 @@ def exponential_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('exponential', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
@@ -132,7 +132,7 @@ def logistic_plot(pdf=None):
         ax.grid(True, alpha=0.3)
         apply_glass_ax(ax)
         ask_save_plot('logistic', config['save_format'], config['default_dpi'], pdf)
-        plt.show()
+        plt.close('all')
         plt.close()
     except Exception as e:
         print(f"Error: {e}")
