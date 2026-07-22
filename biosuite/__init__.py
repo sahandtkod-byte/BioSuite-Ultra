@@ -6,5 +6,5 @@ plasmid maps, virtual gel electrophoresis, sequence viewer,
 parallel processing, 100+ restriction enzymes.
 GUI + CLI + REST API + Python API. All free, no paid dependencies.
 """
-__version__ = "4.2.3"
+__version__ = "4.2.4"
 __author__ = "Sahand Touri"

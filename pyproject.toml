@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "4.2.3"
+version = "4.2.4"
 description = "BioSuite Ultra - Comprehensive open-source bioinformatics platform with 47 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis"
 readme = "README.md"
 license = {text = "MIT"}
