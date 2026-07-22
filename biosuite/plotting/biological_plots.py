@@ -186,7 +186,6 @@ def volcano_plot(pdf=None):
         ax.legend(framealpha=0.7)
         apply_glass_ax(ax)
         ask_save_plot('volcano', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -223,8 +222,6 @@ def pca_plot(pdf=None):
                         ax.set_title(f'PCA (var: {pca.explained_variance_ratio_[0]:.2f}, {pca.explained_variance_ratio_[1]:.2f})')
                         apply_glass_ax(ax)
                         ask_save_plot('pca', config['save_format'], config['default_dpi'], pdf)
-                        plt.close('all')
-                        plt.close()
                         return
         np.random.seed(42)
         data = np.random.randn(30, 100)
@@ -238,7 +235,6 @@ def pca_plot(pdf=None):
         ax.set_title(f'PCA (var: {pca.explained_variance_ratio_[0]:.2f}, {pca.explained_variance_ratio_[1]:.2f})')
         apply_glass_ax(ax)
         ask_save_plot('pca', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -297,7 +293,6 @@ def manhattan_plot(pdf=None):
         ax.legend(loc='upper right', ncol=2, framealpha=0.5)
         apply_glass_ax(ax)
         ask_save_plot('manhattan', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -331,7 +326,6 @@ def ma_plot(pdf=None):
         ax.set_title('MA Plot')
         apply_glass_ax(ax)
         ask_save_plot('maplot', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -356,7 +350,6 @@ def venn_diagram(pdf=None):
             return
         apply_glass_ax(ax)
         ask_save_plot('venn', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -389,7 +382,6 @@ def barplot_custom(pdf=None):
         ax.set_title('Barplot')
         apply_glass_ax(ax)
         ask_save_plot('barplot', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -414,8 +406,6 @@ def boxplot_custom(pdf=None):
                     if len(df_plot[group_col].unique()) >= 2:
                         add_ttest_to_boxplot(df_plot, group_col, value_col, ax)
                     ask_save_plot('boxplot', config['save_format'], config['default_dpi'], pdf)
-                    plt.close('all')
-                    plt.close()
                     return
         ctrl = np.random.normal(5,1,30)
         treat = np.random.normal(7.5,1.2,30)
@@ -428,7 +418,6 @@ def boxplot_custom(pdf=None):
         report_boxplot_stats(df_plot, 'Group', 'Value')
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         ask_save_plot('boxplot', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -448,8 +437,6 @@ def heatmap_custom(pdf=None):
                     ax.set_title('Correlation Heatmap')
                     apply_glass_ax(ax)
                     ask_save_plot('heatmap', config['save_format'], config['default_dpi'], pdf)
-                    plt.close('all')
-                    plt.close()
                     return
         corr = np.array([[1,0.8,0.2,0.1],[0.8,1,0.3,0.2],[0.2,0.3,1,0.7],[0.1,0.2,0.7,1]])
         labels = ['Gene_A','Gene_B','Gene_C','Gene_D']
@@ -458,7 +445,6 @@ def heatmap_custom(pdf=None):
         ax.set_title('Gene Correlation')
         apply_glass_ax(ax)
         ask_save_plot('heatmap', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -505,7 +491,6 @@ def scatter_custom(pdf=None):
             eq = f'y = {slope:.3f}x + {intercept:.3f}\nR² = {r_value**2:.3f}, p = {p_value:.4f}'
             ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
         ask_save_plot('scatter', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -528,8 +513,6 @@ def timeseries_plot(pdf=None):
                         ax.set_title('Time Series')
                         apply_glass_ax(ax)
                         ask_save_plot('timeseries', config['save_format'], config['default_dpi'], pdf)
-                        plt.close('all')
-                        plt.close()
                         return
         times = np.arange(0,24,2)
         values = np.exp(-0.1*times) + np.random.normal(0,0.05,len(times))
@@ -538,7 +521,6 @@ def timeseries_plot(pdf=None):
         ax.set_title('Time Series')
         apply_glass_ax(ax)
         ask_save_plot('timeseries', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -564,7 +546,6 @@ def qq_plot(pdf=None):
         ax.set_title('QQ-plot (Normal Distribution)')
         apply_glass_ax(ax)
         ask_save_plot('qqplot', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -593,7 +574,6 @@ def clustered_heatmap(pdf=None):
                            cbar_pos=(0.02, 0.8, 0.03, 0.18))
         g.ax_heatmap.set_title('Clustered Heatmap')
         ask_save_plot('clustered_heatmap', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -649,7 +629,6 @@ def circos_plot(pdf=None):
         ax.set_title("Simple Circos Plot")
         apply_glass_ax(ax)
         ask_save_plot('circos', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -688,7 +667,6 @@ def alignment_viewer(pdf=None):
         ax.set_title("Alignment Viewer")
         apply_glass_ax(ax)
         ask_save_plot('alignment', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -712,8 +690,6 @@ def violin_plot(pdf=None):
                         add_ttest_to_boxplot(df_plot, group_col, value_col, ax)
                     apply_glass_ax(ax)
                     ask_save_plot('violin', config['save_format'], config['default_dpi'], pdf)
-                    plt.close('all')
-                    plt.close()
                     return
         ctrl = np.random.normal(5,1,50)
         treat = np.random.normal(7.5,1.2,50)
@@ -725,7 +701,6 @@ def violin_plot(pdf=None):
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         apply_glass_ax(ax)
         ask_save_plot('violin', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -750,8 +725,6 @@ def raincloud_plot(pdf=None):
                         add_ttest_to_boxplot(df_plot, group_col, value_col, ax)
                     apply_glass_ax(ax)
                     ask_save_plot('raincloud', config['save_format'], config['default_dpi'], pdf)
-                    plt.close('all')
-                    plt.close()
                     return
         ctrl = np.random.normal(5,1,50)
         treat = np.random.normal(7.5,1.2,50)
@@ -764,7 +737,6 @@ def raincloud_plot(pdf=None):
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         apply_glass_ax(ax)
         ask_save_plot('raincloud', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -795,8 +767,6 @@ def ridge_plot(pdf=None):
                     ax.set_title('Ridge Plot')
                     apply_glass_ax(ax)
                     ask_save_plot('ridge', config['save_format'], config['default_dpi'], pdf)
-                    plt.close('all')
-                    plt.close()
                     return
         np.random.seed(42)
         g1 = np.random.normal(5,1,200)
@@ -817,7 +787,6 @@ def ridge_plot(pdf=None):
         ax.set_title('Ridge Plot (Demo)')
         apply_glass_ax(ax)
         ask_save_plot('ridge', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -854,8 +823,6 @@ def dot_plot(pdf=None):
                     plt.colorbar(ax.collections[0], ax=ax, label='Avg Expression')
                     apply_glass_ax(ax)
                     ask_save_plot('dotplot', config['save_format'], config['default_dpi'], pdf)
-                    plt.close('all')
-                    plt.close()
                     return
         print("Using default demo data.")
         genes = ['GeneA', 'GeneB', 'GeneC']
@@ -886,7 +853,6 @@ def dot_plot(pdf=None):
         plt.colorbar(ax.collections[0], ax=ax, label='Avg Expression')
         apply_glass_ax(ax)
         ask_save_plot('dotplot', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
     except Exception as e:
         print(f"Error: {e}")
 
@@ -943,7 +909,6 @@ def export_all_to_folder(folder_name="biosuite_export"):
             print(f"   Auto-saved: {default_name}.png")
         except OSError:
             pass
-        plt.close()
 
     import biosuite.plotting.biological_plots as bp_mod
     bp_mod.ask_save_plot = auto_save_plot
@@ -1008,7 +973,6 @@ def batch_export_to_pdf(pdf_path="biosuite_report.pdf"):
             for func in plot_funcs:
                 try:
                     func(pdf=pdf)
-                    plt.close()
                 except Exception as e:
                     print(f"Warning: {func.__name__} failed: {e}")
         print(f"PDF saved: {pdf_path}")

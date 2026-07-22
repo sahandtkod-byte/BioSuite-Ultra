@@ -194,8 +194,8 @@ class WorkflowTabMixin:
         self.pathway_info.delete("1.0", "end")
         self.pathway_info.insert("end", format_pathway_report(pm))
         fig = draw_pathway(pm)
-        fig.savefig('pathway.png', dpi=150, bbox_inches='tight')
-        plt.close('all')
+
+
 
     def _kegg_demo(self):
         import matplotlib.pyplot as plt
@@ -204,8 +204,8 @@ class WorkflowTabMixin:
         self.pathway_info.delete("1.0", "end")
         self.pathway_info.insert("end", format_pathway_report(pm))
         fig = draw_pathway(pm)
-        fig.savefig('pathway.png', dpi=150, bbox_inches='tight')
-        plt.close('all')
+
+
 
     # ─── GWAS Analysis Tab ──────────────────────────────────────────────────
 

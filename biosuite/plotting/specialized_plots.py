@@ -46,8 +46,6 @@ def gsea_plot(pdf=None):
         ax.set_title(f'GSEA Running Sum (max ES = {np.max(running_sum):.3f})')
         apply_glass_ax(ax)
         ask_save_plot('gsea', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -72,8 +70,6 @@ def motif_logo(pdf=None):
         draw_motif_logo(seqs, ax=ax)
         apply_glass_ax(ax)
         ask_save_plot('motif_logo', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -95,8 +91,6 @@ def sankey_diagram(pdf=None):
         draw_sankey(labels, sources, targets, values, ax=ax)
         apply_glass_ax(ax)
         ask_save_plot('sankey', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -133,8 +127,6 @@ def umap_plot(pdf=None):
                 ax.set_title('UMAP Projection')
                 apply_glass_ax(ax)
                 ask_save_plot('umap', config['save_format'], config['default_dpi'], pdf)
-                plt.close('all')
-                plt.close()
                 return
         np.random.seed(42)
         data = np.random.randn(100, 20)
@@ -146,7 +138,5 @@ def umap_plot(pdf=None):
         ax.set_title('UMAP (default data)')
         apply_glass_ax(ax)
         ask_save_plot('umap', config['save_format'], config['default_dpi'], pdf)
-        plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
