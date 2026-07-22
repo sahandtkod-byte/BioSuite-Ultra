@@ -43,16 +43,16 @@ app = FastAPI(
     redoc_url="/redoc",
     dependencies=[Depends(verify_api_key)],
 )
+#Limiter for rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
-#Limiter for rate limiting
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
-
 # CORS for web frontends
-# In production, set BIOPATTER_CORS_ORIGINS env var to comma-separated origins
-_cors_origins_env = os.environ.get('BIOPATTER_CORS_ORIGINS', '')
+# In production, set BIOSUITE_CORS_ORIGINS env var to comma-separated origins
+_cors_origins_env = os.environ.get('BIOSUITE_CORS_ORIGINS', '')
 _cors_origins = [o.strip() for o in _cors_origins_env.split(',') if o.strip()] if _cors_origins_env else ["*"]
 app.add_middleware(
     CORSMiddleware,

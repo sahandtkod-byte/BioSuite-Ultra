@@ -132,8 +132,6 @@ class MetabolomicsTabMixin:
             self._msg_error("Error", str(e))
 
     def _show_plot_figure(self, fig):
-        import matplotlib
-        matplotlib.use('TkAgg')
         import matplotlib.pyplot as plt
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         win = ctk.CTkToplevel(self)

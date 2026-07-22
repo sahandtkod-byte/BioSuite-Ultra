@@ -390,7 +390,7 @@ If you use BioSuite Ultra in your research, please cite:
   author = {Sahand Touri},
   title = {BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform},
   year = {2026},
-  version = {4.2.0},
+  version = {4.2.1},
   doi = {10.5281/zenodo.21256296},
   url = {https://github.com/sahandtkod-byte/BioSuite-Ultra}
 }

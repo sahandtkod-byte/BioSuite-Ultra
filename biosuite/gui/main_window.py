@@ -470,7 +470,9 @@ class BioSuiteApp(
             self._plot_history = []
         self._plot_history.append({"fig": fig, "name": name})
         if len(self._plot_history) > 10:
-            self._plot_history.pop(0)
+            old = self._plot_history.pop(0)
+            import matplotlib.pyplot as plt
+            plt.close(old["fig"])
         self._plot_history_index = len(self._plot_history) - 1
 
     def _show_plot_history(self):

@@ -188,7 +188,7 @@ def _header():
     print(f"{G}{B}   ██╔══██╗  ╚██╔╝  ██║██╔══╝  ██║╚██╗██║██║     ██╔══╝  {R}")
     print(f"{G}{B}   ██████╔╝   ██║   ██║███████╗██║ ╚████║╚██████╗███████╗{R}")
     print(f"{G}{B}   ╚═════╝    ╚═╝   ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝{R}")
-    print(f"{D}   Bioinformatic Platform  ·  Ultra v4.0  ·  Pure Python{R}")
+    print(f"{D}   Bioinformatic Platform  ·  Ultra v4.2.1  ·  Pure Python{R}")
     print(f"{G}{B}{'═'*68}{R}")
 
 

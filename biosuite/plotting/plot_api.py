@@ -28,7 +28,6 @@ except ImportError:
 
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
 
 
 # ── Theme helpers ────────────────────────────────────────────────────────────

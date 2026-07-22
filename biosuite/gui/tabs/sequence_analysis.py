@@ -210,7 +210,8 @@ class SequenceAnalysisTabMixin:
             dist_mat = distance_matrix(seqs)
             link_mat = upgma_tree(dist_mat, names)
             fig = plot_phylogenetic_tree(link_mat, names)
-            fig.savefig('phylogenetic_tree.png', dpi=150, bbox_inches='tight')
+            fig.savefig(r'C:/Users/SAHAND/AppData/Local/Temp/biosuite_phylo.png', dpi=150, bbox_inches='tight')
+            import matplotlib.pyplot as plt
             plt.close('all')
             self.phylo_result.delete("1.0", "end")
             self.phylo_result.insert("end", "Distance Matrix:\n")

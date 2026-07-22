@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
 
 import matplotlib
-matplotlib.use("Agg")
+# matplotlib.use("Agg")  # Removed: caller manages backend
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np

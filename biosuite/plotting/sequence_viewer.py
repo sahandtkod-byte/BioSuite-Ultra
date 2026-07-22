@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Sequence as Seq, Tuple
 
 import matplotlib
-matplotlib.use("Agg")                       # headless-safe backend
+# matplotlib.use("Agg")  # Removed: caller manages backend                       # headless-safe backend
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np

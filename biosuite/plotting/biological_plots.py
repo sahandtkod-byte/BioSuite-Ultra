@@ -187,7 +187,6 @@ def volcano_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('volcano', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -240,7 +239,6 @@ def pca_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('pca', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -300,7 +298,6 @@ def manhattan_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('manhattan', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -335,7 +332,6 @@ def ma_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('maplot', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -361,7 +357,6 @@ def venn_diagram(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('venn', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -395,7 +390,6 @@ def barplot_custom(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('barplot', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -435,7 +429,6 @@ def boxplot_custom(pdf=None):
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         ask_save_plot('boxplot', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -466,7 +459,6 @@ def heatmap_custom(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('heatmap', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -514,7 +506,6 @@ def scatter_custom(pdf=None):
             ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
         ask_save_plot('scatter', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -548,7 +539,6 @@ def timeseries_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('timeseries', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -575,7 +565,6 @@ def qq_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('qqplot', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -605,7 +594,6 @@ def clustered_heatmap(pdf=None):
         g.ax_heatmap.set_title('Clustered Heatmap')
         ask_save_plot('clustered_heatmap', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -662,7 +650,6 @@ def circos_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('circos', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -702,7 +689,6 @@ def alignment_viewer(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('alignment', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -740,7 +726,6 @@ def violin_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('violin', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -780,7 +765,6 @@ def raincloud_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('raincloud', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -834,7 +818,6 @@ def ridge_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('ridge', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
@@ -904,7 +887,6 @@ def dot_plot(pdf=None):
         apply_glass_ax(ax)
         ask_save_plot('dotplot', config['save_format'], config['default_dpi'], pdf)
         plt.close('all')
-        plt.close()
     except Exception as e:
         print(f"Error: {e}")
 
