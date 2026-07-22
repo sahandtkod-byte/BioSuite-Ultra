@@ -250,6 +250,63 @@ class BioSuiteApp(
             plt.close('all')
         self.destroy()
 
+    def _show_plot_from_figure(self, fig, title="Plot"):
+        """Display a matplotlib figure in a popup window with Save As option."""
+        import tempfile, os
+        from tkinter import filedialog
+        from PIL import Image, ImageTk
+        
+        # Save figure to temp file
+        tmp = os.path.join(tempfile.gettempdir(), f"biosuite_{id(fig)}.png")
+        fig.savefig(tmp, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
+        plt.close(fig)
+        
+        # Create window
+        win = ctk.CTkToplevel(self)
+        win.title(title)
+        win.geometry("950x750")
+        win.configure(fg_color=self.T.get('bg', '#0a0f0a'))
+        photo_ref = [None]
+        
+        try:
+            img = Image.open(tmp)
+            img.thumbnail((900, 650), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            photo_ref[0] = photo
+            label = ctk.CTkLabel(win, image=photo, text="")
+            label.pack(fill='both', expand=True, padx=10, pady=10)
+        except Exception as e:
+            ctk.CTkLabel(win, text=f"Error: {e}").pack(pady=20)
+        
+        # Bottom buttons
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=10, pady=5)
+        
+        def save_as():
+            ext = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[("PNG", "*.png"), ("PDF", "*.pdf"), ("SVG", "*.svg"), ("All", "*.*")],
+                title="Save Plot As"
+            )
+            if ext:
+                import shutil
+                shutil.copy2(tmp, ext)
+                self._set_status(f"Plot saved to: {ext}")
+        
+        def on_close():
+            photo_ref[0] = None
+            try: os.unlink(tmp)
+            except: pass
+            win.destroy()
+        
+        ctk.CTkButton(btn_frame, text="💾 Save As...", command=save_as,
+                      fg_color=self.T.get('accent', '#00ff88'),
+                      text_color='#000000', width=120).pack(side='left', padx=5)
+        ctk.CTkButton(btn_frame, text="Close", command=on_close,
+                      fg_color='#ff4444', text_color='#ffffff', width=80).pack(side='right', padx=5)
+        
+        win.protocol("WM_DELETE_WINDOW", on_close)
+
     def _on_resize(self, event=None):
         if event and event.widget == self:
             self.update_idletasks()

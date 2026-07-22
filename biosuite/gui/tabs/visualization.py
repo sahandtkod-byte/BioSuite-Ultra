@@ -162,30 +162,51 @@ class VisualizationTabMixin:
         threading.Thread(target=run, daemon=True).start()
 
     def _show_plot_image(self, path):
-        """Display a saved plot image in a new window."""
-        def _show_plot_image(self, path):
-            """Display a saved plot image in a new window."""
-            from PIL import Image, ImageTk
-            win = tk.Toplevel(self)
-            win.title("Plot Result")
-            win.geometry("900x700")
-            photo_ref = [None]  # prevent GC
-            try:
-                img = Image.open(path)
-                img.thumbnail((850, 650), Image.LANCZOS)
-                photo = ImageTk.PhotoImage(img)
-                photo_ref[0] = photo
-                label = ttk.Label(win, image=photo)
-                label.pack(fill='both', expand=True, padx=10, pady=10)
-            except Exception as e:
-                ttk.Label(win, text=f"Error: {e}").pack()
-            def on_close():
-                photo_ref[0] = None
-                win.destroy()
-            win.protocol("WM_DELETE_WINDOW", on_close)
-            ctk.CTkButton(win, text="Close", command=on_close,
-                          fg_color=self.T.get('accent', '#00ff88'),
-                          text_color='#000000').pack(pady=5)
+        """Display a saved plot image in a new window with Save As option."""
+        from tkinter import filedialog
+        from PIL import Image, ImageTk
+        win = tk.Toplevel(self)
+        win.title("Plot Result")
+        win.geometry("950x750")
+        win.configure(fg_color=self.T.get('bg', '#0a0f0a'))
+        photo_ref = [None]  # prevent GC
+        
+        try:
+            img = Image.open(path)
+            img.thumbnail((900, 650), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            photo_ref[0] = photo
+            label = ctk.CTkLabel(win, image=photo, text="")
+            label.pack(fill='both', expand=True, padx=10, pady=10)
+        except Exception as e:
+            ctk.CTkLabel(win, text=f"Error loading plot: {e}").pack(pady=20)
+        
+        # Bottom buttons frame
+        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        btn_frame.pack(fill='x', padx=10, pady=5)
+        
+        def save_as():
+            ext = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[("PNG", "*.png"), ("PDF", "*.pdf"), ("SVG", "*.svg"), ("All", "*.*")],
+                title="Save Plot As"
+            )
+            if ext:
+                import shutil
+                shutil.copy2(path, ext)
+                self._set_status(f"Plot saved to: {ext}")
+        
+        def on_close():
+            photo_ref[0] = None
+            win.destroy()
+        
+        ctk.CTkButton(btn_frame, text="💾 Save As...", command=save_as,
+                      fg_color=self.T.get('accent', '#00ff88'),
+                      text_color='#000000', width=120).pack(side='left', padx=5)
+        ctk.CTkButton(btn_frame, text="Close", command=on_close,
+                      fg_color='#ff4444', text_color='#ffffff', width=80).pack(side='right', padx=5)
+        
+        win.protocol("WM_DELETE_WINDOW", on_close)
 
     def _gui_input(self, prompt):
         result = [None]
@@ -298,8 +319,7 @@ class VisualizationTabMixin:
             self.upset_stats.insert("end", f"Unique per set: {stats['unique_per_set']}\n")
             fig = plot_upset(sets_dict, title="UpSet Plot")
             if fig is not None:
-                fig.savefig(r'C:/Users/SAHAND/AppData/Local/Temp/biosuite_upset.png', dpi=150, bbox_inches='tight')
-            plt.close('all')
+                self.after(0, lambda f=fig: self._show_plot_from_figure(f, "UpSet Plot"))
             plt.close()
         except Exception as e:
             self._msg_error("Error", str(e))
@@ -367,8 +387,7 @@ class VisualizationTabMixin:
                 self.gb_info.insert("end", f"Error loading {path}: {e}\n")
         if tracks:
             fig = plot_genome_tracks(tracks, title="Genome Browser")
-            fig.savefig(r'C:/Users/SAHAND/AppData/Local/Temp/biosuite_genome_browser.png', dpi=150, bbox_inches='tight')
-            plt.close('all')
+            self.after(0, lambda f=fig: self._show_plot_from_figure(f, "Genome Browser"))
             self.gb_info.delete("1.0", "end")
             self.gb_info.insert("end", f"Loaded {len(tracks)} tracks\n")
         else:
@@ -419,8 +438,7 @@ class VisualizationTabMixin:
                 bar = '#' * int(score * 30)
                 self.cons_stats.insert("end", f"Pos {pos:2d}: {score:.3f} {bar}\n")
             fig = plot_logo_with_conservation(seqs)
-            fig.savefig(r'C:/Users/SAHAND/AppData/Local/Temp/biosuite_conservation.png', dpi=150, bbox_inches='tight')
-            plt.close('all')
+            self.after(0, lambda f=fig: self._show_plot_from_figure(f, "Conservation Analysis"))
         except Exception as e:
             self._msg_error("Error", str(e))
 
@@ -435,8 +453,7 @@ class VisualizationTabMixin:
         motif_list = [m.strip() for m in motifs.split(',')]
         try:
             fig = plot_motif_enrichment(seqs, motif_list)
-            fig.savefig(r'C:/Users/SAHAND/AppData/Local/Temp/biosuite_motif.png', dpi=150, bbox_inches='tight')
-            plt.close('all')
+            self.after(0, lambda f=fig: self._show_plot_from_figure(f, "Motif Enrichment"))
         except Exception as e:
             self._msg_error("Error", str(e))
 
@@ -495,8 +512,7 @@ class VisualizationTabMixin:
             self.syn_stats.insert("end", f"Genome 2: {len(g2)} genes\n")
             self.syn_stats.insert("end", f"Common: {len(set(g1) & set(g2))}\n")
             fig = plot_synteny_dotplot(g1, g2, title="Synteny Dotplot")
-            fig.savefig(r'C:/Users/SAHAND/AppData/Local/Temp/biosuite_synteny.png', dpi=150, bbox_inches='tight')
-            plt.close('all')
+            self.after(0, lambda f=fig: self._show_plot_from_figure(f, "Synteny Dotplot"))
         except Exception as e:
             self._msg_error("Error", str(e))
 
