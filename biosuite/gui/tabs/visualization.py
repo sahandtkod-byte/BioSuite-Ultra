@@ -164,12 +164,13 @@ class VisualizationTabMixin:
 
     def _show_plot_image(self, path):
         """Display a saved plot image in a new window with Save As option."""
-        from tkinter import filedialog
+        from tkinter import filedialog, Label, Frame, Button
         from PIL import Image, ImageTk
+        
         win = tk.Toplevel(self)
         win.title("Plot Result")
         win.geometry("950x750")
-        win.configure(fg_color=self.T.get('bg', '#0a0f0a'))
+        win.configure(bg='#1a1a2e')
         photo_ref = [None]  # prevent GC
         
         try:
@@ -177,13 +178,13 @@ class VisualizationTabMixin:
             img.thumbnail((900, 650), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
             photo_ref[0] = photo
-            label = ctk.CTkLabel(win, image=photo, text="")
+            label = Label(win, image=photo, bg='#1a1a2e')
             label.pack(fill='both', expand=True, padx=10, pady=10)
         except Exception as e:
-            ctk.CTkLabel(win, text=f"Error loading plot: {e}").pack(pady=20)
+            Label(win, text=f"Error: {e}", bg='#1a1a2e', fg='white').pack(pady=20)
         
-        # Bottom buttons frame
-        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
+        # Bottom buttons
+        btn_frame = Frame(win, bg='#1a1a2e')
         btn_frame.pack(fill='x', padx=10, pady=5)
         
         def save_as():
@@ -201,11 +202,10 @@ class VisualizationTabMixin:
             photo_ref[0] = None
             win.destroy()
         
-        ctk.CTkButton(btn_frame, text="💾 Save As...", command=save_as,
-                      fg_color=self.T.get('accent', '#00ff88'),
-                      text_color='#000000', width=120).pack(side='left', padx=5)
-        ctk.CTkButton(btn_frame, text="Close", command=on_close,
-                      fg_color='#ff4444', text_color='#ffffff', width=80).pack(side='right', padx=5)
+        Button(btn_frame, text="Save As...", command=save_as,
+               bg='#00cc66', fg='black', relief='flat', padx=15).pack(side='left', padx=5)
+        Button(btn_frame, text="Close", command=on_close,
+               bg='#ff4444', fg='white', relief='flat', padx=15).pack(side='right', padx=5)
         
         win.protocol("WM_DELETE_WINDOW", on_close)
 
