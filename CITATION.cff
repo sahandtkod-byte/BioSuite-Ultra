@@ -31,7 +31,7 @@ keywords:
   - crispr
   - single-cell
 license: MIT
-version: 4.2.1
+version: 4.2.2
 date-released: "2026-07-08"
 preferred-citation:
   type: software
@@ -40,6 +40,6 @@ preferred-citation:
     - family-names: Touri
       given-names: Sahand
   year: 2026
-  version: 4.2.1
+  version: 4.2.2
   doi: "10.5281/zenodo.21256296"
   url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"

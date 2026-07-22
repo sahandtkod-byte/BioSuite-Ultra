@@ -175,7 +175,7 @@ Available commands:
                         help='Port for API server (default: 8000)')
     parser.add_argument('--theme', type=str, default=None,
                         help='Theme: dark-green, dark-purple, light-blue')
-    parser.add_argument('--version', action='version', version='BioSuite Ultra 4.2.1')
+    parser.add_argument('--version', action='version', version='BioSuite Ultra 4.2.2')
     return parser
 
 
@@ -188,7 +188,7 @@ def _header():
     print(f"{G}{B}   ██╔══██╗  ╚██╔╝  ██║██╔══╝  ██║╚██╗██║██║     ██╔══╝  {R}")
     print(f"{G}{B}   ██████╔╝   ██║   ██║███████╗██║ ╚████║╚██████╗███████╗{R}")
     print(f"{G}{B}   ╚═════╝    ╚═╝   ╚═╝╚══════╝╚═╝  ╚═══╝ ╚═════╝╚══════╝{R}")
-    print(f"{D}   Bioinformatic Platform  ·  Ultra v4.2.1  ·  Pure Python{R}")
+    print(f"{D}   Bioinformatic Platform  ·  Ultra v4.2.2  ·  Pure Python{R}")
     print(f"{G}{B}{'═'*68}{R}")
 
 
