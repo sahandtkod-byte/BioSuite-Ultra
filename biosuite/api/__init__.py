@@ -38,7 +38,7 @@ app = FastAPI(
     title="BioSuite Ultra API",
     description="The most comprehensive open-source bioinformatics REST API. "
                 "48 analysis modules, 36+ visualization types — all free, all pure Python.",
-    version="4.2.2",
+    version="4.2.3",
     docs_url="/docs",
     redoc_url="/redoc",
     dependencies=[Depends(verify_api_key)],
@@ -165,7 +165,7 @@ async def health():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "version": "4.2.2",
+        "version": "4.2.3",
         "modules": 48,
         "timestamp": time.time()
     }

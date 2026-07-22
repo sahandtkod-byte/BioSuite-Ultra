@@ -175,7 +175,7 @@ Available commands:
                         help='Port for API server (default: 8000)')
     parser.add_argument('--theme', type=str, default=None,
                         help='Theme: dark-green, dark-purple, light-blue')
-    parser.add_argument('--version', action='version', version='BioSuite Ultra 4.2.2')
+    parser.add_argument('--version', action='version', version='BioSuite Ultra 4.2.3')
     return parser
 
 
