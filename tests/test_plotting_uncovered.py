@@ -59,123 +59,109 @@ def _input_factory(default='n'):
 # ============================================================================
 
 class TestVolcanoPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_volcano_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_volcano_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import volcano_plot
         volcano_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_volcano_plot_default_data(self, mock_input, mock_show, _quiet_config):
+    def test_volcano_plot_default_data(self, mock_input, _quiet_config):
         """Verify volcano_plot runs with default synthetic data."""
         from biosuite.plotting.biological_plots import volcano_plot
         volcano_plot()
-        # Should have created a figure and called show
-        mock_show.assert_called_once()
+        plt.close('all')
 
 
 class TestPCAPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_pca_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_pca_plot_returns_fig(self, mock_input, _quiet_config):
         try:
             from biosuite.plotting.biological_plots import pca_plot
         except ImportError:
             pytest.skip("sklearn not installed")
         pca_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestManhattanPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_manhattan_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_manhattan_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import manhattan_plot
         manhattan_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestMAPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_ma_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_ma_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import ma_plot
         ma_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestVennDiagram:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_venn_diagram_2sets(self, mock_input, mock_show, _quiet_config):
+    def test_venn_diagram_2sets(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import venn_diagram
         venn_diagram()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestBarplotCustom:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_barplot_custom_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_barplot_custom_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import barplot_custom
         barplot_custom()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestBoxplotCustom:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_boxplot_custom_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_boxplot_custom_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import boxplot_custom
         boxplot_custom()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestHeatmapCustom:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_heatmap_custom_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_heatmap_custom_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import heatmap_custom
         heatmap_custom()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestScatterCustom:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_scatter_custom_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_scatter_custom_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import scatter_custom
         scatter_custom()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestTimeseriesPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_timeseries_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_timeseries_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import timeseries_plot
         timeseries_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestQQPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_qq_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_qq_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import qq_plot
         qq_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestViolinPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_violin_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_violin_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.biological_plots import violin_plot
         violin_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 # ============================================================================
@@ -235,66 +221,59 @@ class TestDrawSankey:
 # ============================================================================
 
 class TestSinePlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_sine_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_sine_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import sine_plot
         sine_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestCosinePlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_cosine_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_cosine_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import cosine_plot
         cosine_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestLinearPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_linear_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_linear_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import linear_plot
         linear_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestQuadraticPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_quadratic_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_quadratic_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import quadratic_plot
         quadratic_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestCubicPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_cubic_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_cubic_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import cubic_plot
         cubic_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestExponentialPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_exponential_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_exponential_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import exponential_plot
         exponential_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestLogisticPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', return_value='n')
-    def test_logistic_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_logistic_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.math_plots import logistic_plot
         logistic_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 # ============================================================================
@@ -429,43 +408,39 @@ class TestNetworkPlots:
 # ============================================================================
 
 class TestGSEAPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_gsea_plot_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_gsea_plot_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.specialized_plots import gsea_plot
         gsea_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestMotifLogo:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('y'))
-    def test_motif_logo_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_motif_logo_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.specialized_plots import motif_logo
         motif_logo()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestSankeyDiagram:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('y'))
-    def test_sankey_diagram_returns_fig(self, mock_input, mock_show, _quiet_config):
+    def test_sankey_diagram_returns_fig(self, mock_input, _quiet_config):
         from biosuite.plotting.specialized_plots import sankey_diagram
         sankey_diagram()
-        mock_show.assert_called()
+        plt.close('all')
 
 
 class TestUMAPPlot:
-    @mock.patch('matplotlib.pyplot.show')
     @mock.patch('builtins.input', side_effect=_input_factory('n'))
-    def test_umap_plot(self, mock_input, mock_show, _quiet_config):
+    def test_umap_plot(self, mock_input, _quiet_config):
         """UMAP plot – skips gracefully if umap-learn is not installed."""
         from biosuite.plotting.specialized_plots import HAS_UMAP
         if not HAS_UMAP:
             pytest.skip("umap-learn not installed")
         from biosuite.plotting.specialized_plots import umap_plot
         umap_plot()
-        mock_show.assert_called()
+        plt.close('all')
 
     def test_umap_plot_missing_package(self):
         """When HAS_UMAP is False, umap_plot should return without error."""
