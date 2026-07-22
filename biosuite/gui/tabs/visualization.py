@@ -6,7 +6,8 @@ import re
 import builtins
 import threading
 import customtkinter as ctk
-from tkinter import filedialog
+import tkinter as tk
+from tkinter import filedialog, ttk
 
 from ..themes import (THEMES, PLOT_CATEGORIES, PLOT_FUNCS, FONT_FAMILY, FONT_BODY,
                        FONT_SMALL, FONT_BUTTON, FONT_HEADING)
