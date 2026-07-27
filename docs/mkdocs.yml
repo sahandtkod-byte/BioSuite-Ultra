@@ -1,0 +1,73 @@
+site_name: BioSuite Ultra
+site_description: Comprehensive open-source bioinformatics platform
+site_url: https://sahandtkod-byte.github.io/BioSuite-Ultra/
+repo_url: https://github.com/sahandtkod-byte/BioSuite-Ultra
+repo_name: sahandtkod-byte/BioSuite-Ultra
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+  - User Guide:
+    - Sequence Analysis: user-guide/sequence.md
+    - Alignment: user-guide/alignment.md
+    - Phylogenetics: user-guide/phylogeny.md
+    - Expression Analysis: user-guide/expression.md
+    - Molecular Cloning: user-guide/cloning.md
+    - NGS Pipeline: user-guide/ngs.md
+  - API Reference:
+    - REST API: api/rest-api.md
+    - Python API: api/python-api.md
+    - CLI Reference: api/cli.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Architecture: development/architecture.md
+    - Changelog: development/changelog.md
+
+plugins:
+  - search
+
+extra:
+  version:
+    provider: mike

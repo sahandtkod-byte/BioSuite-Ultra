@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  # ── REST API (FastAPI) ──────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "8000:8000"
+    environment:
+      - BIOSUITE_LOG_LEVEL=INFO
+      - BIOSUITE_API__HOST=0.0.0.0
+      - BIOSUITE_API__PORT=8000
+    volumes:
+      - ./data:/data
+      - biosuite-cache:/root/.cache/biosuite
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── GUI (headless xvfb) ────────────────────────────────────────────
+  gui:
+    build:
+      context: .
+      target: gui
+    environment:
+      - QT_QPA_PLATFORM=offscreen
+      - DISPLAY=:99
+    volumes:
+      - ./data:/data
+    profiles:
+      - gui
+
+volumes:
+  biosuite-cache:
