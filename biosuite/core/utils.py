@@ -294,6 +294,7 @@ def prompt_api_key(service, description=""):
     return key
 
 def set_theme(choice):
+    import matplotlib.pyplot as plt
     is_dark = choice in ('dark', 'dark-green', 'dark-purple')
     if not is_dark:
         try:
