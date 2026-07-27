@@ -149,7 +149,7 @@ class VisualizationTabMixin:
                         fig = plt.gcf()
                         import tempfile, os
                         tmp = os.path.join(tempfile.gettempdir(), f"biosuite_plot_{plot_id}.png")
-                        fig.savefig(tmp, dpi=150, bbox_inches='tight')
+                        fig.savefig(tmp, dpi=config.get('default_dpi', 150), bbox_inches='tight')
                         plt.close('all')
                         self.after(0, lambda p=tmp: self._show_plot_image(p))
                 else:

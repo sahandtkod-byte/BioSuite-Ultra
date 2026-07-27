@@ -29,23 +29,31 @@ except ImportError:
 import matplotlib.pyplot as plt
 import matplotlib
 
+from biosuite.plotting.style import (
+    COLORS, COLOR_CYCLE, FONTS, SIZES, PLOTLY_LAYOUT,
+    apply_style, get_colors, get_figsize, get_dpi,
+    style_ax, style_legend,
+)
+
 
 # ── Theme helpers ────────────────────────────────────────────────────────────
 
-PLOTLY_TEMPLATE = 'plotly_dark'
-MPL_STYLE = {
-    'figure.facecolor': '#121212',
-    'axes.facecolor': '#1a1a1a',
-    'text.color': '#00ff99',
-    'axes.labelcolor': '#00ff99',
-    'xtick.color': '#00ff99',
-    'ytick.color': '#00ff99',
-}
+PLOTLY_TEMPLATE = 'plotly_white'
 
+# Backward compat — old code importing MPL_STYLE still works
+from biosuite.plotting.style import MPL_STYLE
 
 def _apply_mpl_style():
-    for k, v in MPL_STYLE.items():
-        plt.rcParams[k] = v
+    """Apply BioSuite plot style. Called at start of each plot function."""
+    apply_style("default")
+
+
+def _new_fig(ax_kwargs=None):
+    """Create a new figure with standard styling."""
+    apply_style("default")
+    fig, ax = plt.subplots(figsize=get_figsize())
+    style_ax(ax, **(ax_kwargs or {}))
+    return fig, ax
 
 
 # ── Volcano Plot ─────────────────────────────────────────────────────────────
@@ -76,7 +84,7 @@ def volcano(log2fc, pvalues, gene_names=None, fc_thresh=1.0, p_thresh=0.05,
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=log2fc[~sig], y=neg_log10[~sig], mode='markers',
-            name='Not significant', marker=dict(size=5, color='gray', opacity=0.5)
+            name='Not significant', marker=dict(size=5, color=COLORS["not_sig"], opacity=0.5)
         ))
         labels = []
         for i in range(len(log2fc)):
@@ -87,28 +95,35 @@ def volcano(log2fc, pvalues, gene_names=None, fc_thresh=1.0, p_thresh=0.05,
                 labels.append("")
         fig.add_trace(go.Scatter(
             x=log2fc[sig], y=neg_log10[sig], mode='markers',
-            name='Significant', marker=dict(size=7, color='red'),
+            name='Significant', marker=dict(size=7, color=COLORS["significant"]),
             text=np.array(labels)[sig].tolist(), hoverinfo='text'
         ))
-        fig.update_layout(title=title, xaxis_title='Log2 Fold Change',
-                          yaxis_title='-log10(p-value)', template=PLOTLY_TEMPLATE)
+        fig.update_layout(**PLOTLY_LAYOUT, title=title,
+                          xaxis_title='Log2 Fold Change',
+                          yaxis_title='-log10(p-value)')
+        fig.add_hline(y=-np.log10(p_thresh), line_dash="dash", line_color=COLORS["threshold"], opacity=0.6)
+        fig.add_vline(x=-fc_thresh, line_dash="dash", line_color=COLORS["threshold"], opacity=0.6)
+        fig.add_vline(x=fc_thresh, line_dash="dash", line_color=COLORS["threshold"], opacity=0.6)
         if output_html:
             fig.write_html(output_html)
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.scatter(log2fc[~sig], neg_log10[~sig], s=10, alpha=0.5, label='Not sig', color='gray')
-        ax.scatter(log2fc[sig], neg_log10[sig], s=20, alpha=0.7, label='Significant', color='red')
-        ax.axhline(-np.log10(p_thresh), linestyle='--', color='white', alpha=0.5)
-        ax.axvline(-fc_thresh, linestyle='--', alpha=0.5)
-        ax.axvline(fc_thresh, linestyle='--', alpha=0.5)
-        ax.set_xlabel('Log2 Fold Change')
-        ax.set_ylabel('-log10(P-value)')
-        ax.set_title(title)
-        ax.legend()
+        fig, ax = plt.subplots(figsize=get_figsize())
+        ax.scatter(log2fc[~sig], neg_log10[~sig], s=SIZES["scatter_s"]*0.5, alpha=0.4,
+                   label='Not sig', color=COLORS["not_sig"], edgecolors="white", linewidths=0.3)
+        ax.scatter(log2fc[sig], neg_log10[sig], s=SIZES["scatter_s"], alpha=0.8,
+                   label='Significant', color=COLORS["significant"], edgecolors="white", linewidths=0.3)
+        ax.axhline(-np.log10(p_thresh), linestyle='--', color=COLORS["threshold"],
+                   alpha=SIZES["threshold_alpha"], linewidth=1)
+        ax.axvline(-fc_thresh, linestyle='--', color=COLORS["threshold"],
+                   alpha=SIZES["threshold_alpha"], linewidth=1)
+        ax.axvline(fc_thresh, linestyle='--', color=COLORS["threshold"],
+                   alpha=SIZES["threshold_alpha"], linewidth=1)
+        style_ax(ax, title=title, xlabel='Log2 Fold Change', ylabel='-log10(P-value)')
+        style_legend(ax)
         if output_html:
-            fig.savefig(output_html.replace('.html', '.png'), dpi=150, bbox_inches='tight')
+            fig.savefig(output_html.replace('.html', '.png'), dpi=get_dpi(), bbox_inches='tight')
         return fig
 
 
@@ -152,37 +167,40 @@ def pca(data, labels=None, group_col=None, n_components=2,
     if interactive and HAS_PLOTLY:
         fig = go.Figure()
         if groups is not None:
-            for group in np.unique(groups):
+            colors = get_colors(len(np.unique(groups)))
+            for i, group in enumerate(np.unique(groups)):
                 mask = groups == group
                 fig.add_trace(go.Scatter(
                     x=coords[mask, 0], y=coords[mask, 1] if n_components > 1 else [0]*sum(mask),
-                    mode='markers', name=str(group), text=labels[mask] if labels is not None else None,
+                    mode='markers', name=str(group), marker=dict(size=9, color=colors[i]),
+                    text=labels[mask] if labels is not None else None,
                     hoverinfo='text+x+y'
                 ))
         else:
             fig.add_trace(go.Scatter(
                 x=coords[:, 0], y=coords[:, 1] if n_components > 1 else [0]*len(coords),
-                mode='markers', marker=dict(size=10, color='#00ff88')
+                mode='markers', marker=dict(size=9, color=COLORS["primary"])
             ))
-        fig.update_layout(title=title, xaxis_title=x_label, yaxis_title=y_label, template=PLOTLY_TEMPLATE)
+        fig.update_layout(**PLOTLY_LAYOUT, title=title, xaxis_title=x_label, yaxis_title=y_label)
         if output_html:
             fig.write_html(output_html)
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(7, 6))
+        fig, ax = plt.subplots(figsize=get_figsize())
         if groups is not None:
-            for group in np.unique(groups):
+            colors = get_colors(len(np.unique(groups)))
+            for i, group in enumerate(np.unique(groups)):
                 mask = groups == group
                 ax.scatter(coords[mask, 0], coords[mask, 1] if n_components > 1 else [0]*sum(mask),
-                          label=group, s=70)
-            ax.legend()
+                          label=group, s=SIZES["scatter_s"], alpha=SIZES["scatter_alpha"],
+                          color=colors[i], edgecolors="white", linewidths=0.3)
+            style_legend(ax)
         else:
             ax.scatter(coords[:, 0], coords[:, 1] if n_components > 1 else [0]*len(coords),
-                      color='#00ff88', s=70)
-        ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label)
-        ax.set_title(title)
+                      color=COLORS["primary"], s=SIZES["scatter_s"], alpha=SIZES["scatter_alpha"],
+                      edgecolors="white", linewidths=0.3)
+        style_ax(ax, title=title, xlabel=x_label, ylabel=y_label)
         return fig
 
 
@@ -220,30 +238,28 @@ def manhattan(chromosomes, positions, pvalues, threshold=5e-8,
 
     if interactive and HAS_PLOTLY:
         fig = go.Figure()
-        colors = ['#00ff88', '#00cc66']
+        colors = get_colors(len(unique_chroms))
         for i, chrom in enumerate(unique_chroms):
             mask = chromosomes == chrom
             fig.add_trace(go.Scatter(
                 x=cumpos[mask], y=neg_log10[mask], mode='markers', name=str(chrom),
-                marker=dict(size=4, color=colors[i % 2]),
+                marker=dict(size=4, color=colors[i]),
                 text=[f"{chrom}:{int(p)}" for p in positions[mask]], hoverinfo='text+y'
             ))
-        fig.add_hline(y=-np.log10(threshold), line_dash="dash", line_color="red")
-        fig.update_layout(title=title, xaxis_title="Chromosome", yaxis_title="-log10(p-value)",
-                          template=PLOTLY_TEMPLATE)
+        fig.add_hline(y=-np.log10(threshold), line_dash="dash", line_color=COLORS["significant"], opacity=0.7)
+        fig.update_layout(**PLOTLY_LAYOUT, title=title, xaxis_title="Chromosome", yaxis_title="-log10(p-value)")
         if output_html:
             fig.write_html(output_html)
         return fig
     else:
         _apply_mpl_style()
         fig, ax = plt.subplots(figsize=(12, 5))
+        colors = get_colors(len(unique_chroms))
         for i, chrom in enumerate(unique_chroms):
             mask = chromosomes == chrom
-            ax.scatter(cumpos[mask], neg_log10[mask], s=5, color=['#00ff88', '#00cc66'][i % 2])
-        ax.axhline(-np.log10(threshold), linestyle='--', color='red', alpha=0.7)
-        ax.set_xlabel('Chromosome')
-        ax.set_ylabel('-log10(p)')
-        ax.set_title(title)
+            ax.scatter(cumpos[mask], neg_log10[mask], s=SIZES["scatter_s"]*0.3, alpha=0.6, color=colors[i])
+        ax.axhline(-np.log10(threshold), linestyle='--', color=COLORS["significant"], alpha=0.7, linewidth=1)
+        style_ax(ax, title=title, xlabel='Chromosome', ylabel='-log10(p)')
         return fig
 
 
@@ -286,23 +302,21 @@ def ma(mean_expression, log_fc, sig=None, gene_names=None,
                 labels.append("")
         fig.add_trace(go.Scatter(
             x=mean_expression[sig], y=log_fc[sig], mode='markers',
-            name='Significant', marker=dict(size=7, color='#00ff88'),
+            name='Significant', marker=dict(size=7, color=COLORS["primary"]),
             text=np.array(labels)[sig].tolist(), hoverinfo='text'
         ))
-        fig.update_layout(title=title, xaxis_title='Mean Expression (log)',
-                          yaxis_title='Log2 Fold Change', template=PLOTLY_TEMPLATE)
+        fig.update_layout(**PLOTLY_LAYOUT, title=title, xaxis_title='Mean Expression (log)',
+                          yaxis_title='Log2 Fold Change')
         if output_html:
             fig.write_html(output_html)
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.scatter(mean_expression[~sig], log_fc[~sig], s=8, alpha=0.4, color='gray')
-        ax.scatter(mean_expression[sig], log_fc[sig], s=15, alpha=0.7, color='#00ff88')
-        ax.axhline(0, color='black', linewidth=0.5)
-        ax.set_xlabel('Mean Expression (log)')
-        ax.set_ylabel('Log2 Fold Change')
-        ax.set_title(title)
+        fig, ax = plt.subplots(figsize=get_figsize())
+        ax.scatter(mean_expression[~sig], log_fc[~sig], s=SIZES["scatter_s"]*0.4, alpha=0.4, color=COLORS["not_sig"])
+        ax.scatter(mean_expression[sig], log_fc[sig], s=SIZES["scatter_s"]*0.7, alpha=0.8, color=COLORS["primary"])
+        ax.axhline(0, color=COLORS["threshold"], linewidth=0.8, linestyle='--')
+        style_ax(ax, title=title, xlabel='Mean Expression (log)', ylabel='Log2 Fold Change')
         return fig
 
 
@@ -349,12 +363,12 @@ def heatmap(data, row_labels=None, col_labels=None, title="Heatmap",
         im = ax.imshow(data, aspect='auto', cmap=cmap)
         if row_labels:
             ax.set_yticks(range(len(row_labels)))
-            ax.set_yticklabels(row_labels, fontsize=8)
+            ax.set_yticklabels(row_labels, fontsize=FONTS["tick_size"])
         if col_labels:
             ax.set_xticks(range(len(col_labels)))
-            ax.set_xticklabels(col_labels, rotation=45, ha='right', fontsize=8)
-        plt.colorbar(im, ax=ax)
-        ax.set_title(title)
+            ax.set_xticklabels(col_labels, rotation=45, ha='right', fontsize=FONTS["tick_size"])
+        plt.colorbar(im, ax=ax, shrink=0.8)
+        style_ax(ax, title=title)
         return fig
 
 
@@ -384,10 +398,18 @@ def boxplot(data_dict, title="Boxplot", ylabel="Value",
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.boxplot(data_dict.values(), tick_labels=data_dict.keys())
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
+        fig, ax = plt.subplots(figsize=get_figsize())
+        bp = ax.boxplot(data_dict.values(), tick_labels=data_dict.keys(),
+                        patch_artist=True, widths=0.6)
+        colors = get_colors(len(data_dict))
+        for patch, color in zip(bp['boxes'], colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.7)
+            patch.set_edgecolor('#CCCCCC')
+        for median in bp['medians']:
+            median.set_color('#333333')
+            median.set_linewidth(1.5)
+        style_ax(ax, title=title, ylabel=ylabel)
         return fig
 
 
@@ -417,7 +439,7 @@ def scatter(x, y, labels=None, title="Scatter Plot", xlabel="X", ylabel="Y",
         hover = labels if labels else [f"x={xi:.2f}, y={yi:.2f}" for xi, yi in zip(x, y)]
         fig.add_trace(go.Scatter(
             x=x, y=y, mode='markers', text=hover, hoverinfo='text',
-            marker=dict(size=8, color='#00ff88')
+            marker=dict(size=8, color=COLORS["primary"])
         ))
         if show_regression:
             from scipy import stats as sp_stats
@@ -433,14 +455,15 @@ def scatter(x, y, labels=None, title="Scatter Plot", xlabel="X", ylabel="Y",
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(7, 6))
-        ax.scatter(x, y, s=40, color='#00ff88', edgecolors='black', alpha=0.7)
+        fig, ax = plt.subplots(figsize=get_figsize())
+        ax.scatter(x, y, s=SIZES["scatter_s"], color=COLORS["primary"],
+                   edgecolors='white', linewidths=0.3, alpha=SIZES["scatter_alpha"])
         if show_regression:
             from scipy import stats as sp_stats
             slope, intercept, r, p, se = sp_stats.linregress(x, y)
             x_line = np.linspace(x.min(), x.max(), 100)
-            ax.plot(x_line, slope * x_line + intercept, 'r--', linewidth=1.5,
-                   label=f'R²={r**2:.3f}, p={p:.2e}')
+            ax.plot(x_line, slope * x_line + intercept, '--', linewidth=1.5,
+                   color=COLORS["regression"], label=f'R²={r**2:.3f}, p={p:.2e}')
             ax.legend()
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
@@ -471,21 +494,21 @@ def barplot(categories, values, errors=None, title="Barplot", ylabel="Value",
         error_y = dict(type='data', array=errors) if errors is not None else None
         fig.add_trace(go.Bar(
             x=categories, y=values, error_y=error_y,
-            marker_color='#00ff88', marker_line_color='white', marker_line_width=1.5
+            marker_color=COLORS["primary"], marker_line_color='white', marker_line_width=1.5
         ))
-        fig.update_layout(title=title, yaxis_title=ylabel, template=PLOTLY_TEMPLATE)
+        fig.update_layout(**PLOTLY_LAYOUT, title=title, yaxis_title=ylabel)
         if output_html:
             fig.write_html(output_html)
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(8, 6))
-        colors = plt.cm.viridis(np.linspace(0.2, 0.8, len(categories)))
-        ax.bar(categories, values, color=colors, edgecolor='black')
+        fig, ax = plt.subplots(figsize=get_figsize())
+        colors = get_colors(len(categories))
+        bars = ax.bar(categories, values, color=colors, edgecolor='white', linewidth=0.5, width=0.7)
         if errors is not None:
-            ax.errorbar(range(len(categories)), values, yerr=errors, fmt='none', c='black', capsize=5)
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
+            ax.errorbar(range(len(categories)), values, yerr=errors, fmt='none',
+                       c=COLORS["threshold"], capsize=4, capthick=1, elinewidth=1)
+        style_ax(ax, title=title, ylabel=ylabel)
         return fig
 
 
@@ -509,18 +532,23 @@ def violin(data_dict, title="Violin Plot", ylabel="Value",
         fig = go.Figure()
         for name, values in data_dict.items():
             fig.add_trace(go.Violin(y=values, name=name, box_visible=True, meanline_visible=True))
-        fig.update_layout(title=title, yaxis_title=ylabel, template=PLOTLY_TEMPLATE)
+        fig.update_layout(**PLOTLY_LAYOUT, title=title, yaxis_title=ylabel)
         if output_html:
             fig.write_html(output_html)
         return fig
     else:
         _apply_mpl_style()
-        fig, ax = plt.subplots(figsize=(8, 6))
-        parts = ax.violinplot(list(data_dict.values()), showmeans=True, showmedians=True)
+        fig, ax = plt.subplots(figsize=get_figsize())
+        parts = ax.violinplot(data_dict.values(), showmeans=True, showmedians=True, showextrema=False)
+        colors = get_colors(len(data_dict))
+        for i, pc in enumerate(parts['bodies']):
+            pc.set_facecolor(colors[i % len(colors)])
+            pc.set_alpha(0.7)
+        parts['cmeans'].set_color(COLORS["primary"])
+        parts['cmedians'].set_color(COLORS["significant"])
         ax.set_xticks(range(1, len(data_dict) + 1))
         ax.set_xticklabels(data_dict.keys())
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
+        style_ax(ax, title=title, ylabel=ylabel)
         return fig
 
 

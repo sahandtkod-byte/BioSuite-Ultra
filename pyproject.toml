@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "5.0.0"
+version = "5.0.1"
 description = "BioSuite Ultra - Comprehensive open-source bioinformatics platform: 47 analysis modules, CLI, REST API, PyQt6 GUI, Jupyter notebooks"
 readme = "README.md"
 license = {text = "MIT"}

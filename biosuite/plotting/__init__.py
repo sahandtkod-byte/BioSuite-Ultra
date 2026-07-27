@@ -1,3 +1,8 @@
+from .style import (
+    COLORS, COLOR_CYCLE, FONTS, SIZES, PLOTLY_LAYOUT,
+    apply_style, get_colors, get_figsize, get_dpi,
+    style_ax, style_legend,
+)
 from .biological_plots import *
 from .math_plots import *
 from .specialized_plots import *
