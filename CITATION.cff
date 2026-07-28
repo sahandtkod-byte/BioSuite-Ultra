@@ -10,7 +10,7 @@ doi: "10.5281/zenodo.21256296"
 url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"
 abstract: >-
   BioSuite Ultra is a comprehensive open-source bioinformatics platform
-  with 47 analysis modules, 26 visualization types, 123 functions, a cyberpunk GUI,
+  with 96 analysis modules, 26 visualization types, 123+ functions, a cyberpunk GUI,
   a 99+ option CLI, molecular cloning tools, parallel processing, and
   a REST API — all in pure Python. No external bioinformatics tools required.
   100% free and open source under the MIT license.
@@ -32,7 +32,7 @@ keywords:
   - single-cell
 license: MIT
 version: 4.2.5
-date-released: "2026-07-08"
+date-released: "2026-07-28"
 preferred-citation:
   type: software
   title: "BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform"
@@ -40,6 +40,6 @@ preferred-citation:
     - family-names: Touri
       given-names: Sahand
   year: 2026
-  version: 4.2.5
+  version: 5.0.2
   doi: "10.5281/zenodo.21256296"
   url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"
