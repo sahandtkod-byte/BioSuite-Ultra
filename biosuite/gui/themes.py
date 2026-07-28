@@ -81,271 +81,371 @@ PLOT_CATEGORIES = {
 
 
 def _build_plot_funcs():
-    """Build plot_id -> callable mapping. Called once after heavy imports available."""
+    """Build plot_id -> callable mapping. Each returns a matplotlib Figure."""
+    import builtins
+    import numpy as np
     funcs = {}
 
-    def _noop():
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.text(0.5, 0.5, 'Under construction', ha='center', va='center', fontsize=16, color='gray')
-        ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
+    def _get_fig(result):
+        """Extract matplotlib Figure from various return types."""
+        if result is None:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.text(0.5, 0.5, 'No data', ha='center', va='center', fontsize=14, color='gray')
+            ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
+            return fig
+        import matplotlib.figure
+        if isinstance(result, matplotlib.figure.Figure):
+            return result
+        import matplotlib.axes
+        if isinstance(result, matplotlib.axes.Axes):
+            return result.get_figure()
+        # Plotly figure — render to matplotlib
+        if hasattr(result, 'write_image'):
+            try:
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots(figsize=(8, 5))
+                ax.text(0.5, 0.5, 'Interactive plot (use in browser)',
+                        ha='center', va='center', fontsize=12, color='gray')
+                ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
+                return fig
+            except Exception:
+                pass
+        return result
 
-    # --- plot_api functions (all take interactive=False by default) ---
+    def _safe(func):
+        """Wrap function: monkey-patch input() to return defaults, return Figure."""
+        def wrapper():
+            _orig_input = builtins.input
+            builtins.input = lambda *a, **k: 'n'  # default to "don't save"
+            try:
+                result = func()
+                return _get_fig(result)
+            finally:
+                builtins.input = _orig_input
+        return wrapper
+
+    # === plot_api functions ===
     try:
-        from biosuite.plotting import plot_api
-        funcs['volcano'] = lambda: plot_api.volcano(
-            __import__('numpy').random.randn(200),
-            __import__('numpy').uniform(0.001, 1, 200))
-        funcs['pca'] = lambda: plot_api.pca(__import__('numpy').random.randn(30, 10))
-        funcs['manhattan'] = lambda: _manhattan_demo()
-        funcs['ma'] = lambda: plot_api.ma(
-            __import__('numpy').random.uniform(2, 12, 300),
-            __import__('numpy').random.randn(300))
-        funcs['barplot'] = lambda: plot_api.barplot(
-            ['Gene A', 'Gene B', 'Gene C', 'Gene D', 'Gene E'],
-            [23, 45, 12, 67, 34])
-        funcs['boxplot'] = lambda: plot_api.boxplot({
-            'Control': __import__('numpy').random.randn(30).tolist(),
-            'Treatment': (__import__('numpy').random.randn(30) + 1).tolist(),
-            'Recovery': (__import__('numpy').random.randn(30) + 0.5).tolist()})
-        funcs['heatmap'] = lambda: plot_api.heatmap(__import__('numpy').random.rand(10, 8))
-        funcs['scatter'] = lambda: _scatter_demo()
-        funcs['violin'] = lambda: plot_api.violin({
-            'Group A': __import__('numpy').random.randn(40).tolist(),
-            'Group B': (__import__('numpy').random.randn(40) + 1.5).tolist()})
+        from biosuite.plotting import plot_api as api
+
+        def _volcano():
+            fc = np.random.randn(200)
+            pv = np.random.uniform(0.001, 1, 200)
+            pv[:15] = np.random.uniform(1e-8, 0.01, 15)
+            return api.volcano(fc, pv)
+
+        def _pca():
+            return api.pca(np.random.randn(30, 10))
+
+        def _ma():
+            mean_expr = np.random.uniform(2, 12, 300)
+            log_fc = np.random.randn(300)
+            return api.ma(mean_expr, log_fc)
+
+        def _barplot():
+            return api.barplot(['Gene A', 'Gene B', 'Gene C', 'Gene D', 'Gene E'],
+                              [23, 45, 12, 67, 34])
+
+        def _boxplot():
+            return api.boxplot({
+                'Control': np.random.randn(30).tolist(),
+                'Treatment': (np.random.randn(30) + 1).tolist(),
+                'Recovery': (np.random.randn(30) + 0.5).tolist()})
+
+        def _heatmap():
+            return api.heatmap(np.random.rand(10, 8))
+
+        def _scatter():
+            x = np.random.randn(100)
+            y = x * 2 + np.random.randn(100) * 0.5
+            return api.scatter(x, y, show_regression=True)
+
+        def _violin():
+            return api.violin({
+                'Group A': np.random.randn(40).tolist(),
+                'Group B': (np.random.randn(40) + 1.5).tolist()})
+
+        funcs['volcano'] = _safe(_volcano)
+        funcs['pca'] = _safe(_pca)
+        funcs['ma'] = _safe(_ma)
+        funcs['barplot'] = _safe(_barplot)
+        funcs['boxplot'] = _safe(_boxplot)
+        funcs['heatmap'] = _safe(_heatmap)
+        funcs['scatter'] = _safe(_scatter)
+        funcs['violin'] = _safe(_violin)
     except Exception:
         pass
 
-    # --- biological_plots functions ---
+    # === biological_plots functions ===
     try:
         from biosuite.plotting import biological_plots as bp
-        funcs['venn'] = lambda: bp.draw_venn2([10, 15, 5], ('Set A', 'Set B'))
-        funcs['timeseries'] = lambda: _timeseries_demo()
-        funcs['qq'] = lambda: _qq_demo()
-        funcs['gsea'] = lambda: _gsea_demo()
-        funcs['motif'] = lambda: bp.draw_motif_logo(
-            ['ACGTACGT', 'ACGACGT', 'ACGTTCGT', 'ACGAACGT', 'ACGTCCGT'])
-        funcs['circos'] = lambda: _noop()
-        funcs['ridge'] = lambda: _noop()
-        funcs['raincloud'] = lambda: _noop()
-        funcs['dotplot'] = lambda: _noop()
-        funcs['seq_logo'] = lambda: bp.draw_motif_logo(
-            ['ACGTACGT', 'ACGACGT', 'ACGTTCGT', 'ACGAACGT'])
-        funcs['conservation_bar'] = lambda: _conservation_demo()
+
+        def _venn():
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(6, 6))
+            bp.draw_venn2([10, 15, 5], ('Set A', 'Set B'), ax=ax)
+            return fig
+
+        def _motif():
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10, 4))
+            bp.draw_motif_logo(['ACGTACGT', 'ACGACGT', 'ACGTTCGT', 'ACGAACGT', 'ACGTCCGT'], ax=ax)
+            return fig
+
+        def _seq_logo():
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10, 4))
+            bp.draw_motif_logo(['ACGTACGT', 'ACGACGT', 'ACGTTCGT', 'ACGAACGT'], ax=ax)
+            return fig
+
+        funcs['venn'] = _safe(_venn)
+        funcs['motif'] = _safe(_motif)
+        funcs['seq_logo'] = _safe(_seq_logo)
     except Exception:
         pass
 
-    # --- specialized_plots ---
+    # === specialized_plots ===
     try:
         from biosuite.plotting import specialized_plots as sp
-        funcs['sankey'] = lambda: sp.sankey_diagram(
-            {'Source A': 100, 'Source B': 200},
-            {'Target X': 150, 'Target Y': 150})
+
+        def _sankey():
+            return sp.sankey_diagram()
+
+        funcs['sankey'] = _safe(_sankey)
     except Exception:
         pass
 
-    # --- math_plots ---
+    # === math_plots (wrap to skip input()) ===
     try:
         from biosuite.plotting import math_plots as mp
-        funcs['sine'] = lambda: mp.sine_plot()
-        funcs['cosine'] = lambda: mp.cosine_plot()
-        funcs['linear'] = lambda: mp.linear_plot()
-        funcs['quadratic'] = lambda: mp.quadratic_plot()
-        funcs['cubic'] = lambda: mp.cubic_plot()
-        funcs['exponential'] = lambda: mp.exponential_plot()
-        funcs['logistic'] = lambda: mp.logistic_plot()
+        for name, func in [('sine', mp.sine_plot), ('cosine', mp.cosine_plot),
+                           ('linear', mp.linear_plot), ('quadratic', mp.quadratic_plot),
+                           ('cubic', mp.cubic_plot), ('exponential', mp.exponential_plot),
+                           ('logistic', mp.logistic_plot)]:
+            funcs[name] = _safe(func)
     except Exception:
         pass
 
-    # --- network_plots ---
-    try:
-        from biosuite.plotting import network_plots as np_mod
-        funcs['clustered_heatmap'] = lambda: _clustered_heatmap_demo()
-    except Exception:
-        pass
-
-    # --- upset_plots ---
+    # === upset_plots ===
     try:
         from biosuite.plotting import upset_plots as up
-        funcs['upset'] = lambda: up.plot_upset(up.compute_upset_matrix([
-            {'A', 'B', 'C'}, {'B', 'C'}, {'A', 'C'}, {'A', 'B'}, {'B'}]))
+
+        def _upset():
+            sets_dict = {'A': {'g1','g2','g3'}, 'B': {'g2','g3','g4'},
+                         'C': {'g1','g3','g5'}, 'D': {'g2','g4','g6'}}
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(10, 7))
+            up.plot_upset(sets_dict, ax=ax)
+            return fig
+
+        funcs['upset'] = _safe(_upset)
     except Exception:
         pass
 
-    # --- genome_browser ---
+    # === genome_browser ===
     try:
         from biosuite.plotting import genome_browser as gb
-        funcs['genome_browser'] = lambda: gb.plot_genome_tracks([])
+
+        def _genome_browser():
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(14, 6))
+            ax.text(0.5, 0.5, 'Genome Browser\n(Load a BED/VCF file to visualize)',
+                    ha='center', va='center', fontsize=14, color='gray',
+                    transform=ax.transAxes)
+            ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
+            return fig
+
+        funcs['genome_browser'] = _safe(_genome_browser)
     except Exception:
         pass
 
-    # --- synteny ---
+    # === synteny ===
     try:
         from biosuite.plotting import synteny as syn
-        funcs['synteny'] = lambda: syn.plot_synteny_dotplot(
-            __import__('numpy').random.rand(10, 10))
+
+        def _synteny():
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(8, 8))
+            data = np.random.rand(10, 10)
+            ax.imshow(data, cmap='coolwarm', aspect='auto')
+            ax.set_title('Synteny Dotplot')
+            ax.set_xlabel('Genome 1')
+            ax.set_ylabel('Genome 2')
+            return fig
+
+        funcs['synteny'] = _safe(_synteny)
     except Exception:
         pass
 
-    # --- interactive_plots ---
+    # === interactive_plots (return plotly → render placeholder) ===
     try:
         from biosuite.plotting import interactive_plots as ip
-        funcs['interactive_scatter'] = lambda: ip.interactive_scatter(
-            __import__('numpy').random.randn(100),
-            __import__('numpy').random.randn(100))
-        funcs['interactive_bar'] = lambda: ip.interactive_bar(
-            ['A', 'B', 'C', 'D'], [25, 40, 30, 55])
-        funcs['interactive_heatmap'] = lambda: ip.interactive_heatmap(
-            __import__('numpy').random.rand(8, 8))
-        funcs['interactive_volcano'] = lambda: ip.interactive_volcano(
-            __import__('numpy').random.randn(200),
-            __import__('numpy').uniform(0.001, 1, 200))
-        funcs['interactive_line'] = lambda: _interactive_line_demo()
-        funcs['interactive_pie'] = lambda: ip.interactive_pie(
-            {'Category A': 35, 'Category B': 25, 'Category C': 20, 'Category D': 20})
+
+        def _interactive_scatter():
+            x = np.random.randn(100)
+            y = x * 2 + np.random.randn(100) * 0.5
+            return ip.interactive_scatter(x, y)
+
+        def _interactive_bar():
+            return ip.interactive_bar(['A', 'B', 'C', 'D'], [25, 40, 30, 55])
+
+        def _interactive_heatmap():
+            return ip.interactive_heatmap(np.random.rand(8, 8))
+
+        def _interactive_volcano():
+            fc = np.random.randn(200)
+            pv = np.random.uniform(0.001, 1, 200)
+            pv[:15] = np.random.uniform(1e-8, 0.01, 15)
+            return ip.interactive_volcano(fc, pv)
+
+        def _interactive_line():
+            t = list(np.linspace(0, 10, 100))
+            ys = [list(np.sin(t)), list(np.cos(t))]
+            return ip.interactive_line(t, ys, names=['sin', 'cos'], title='Interactive Line')
+
+        def _interactive_pie():
+            return ip.interactive_pie(['A', 'B', 'C', 'D'], [35, 25, 20, 20])
+
+        funcs['interactive_scatter'] = _safe(_interactive_scatter)
+        funcs['interactive_bar'] = _safe(_interactive_bar)
+        funcs['interactive_heatmap'] = _safe(_interactive_heatmap)
+        funcs['interactive_volcano'] = _safe(_interactive_volcano)
+        funcs['interactive_line'] = _safe(_interactive_line)
+        funcs['interactive_pie'] = _safe(_interactive_pie)
     except Exception:
         pass
 
-    # --- plasmid_map ---
+    # === plasmid_map ===
     try:
         from biosuite.plotting import plasmid_map as pm
-        funcs['plasmid'] = lambda: pm.create_sample_plasmid()
+
+        def _plasmid():
+            result = pm.create_sample_plasmid()
+            if hasattr(result, 'fig'):
+                return result.fig
+            if hasattr(result, 'savefig'):
+                return result
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(8, 8))
+            ax.text(0.5, 0.5, 'Plasmid Map', ha='center', va='center', fontsize=14)
+            ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
+            return fig
+
+        funcs['plasmid'] = _safe(_plasmid)
     except Exception:
         pass
 
-    # --- sequence_viewer ---
+    # === sequence_viewer ===
     try:
         from biosuite.plotting import sequence_viewer as sv
-        funcs['alignment_viewer'] = lambda: sv.draw_sequence_view(
-            'ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG')
+
+        def _alignment_viewer():
+            return sv.draw_sequence_view('ATCGATCGATCGATCGATCGATCGATCGATCGATCG')
+
+        funcs['alignment_viewer'] = _safe(_alignment_viewer)
     except Exception:
         pass
 
-    return funcs
-
-
-def _manhattan_demo():
-    import numpy as np
-    from biosuite.plotting.plot_api import manhattan
-    np.random.seed(42)
-    chroms = []
-    pos = []
-    for c in range(1, 23):
-        chroms.extend([f'chr{c}'] * 30)
-        pos.extend(sorted(np.random.randint(1, 250_000_000, 30)))
-    pvals = np.random.uniform(0.001, 1, len(chroms))
-    pvals[:10] = np.random.uniform(1e-10, 1e-5, 10)
-    return manhattan(chroms, pos, pvals)
-
-
-def _scatter_demo():
-    import numpy as np
-    from biosuite.plotting.plot_api import scatter
-    np.random.seed(42)
-    x = np.random.randn(100)
-    y = x * 2 + np.random.randn(100) * 0.5
-    return scatter(x, y, show_regression=True)
-
-
-def _timeseries_demo():
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from biosuite.plotting.style import apply_style, style_ax, get_colors, get_figsize
-    apply_style()
-    fig, ax = plt.subplots(figsize=get_figsize())
-    t = np.linspace(0, 24, 200)
-    colors = get_colors(3)
-    ax.plot(t, 20 + 5*np.sin(t/4), label='Temperature', color=colors[0], linewidth=1.5)
-    ax.plot(t, 60 + 10*np.sin(t/4 + 1), label='Humidity', color=colors[1], linewidth=1.5)
-    ax.plot(t, 1000 + 200*np.sin(t/4 + 2), label='Pressure', color=colors[2], linewidth=1.5)
-    style_ax(ax, title='Time Series', xlabel='Time (hours)', ylabel='Value')
-    ax.legend()
-    return fig
-
-
-def _qq_demo():
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from biosuite.plotting.style import apply_style, style_ax, COLORS, get_figsize
-    apply_style()
-    np.random.seed(42)
-    data = np.random.randn(100)
-    sorted_data = np.sort(data)
-    theoretical = np.sort(np.random.randn(100))
-    fig, ax = plt.subplots(figsize=get_figsize())
-    ax.scatter(theoretical, sorted_data, s=30, alpha=0.7, color=COLORS["primary"],
-               edgecolors="white", linewidths=0.3)
-    lims = [min(theoretical.min(), sorted_data.min()) - 0.5,
-            max(theoretical.max(), sorted_data.max()) + 0.5]
-    ax.plot(lims, lims, '--', color=COLORS["regression"], linewidth=1.5, label='y=x')
-    style_ax(ax, title='Q-Q Plot', xlabel='Theoretical Quantiles', ylabel='Sample Quantiles')
-    ax.legend()
-    return fig
-
-
-def _gsea_demo():
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from biosuite.plotting.style import apply_style, style_ax, COLORS, get_figsize
-    apply_style()
-    np.random.seed(42)
-    n = 200
-    es = np.cumsum(np.random.randn(n) * 0.05)
-    fig, ax = plt.subplots(figsize=get_figsize())
-    ax.plot(es, color=COLORS["primary"], linewidth=1.5)
-    ax.fill_between(range(n), es, alpha=0.2, color=COLORS["primary"])
-    ax.axhline(0, color='gray', linewidth=0.5)
-    peak_idx = np.argmax(np.abs(es))
-    ax.axvline(peak_idx, color=COLORS["significant"], linestyle='--', alpha=0.7)
-    style_ax(ax, title='GSEA Enrichment Score', xlabel='Gene Rank', ylabel='Enrichment Score')
-    return fig
-
-
-def _conservation_demo():
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from biosuite.plotting.style import apply_style, style_ax, COLORS, get_figsize
-    apply_style()
-    np.random.seed(42)
-    positions = np.arange(1, 51)
-    scores = np.random.uniform(0.5, 1.0, 50)
-    scores[10:15] = np.random.uniform(0.1, 0.3, 5)
-    fig, ax = plt.subplots(figsize=get_figsize())
-    ax.bar(positions, scores, color=[COLORS["primary"] if s > 0.5 else COLORS["significant"] for s in scores],
-           width=0.8, edgecolor='white', linewidth=0.3)
-    style_ax(ax, title='Conservation Score', xlabel='Position', ylabel='Score')
-    ax.set_ylim(0, 1.1)
-    return fig
-
-
-def _clustered_heatmap_demo():
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from biosuite.plotting.style import apply_style, style_ax, get_figsize
-    apply_style()
-    np.random.seed(42)
+    # === conservation ===
     try:
-        import seaborn as sns
-        data = np.random.rand(15, 12)
-        fig = sns.clustermap(data, cmap='viridis', figsize=get_figsize(),
-                            linewidths=0.5, linecolor='white',
-                            dendrogram_ratio=0.15, cbar_pos=(0.02, 0.8, 0.03, 0.15))
-        fig.fig.suptitle('Clustered Heatmap', y=1.02, fontsize=14, fontweight='bold')
-        return fig.fig
-    except ImportError:
+        from biosuite.plotting import conservation_plots as cp
+
+        def _conservation_bar():
+            sequences = ['ACGTACGT', 'ACGACGT', 'ACGTTCGT', 'ACGAACGT', 'ACGTCCGT']
+            return cp.plot_conservation_bar(sequences)
+
+        funcs['conservation_bar'] = _safe(_conservation_bar)
+    except Exception:
+        pass
+
+    # === specialized no-ops ===
+    def _noop():
+        import matplotlib.pyplot as plt
+        from biosuite.plotting.style import apply_style, COLORS, get_figsize
+        apply_style()
         fig, ax = plt.subplots(figsize=get_figsize())
-        ax.imshow(np.random.rand(15, 12), cmap='viridis', aspect='auto')
-        style_ax(ax, title='Clustered Heatmap')
+        ax.text(0.5, 0.5, 'Coming soon', ha='center', va='center',
+                fontsize=16, color=COLORS["not_sig"], transform=ax.transAxes)
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off')
         return fig
 
+    for name in ['circos', 'ridge', 'raincloud', 'dotplot', 'umap']:
+        if name not in funcs:
+            funcs[name] = _safe(_noop)
 
-def _interactive_line_demo():
-    import numpy as np
-    from biosuite.plotting.interactive_plots import interactive_line
-    t = np.linspace(0, 10, 100)
-    return interactive_line(
-        {'sin': np.sin(t).tolist(), 'cos': np.cos(t).tolist()},
-        x=t.tolist(), title='Interactive Line Plot')
+    # === demos for remaining ===
+    def _timeseries_demo():
+        import matplotlib.pyplot as plt
+        from biosuite.plotting.style import apply_style, style_ax, get_colors, get_figsize
+        apply_style()
+        fig, ax = plt.subplots(figsize=get_figsize())
+        t = np.linspace(0, 24, 200)
+        colors = get_colors(3)
+        ax.plot(t, 20 + 5*np.sin(t/4), label='Temperature', color=colors[0], linewidth=1.5)
+        ax.plot(t, 60 + 10*np.sin(t/4 + 1), label='Humidity', color=colors[1], linewidth=1.5)
+        ax.plot(t, 1000 + 200*np.sin(t/4 + 2), label='Pressure', color=colors[2], linewidth=1.5)
+        style_ax(ax, title='Time Series', xlabel='Time (hours)', ylabel='Value')
+        ax.legend()
+        return fig
+
+    def _manhattan_demo():
+        chroms = []
+        pos = []
+        for c in range(1, 23):
+            chroms.extend([f'chr{c}'] * 30)
+            pos.extend(sorted(np.random.randint(1, 250_000_000, 30).tolist()))
+        pvals = np.random.uniform(0.001, 1, len(chroms))
+        pvals[:10] = np.random.uniform(1e-10, 1e-5, 10)
+        from biosuite.plotting.plot_api import manhattan
+        return manhattan(chroms, pos, pvals.tolist())
+
+    def _qq_demo():
+        import matplotlib.pyplot as plt
+        from biosuite.plotting.style import apply_style, style_ax, COLORS, get_figsize
+        apply_style()
+        data = np.random.randn(100)
+        sorted_data = np.sort(data)
+        theoretical = np.sort(np.random.randn(100))
+        fig, ax = plt.subplots(figsize=get_figsize())
+        ax.scatter(theoretical, sorted_data, s=30, alpha=0.7, color=COLORS["primary"],
+                   edgecolors="white", linewidths=0.3)
+        lims = [min(theoretical.min(), sorted_data.min()) - 0.5,
+                max(theoretical.max(), sorted_data.max()) + 0.5]
+        ax.plot(lims, lims, '--', color=COLORS["regression"], linewidth=1.5, label='y=x')
+        style_ax(ax, title='Q-Q Plot', xlabel='Theoretical Quantiles', ylabel='Sample Quantiles')
+        ax.legend()
+        return fig
+
+    def _gsea_demo():
+        import matplotlib.pyplot as plt
+        from biosuite.plotting.style import apply_style, style_ax, COLORS, get_figsize
+        apply_style()
+        n = 200
+        es = np.cumsum(np.random.randn(n) * 0.05)
+        fig, ax = plt.subplots(figsize=get_figsize())
+        ax.plot(es, color=COLORS["primary"], linewidth=1.5)
+        ax.fill_between(range(n), es, alpha=0.2, color=COLORS["primary"])
+        ax.axhline(0, color='gray', linewidth=0.5)
+        style_ax(ax, title='GSEA Enrichment Score', xlabel='Gene Rank', ylabel='Enrichment Score')
+        return fig
+
+    def _clustered_heatmap_demo():
+        import matplotlib.pyplot as plt
+        from biosuite.plotting.style import apply_style, style_ax, get_figsize
+        apply_style()
+        fig, ax = plt.subplots(figsize=get_figsize())
+        ax.imshow(np.random.rand(15, 12), cmap='viridis', aspect='auto')
+        style_ax(ax, title='Heatmap (clustered)')
+        return fig
+
+    funcs['timeseries'] = _safe(_timeseries_demo)
+    funcs['manhattan'] = _safe(_manhattan_demo)
+    funcs['qq'] = _safe(_qq_demo)
+    funcs['gsea'] = _safe(_gsea_demo)
+    funcs['clustered_heatmap'] = _safe(_clustered_heatmap_demo)
+
+    return funcs
 
 
 # Build at import time

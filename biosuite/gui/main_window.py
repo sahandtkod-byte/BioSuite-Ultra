@@ -431,7 +431,7 @@ class BioSuiteApp(
 
         version_frame = ctk.CTkFrame(self.sidebar, fg_color='transparent')
         version_frame.pack(side='bottom', fill='x', padx=18, pady=(0, 16))
-        ctk.CTkLabel(version_frame, text="v4.2.4", font=(FONT_FAMILY, 9),
+        ctk.CTkLabel(version_frame, text="v5.0.1", font=(FONT_FAMILY, 9),
                       text_color=T['text_muted']).pack(anchor='w')
         self._current_frame = 'plots'
 
