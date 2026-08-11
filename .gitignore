@@ -1,17 +1,98 @@
+# ── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-dist/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ── Build / packaging ───────────────────────────────────────────────────────
 build/
+dist/
+sdist/
+wheels/
 *.egg-info/
 *.egg
-.env
-*.exe
-biosuite_session.json
-*.log
-htmlcov/
+MANIFEST
+pip-wheel-metadata/
+
+# ── Release archives (published as GitHub Release assets, not committed) ────
+biosuite-ultra-*.zip
+biosuite_ultra-*.tar.gz
+*.whl
+
+# ── Virtual environments ────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Testing / coverage ─────────────────────────────────────────────────────
+.pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
+htmlcov/
 .tox/
 .nox/
-.pytest_cache/
+.benchmarks/
+.hypothesis/
+
+# ── Type checkers / linters ────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# ── Editors / IDEs ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS noise ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Secrets / credentials — never commit ───────────────────────────────────
+.env
+.env.*
+.pypirc
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ── Backup / editor leftovers ──────────────────────────────────────────────
+*.bak
+*.orig
+*.rej
+*.tmp
+*.old
+
+# ── BioSuite runtime state & generated output ──────────────────────────────
+biosuite_session.json
+biosuite_config.json.local*
+*.log
+logs/
+
+# ── Generated figures (regenerate from code, don't track) ──────────────────
 *.png
+*.jpg
+*.jpeg
+*.svg
+*.pdf
+!docs/**/*.png
+!docs/**/*.svg
+
+# ── Agent/tooling scratch space ────────────────────────────────────────────
+.hermes/
+_tmp_repo/
+.claude/
+
+# ── Notebook checkpoints ───────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Docs build output ──────────────────────────────────────────────────────
+docs/_build/
+docs/_autosummary/

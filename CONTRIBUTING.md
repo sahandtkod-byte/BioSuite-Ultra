@@ -275,7 +275,7 @@ If applicable, add screenshots.
 **Environment**
 - OS: [e.g., Windows 10, Ubuntu 22.04]
 - Python version: [e.g., 3.11.0]
-- BioSuite version: [e.g., 4.1.0]
+- BioSuite version: [e.g., 4.2.5]
 
 **Additional context**
 Any other context about the problem.

@@ -4,18 +4,21 @@ Tests for the BioSuite REST API (biosuite/api/__init__.py).
 Uses fastapi.testclient.TestClient to hit every major endpoint.
 All tests are self-contained and use inline fixture data.
 """
+import os
 import sys
 import numpy as np
 import pytest
 
 # Ensure the project root is importable
-sys.path.insert(0, "C:/Users/SAHAND/Desktop/python/BioSuite-Ultra")
+# Project root is already on sys.path via pyproject.toml / pytest config
 
 from fastapi.testclient import TestClient
 
 from biosuite.api import app
 
+API_KEY = os.environ.get("BIOSUITE_API_KEY", "changeme-dev-key")
 client = TestClient(app, raise_server_exceptions=False)
+client.headers["X-API-Key"] = API_KEY
 
 
 # ── Health & Info ────────────────────────────────────────────────────────────
@@ -41,7 +44,7 @@ class TestHealthAndInfo:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "healthy"
-        assert data["version"] == "4.0.0"
+        assert data["version"] == "4.2.5"
         assert "modules" in data
         assert "timestamp" in data
 

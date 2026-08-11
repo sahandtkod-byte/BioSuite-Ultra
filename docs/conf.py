@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'BioSuite Ultra'
 copyright = '2026, Sahand Touri'
 author = 'Sahand Touri'
-release = '4.1.0'
+release = '4.2.5'
 
 # -- General configuration ---------------------------------------------------
 

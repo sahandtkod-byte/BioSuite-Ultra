@@ -1,45 +1,50 @@
-name: BioSuite Ultra CI
+name: CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ main ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         python-version: ['3.10', '3.11', '3.12']
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-cov httpx
-    
-    - name: Run unit tests
-      run: |
-        pytest tests/ -v --cov=biosuite --cov-report=xml \
-          --ignore=tests/test_api.py \
-          --ignore=tests/test_gui_all_modules.py \
-          --ignore=tests/test_interactive_plots.py \
-          --ignore=tests/test_notebook.py \
-          --ignore=tests/test_plotting_uncovered.py \
-          --ignore=tests/test_databases_and_tools.py \
-          -x
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,notebook,dev]"
+          pip install httpx
+
+      - name: Run full test suite
+        env:
+          MPLBACKEND: Agg
+          BIOSUITE_API_KEY: ci-test-key
+        run: pytest tests/ -q --cov=biosuite --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false

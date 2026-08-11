@@ -26,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from fastapi import Depends
+from biosuite import __version__
 from biosuite.api.auth import verify_api_key
 from biosuite.api.security import verify_admin_token, create_access_token, ADMIN_USERNAME, ADMIN_PASSWORD
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -37,8 +38,8 @@ from slowapi.middleware import SlowAPIMiddleware
 app = FastAPI(
     title="BioSuite Ultra API",
     description="The most comprehensive open-source bioinformatics REST API. "
-                "48 analysis modules, 36+ visualization types — all free, all pure Python.",
-    version="4.2.5",
+                "47 analysis modules, 26 visualization types — all free, all pure Python.",
+    version=__version__,
     docs_url="/docs",
     redoc_url="/redoc",
     dependencies=[Depends(verify_api_key)],
@@ -165,8 +166,8 @@ async def health():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "version": "4.2.5",
-        "modules": 48,
+        "version": __version__,
+        "modules": 47,
         "timestamp": time.time()
     }
 

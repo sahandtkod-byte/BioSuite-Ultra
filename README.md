@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Tests](https://img.shields.io/badge/Tests-1444%20passing-brightgreen)
 ![Modules](https://img.shields.io/badge/Modules-47-orange)
-![Lines](https://img.shields.io/badge/Lines-33%2C600%2B-yellow)
+![Lines](https://img.shields.io/badge/Lines-43K%2B-yellow)
 ![Version](https://img.shields.io/badge/Version-4.2.5-blueviolet)
 ![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21256296.svg)
 ![Cloning](https://img.shields.io/badge/Molecular%20Cloning-Free-brightgreen)
@@ -12,18 +12,19 @@
 
 **The most comprehensive open-source bioinformatics platform.**
 
-BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules, 26 visualization types (123 functions), a cyberpunk GUI, a 99+ option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external bioinformatics tools required. **100% free.**
+BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules, 26 visualization types (123 functions), a cyberpunk GUI, a 117-option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external bioinformatics tools required. **100% free.**
 
 ---
 
 ## What's New in v4.2.5
 
-- **Parallel Processing**: Multi-threaded/multi-process execution for all modules
-- **100+ Restriction Enzymes**: Expanded from 18 to 100+ enzymes
-- **Better Bayesian Phylogeny**: Real MCMC sampling with Jukes-Cantor model
+- **Stable 4.2.x line**: reverted the unstable v5.0.1 changes; all 41 plot entries verified
+- **Version consistency**: a single version string across package, API, CLI, GUI, docs and citation metadata
+- **Portable tests**: `tests/test_api.py` no longer hard-codes an absolute path and reads `BIOSUITE_API_KEY` from the environment
+- **169 Restriction Enzymes**: full site + cut-position table for accurate digestion
+- **Parallel Processing**: multi-threaded/multi-process execution for all modules
+- **Better Bayesian Phylogeny**: MCMC sampling with the Jukes-Cantor model
 - **Improved MD Simulation**: Velocity Verlet integrator, Berendsen thermostat
-- **Bug Fixes**: 30+ bug fixes across all modules
-- **Better Documentation**: Comprehensive changelog and improved docs
 
 ---
 
@@ -107,7 +108,7 @@ results = processor.process(gc_content, sequences, batch_size=1000)
 print(f"Processed {processor.stats['completed']} sequences in {processor.stats['time']:.1f}s")
 ```
 
-### 100+ Restriction Enzymes 🧪
+### 169 Restriction Enzymes 🧪
 
 Full database of Type II restriction enzymes used in molecular biology:
 
@@ -152,7 +153,7 @@ def analyze(input, ...):
 - 15 built-in help guides
 - Molecular cloning tab with plasmid viewer
 
-### CLI with 99+ Options
+### CLI with 117 Options
 
 Professional CLI menu with organized sections for every analysis type.
 
@@ -291,13 +292,13 @@ BioSuite-Ultra/
 │   │   ├── expression.py        # Differential expression
 │   │   ├── databases.py         # Database searches
 │   │   ├── ...                  # 35+ more modules
-│   │   └── utils.py             # Shared utilities (100+ enzymes)
-│   ├── plotting/                # 13 visualization modules
-│   ├── gui/                     # Cyberpunk GUI (29 tabs)
-│   ├── cli/                     # CLI menu (99+ options)
-│   ├── api/                     # REST API (42+ endpoints)
+│   │   └── utils.py             # Shared utilities (169 enzymes)
+│   ├── plotting/                # 12 visualization modules
+│   ├── gui/                     # Cyberpunk GUI (11 tabs)
+│   ├── cli/                     # CLI menu (117 options)
+│   ├── api/                     # REST API (40 endpoints)
 │   └── notebook/                # Jupyter integration
-├── tests/                       # 1,089+ tests
+├── tests/                       # 1,444 tests
 ├── examples/                    # 8 tutorials + 5 notebooks
 ├── docs/                        # Sphinx documentation
 ├── run.py                       # Entry point

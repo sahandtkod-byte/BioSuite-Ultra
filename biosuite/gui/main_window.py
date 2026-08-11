@@ -10,6 +10,7 @@ import builtins
 import re
 import threading
 
+from .. import __version__
 from ..core.utils import config, set_theme, save_config, load_dataframe_safe, center_window
 from ..core.sequence import (read_fasta, read_fastq, read_genbank,
                               sequence_stats, reverse_complement, translate, gc_content)
@@ -329,7 +330,7 @@ class BioSuiteApp(
         logo_area.pack(fill='x', padx=12, pady=(12, 4))
         ctk.CTkLabel(logo_area, text="BIOSUITE", font=(FONT_FAMILY, 16, 'bold'),
                       text_color=T['accent']).pack(anchor='w')
-        ctk.CTkLabel(logo_area, text="v4.2.5", font=FONT_SMALL,
+        ctk.CTkLabel(logo_area, text=f"v{__version__}", font=FONT_SMALL,
                       text_color=T['text_dim']).pack(anchor='w', pady=(2, 0))
 
         ctk.CTkFrame(self.sidebar_scroll, height=1, fg_color=T['border']).pack(fill='x', padx=10, pady=(8, 6))
@@ -431,7 +432,7 @@ class BioSuiteApp(
 
         version_frame = ctk.CTkFrame(self.sidebar, fg_color='transparent')
         version_frame.pack(side='bottom', fill='x', padx=18, pady=(0, 16))
-        ctk.CTkLabel(version_frame, text="v4.2.5", font=(FONT_FAMILY, 9),
+        ctk.CTkLabel(version_frame, text=f"v{__version__}", font=(FONT_FAMILY, 9),
                       text_color=T['text_muted']).pack(anchor='w')
         self._current_frame = 'plots'
 
@@ -483,7 +484,7 @@ class BioSuiteApp(
         self.status_bar = ctk.CTkLabel(self, text="  Ready", anchor='w', font=FONT_SMALL,
                                         fg_color=T['card'], text_color=T['text_dim'], height=30)
         self.status_bar.pack(side='bottom', fill='x')
-        self._set_status("BioSuite Ultra v4.2.5 loaded successfully")
+        self._set_status(f"BioSuite Ultra v{__version__} loaded successfully")
 
     def _set_status(self, text):
         self.status_bar.configure(text=f"  {text}")
