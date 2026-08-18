@@ -1,0 +1,60 @@
+name: 🔒 Security Issue
+description: Report a security vulnerability in BioSuite Ultra
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **For critical vulnerabilities, please email sahandtkod@gmail.com instead of opening a public issue.**
+
+        For non-critical security issues, please fill out this form.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical (RCE, auth bypass, data leak)
+        - High (privilege escalation, injection)
+        - Medium (information disclosure, DoS)
+        - Low (hardcoded values, minor issues)
+    validations:
+      required: true
+
+  - type: input
+    id: component
+    attributes:
+      label: Affected Component
+      description: Module, file, or endpoint
+      placeholder: e.g., biosuite/core/alignment.py or /api/v1/admin/login
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of the vulnerability
+    validations:
+      required: true
+
+  - type: textarea
+    id: poc
+    attributes:
+      label: Proof of Concept
+      description: Steps or code to reproduce (sanitize sensitive data!)
+      render: python
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested Fix
+      description: Optional proposed solution
+
+  - type: checkboxes
+    id: disclosure
+    attributes:
+      label: Disclosure
+      options:
+        - label: I understand critical vulns should be reported via email
+          required: true
