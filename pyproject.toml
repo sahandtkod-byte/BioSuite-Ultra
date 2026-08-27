@@ -63,7 +63,7 @@ cloning = [
     # This extra exists for backward compatibility
 ]
 api = [
-    "fastapi>=0.100",
+    "fastapi>=0.141.1",
     "uvicorn>=0.23",
     "python-jose[cryptography]>=3.3",
     "slowapi>=0.1.9"

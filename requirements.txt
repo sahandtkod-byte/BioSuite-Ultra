@@ -30,7 +30,7 @@ statsmodels>=0.14
 umap-learn>=0.5
 
 # === Tier 4: API/Web ===
-fastapi>=0.100
+fastapi>=0.141.1
 uvicorn>=0.23
 python-jose[cryptography]>=3.3
 slowapi>=0.1.9
