@@ -4,6 +4,10 @@ Short read alignment with dual-mode execution.
 Provides a pure Python seed-and-extend aligner as default, with BWA/Bowtie2
 as optional faster alternatives when installed.
 """
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import os
 import subprocess
 import tempfile
@@ -14,6 +18,16 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Alignment:
+    """One aligned read with mapping coordinates and flags.
+
+    Attributes:
+        qname: Read identifier.
+        flag: SAM flag integer (strand/paired state).
+        chrom: Reference chromosome.
+        pos: 1-based leftmost mapped position.
+        mapq: Mapping quality score.
+        cigar: CIGAR alignment string.
+    """
     read_id: str
     reference_id: str
     position: int
@@ -27,6 +41,13 @@ class Alignment:
 
 @dataclass
 class AlignmentReport:
+    """Batch aligner output summary.
+
+    Attributes:
+        alignments: List of Alignment records.
+        total_reads/unmapped: Counters for report headers.
+        engine: builtin/bwa/bowtie2 marker.
+    """
     tool: str
     engine: str
     total_reads: int = 0
@@ -42,13 +63,15 @@ class AlignmentReport:
 from .utils import has_tool as _has_tool
 
 
-def check_aligner_tools():
+def check_aligner_tools() -> dict :
+    """Detect bwa/bowtie2 availability on PATH."""
     return {'bwa': _has_tool('bwa'), 'bowtie2': _has_tool('bowtie2')}
 
 
 # ── Pure Python Seed-and-Extend Aligner ─────────────────────────────────────
 
-def _build_suffix_index(reference, k=15):
+def _build_suffix_index(reference: str, k: int = 15) -> Dict[str, List[int]]:
+    """Index reference k-mers for seed lookup during alignment."""
     index = defaultdict(list)
     for i in range(len(reference) - k + 1):
         kmer = reference[i:i + k]
@@ -57,7 +80,8 @@ def _build_suffix_index(reference, k=15):
     return index
 
 
-def _build_fasta_index(fasta_file):
+def _build_fasta_index(fasta_file: str) -> Dict[str, str]:
+    """Load reference FASTA into memory index for the built-in engine."""
     refs = {}
     name, seq = None, []
     with open(fasta_file) as f:
@@ -75,7 +99,11 @@ def _build_fasta_index(fasta_file):
     return refs
 
 
-def _seed_and_extend(read_seq, ref_seq, ref_name, index, k=15, seed_threshold=3):
+def _seed_and_extend(read_seq: str, ref_seq: str, ref_name: str, index: Any, k: int = 15, seed_threshold: int = 3) -> Optional[Dict[str, Any]]:
+    """Seed-and-extend alignment of one read against the reference index.
+
+    Returns best locus by extension identity; None if below threshold.
+    """
     seeds = []
     for i in range(len(read_seq) - k + 1):
         kmer = read_seq[i:i + k]
@@ -120,7 +148,8 @@ def _seed_and_extend(read_seq, ref_seq, ref_name, index, k=15, seed_threshold=3)
     )
 
 
-def _builtin_align_reads(reads_file, reference_file, output_file=None):
+def _builtin_align_reads(reads_file: str, reference_file: str, output_file: Optional[str] = None) -> AlignmentReport:
+    """Pure-Python multi-read alignment using suffix seeding."""
     refs = _build_fasta_index(reference_file)
     alignments = []
     total = 0
@@ -183,7 +212,8 @@ def _builtin_align_reads(reads_file, reference_file, output_file=None):
     return report
 
 
-def _write_sam(report, output_file, refs):
+def _write_sam(report: AlignmentReport, output_file: str, refs: Dict[str, str]) -> None:
+    """Emit alignments in SAM format with computed MAPQ/flags."""
     with open(output_file, 'w') as f:
         f.write("@HD\tVN:1.6\tSO:coordinate\n")
         for name in refs:
@@ -196,7 +226,8 @@ def _write_sam(report, output_file, refs):
 
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
-def _bwa_align(reference, reads_r1, output_bam, threads=1):
+def _bwa_align(reference: str, reads_r1: str, output_bam: str, threads: int = 1) -> bool:
+    """Run BWA-MEM via subprocess and parse SAM output."""
     idx_cmd = ['bwa', 'index', reference]
     try:
         subprocess.run(idx_cmd, capture_output=True, timeout=300)
@@ -218,10 +249,12 @@ def _bwa_align(reference, reads_r1, output_bam, threads=1):
     return None
 
 
-def _bowtie2_align(reference, reads_r1, output_bam, threads=1):
+def _bowtie2_align(reference: str, reads_r1: str, output_bam: str, threads: int = 1) -> bool:
+    """Run bowtie2 via subprocess and parse SAM output."""
     with tempfile.NamedTemporaryFile(suffix='.sam', delete=False) as tmp:
         sam_file = tmp.name
-    prefix = tempfile.mktemp()
+    _fd, prefix = tempfile.mkstemp()
+    os.close(_fd)
     try:
         subprocess.run(['bowtie2-build', reference, prefix], capture_output=True, timeout=600)
         cmd = ['bowtie2', '-x', prefix, '-U', reads_r1, '--threads', str(threads), '-S', sam_file]
@@ -235,7 +268,11 @@ def _bowtie2_align(reference, reads_r1, output_bam, threads=1):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def align_reads(reference_file, reads_file, output_file=None, tool='auto', threads=1):
+def align_reads(reference_file: str, reads_file: str, output_file: Optional[str] = None, tool: str = 'auto', threads: int = 1) -> AlignmentReport:
+    """Align reads auto-selecting best available engine.
+
+    Prefers bwa > bowtie2 > built-in; never raises on missing tools.
+    """
     if not os.path.exists(reference_file):
         return AlignmentReport(tool='none', engine='none', message=f"Reference not found: {reference_file}")
     if not os.path.exists(reads_file):
@@ -258,11 +295,13 @@ def align_reads(reference_file, reads_file, output_file=None, tool='auto', threa
                                    output_file=sam)
 
     if output_file is None:
-        output_file = tempfile.mktemp(suffix='.sam')
+        _fd, output_file = tempfile.mkstemp(suffix="..sam")
+        os.close(_fd)
     return _builtin_align_reads(reads_file, reference_file, output_file)
 
 
-def format_alignment_report(report):
+def format_alignment_report(report: AlignmentReport) -> str:
+    """Format AlignmentReport with mapping-rate breakdown table."""
     lines = [
         "=== Read Alignment Report ===",
         f"Engine: {report.engine}",

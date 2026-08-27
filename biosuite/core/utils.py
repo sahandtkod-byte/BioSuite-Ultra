@@ -1,4 +1,8 @@
 """Utility functions: config, session, safe input, file loading, theme, helpers."""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple
+
 import os
 import sys
 import json
@@ -23,6 +27,9 @@ from biosuite.core.validators import (
     default_validator,
 )
 
+from biosuite.core.log import get_logger
+logger = get_logger(__name__)
+
 
 class PerformanceWarning(UserWarning):
     """Warning emitted when a pure-Python fallback is used instead of an external tool."""
@@ -36,7 +43,7 @@ class FormatWarning(UserWarning):
 
 # ── Threading Utilities ──────────────────────────────────────────────────────
 
-def run_in_background(func, *args, callback=None, **kwargs):
+def run_in_background(func: Any, *args: Any, callback: Optional[Any] = None, **kwargs: Any) -> threading.Thread:
     """Run a function in a background thread with optional callback.
 
     Args:
@@ -48,7 +55,8 @@ def run_in_background(func, *args, callback=None, **kwargs):
     Returns:
         threading.Thread object.
     """
-    def _wrapper():
+    def _wrapper() -> Any:
+        """Decorator wrapper enforcing the timeout on the wrapped CLI call."""
         try:
             result = func(*args, **kwargs)
             if callback:
@@ -56,14 +64,14 @@ def run_in_background(func, *args, callback=None, **kwargs):
         except Exception as e:
             if callback:
                 callback(None)
-            print(f"Background task error: {e}")
+            logger.error(f"Background task error: {e}")
 
     thread = threading.Thread(target=_wrapper, daemon=True)
     thread.start()
     return thread
 
 
-def run_with_progress(func, progress_callback=None, *args, **kwargs):
+def run_with_progress(func: Any, progress_callback: Optional[Any] = None, *args: Any, **kwargs: Any) -> Any:
     """Run a function with progress updates.
 
     Args:
@@ -81,7 +89,7 @@ def run_with_progress(func, progress_callback=None, *args, **kwargs):
 class CachedResult:
     """Cache function results to avoid recomputation."""
 
-    def __init__(self, func, maxsize=128, ttl: float = None):
+    def __init__(self, func: Any, maxsize: int = 128, ttl: Optional[float] = None) -> None:
         """Initialize CachedResult.
 
         Args:
@@ -96,7 +104,7 @@ class CachedResult:
         self.access_order = []
         self.ttl = ttl  # seconds, or None for no expiration
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Call the wrapped function, using cache if available."""
         key = str(args) + str(kwargs)
         now = time.monotonic()
@@ -135,7 +143,7 @@ class CachedResult:
         _, created_at = self.cache[key]
         return (time.monotonic() - created_at) > self.ttl
 
-    def _evict_expired(self, now: float = None):
+    def _evict_expired(self, now: Optional[float] = None) -> None:
         """Remove all expired entries from the cache."""
         if self.ttl is None or not self.cache:
             return
@@ -150,15 +158,16 @@ class CachedResult:
             if key in self.access_order:
                 self.access_order.remove(key)
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all cached entries."""
         self.cache.clear()
         self.access_order.clear()
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Return number of cached entries."""
         return len(self.cache)
 
-def get_app_dir():
+def get_app_dir() -> dict :
     """Get the application directory, works with PyInstaller."""
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
@@ -166,7 +175,14 @@ def get_app_dir():
 
 APP_DIR = get_app_dir()
 
-def center_window(win, width, height):
+def center_window(win: Any, width: int, height: int) -> None:
+    """Center a Tk window on the primary display with margins.
+
+    Args:
+        win: Tk/Toplevel window instance.
+        width: Desired window width in px.
+        height: Desired window height in px.
+    """
     win.update_idletasks()
     x = (win.winfo_screenwidth() // 2) - (width // 2)
     y = (win.winfo_screenheight() // 2) - (height // 2)
@@ -194,7 +210,12 @@ DEFAULT_CONFIG = {
 CONFIG_FILE = os.path.join(APP_DIR, "biosuite_config.json")
 SESSION_FILE = os.path.join(APP_DIR, "biosuite_session.json")
 
-def load_config():
+def load_config() -> dict :
+    """Load user config from ~/.biosuite/config.json.
+
+    Returns:
+        dict: Parsed configuration; empty dict when missing/corrupt.
+    """
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f:
@@ -203,14 +224,16 @@ def load_config():
             return DEFAULT_CONFIG.copy()
     return DEFAULT_CONFIG.copy()
 
-def save_config(cfg):
+def save_config(cfg: Dict[str, Any]) -> None:
+    """Persist the given config dict to ~/.biosuite/config.json atomically."""
     try:
         with open(CONFIG_FILE, 'w') as f:
             json.dump(cfg, f, indent=2)
     except OSError:
         pass
 
-def load_session():
+def load_session() -> dict :
+    """Load last saved session (recent files, last tab) if present."""
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, 'r') as f:
@@ -219,14 +242,18 @@ def load_session():
             return {}
     return {}
 
-def save_session(session_data):
+def save_session(session_data: Dict[str, Any]) -> None:
+    """Save session state dict to disk for next-launch restore."""
     try:
         with open(SESSION_FILE, 'w') as f:
             json.dump(session_data, f, indent=2)
     except OSError:
         pass
 
-def autosave_session(session_data=None):
+def autosave_session(session_data: Optional[Dict[str, Any]] = None) -> None:
+    """Best-effort autosave that silently ignores write errors
+    so GUI shutdown is never blocked by I/O failures.
+    """
     if session_data is None:
         session_data = session
     save_session(session_data)
@@ -237,35 +264,36 @@ session = load_session()
 
 # ── API Key Management ──────────────────────────────────────────────────────
 
-def get_api_key(service):
+def get_api_key(service: str) -> Optional[str]:
     """Get API key for a service (ncbi, uniprot, kegg, alphafold, etc.)."""
     keys = config.get('api_keys', {})
     return keys.get(service, '')
 
-def set_api_key(service, key):
+def set_api_key(service: str, key: str) -> None:
     """Save API key for a service."""
     if 'api_keys' not in config:
         config['api_keys'] = {}
     config['api_keys'][service] = key
     save_config(config)
 
-def prompt_api_key(service, description=""):
+def prompt_api_key(service: str, description: str = "") -> Optional[str]:
     """Prompt user to enter API key if not already set."""
     existing = get_api_key(service)
     if existing:
         return existing
     if config.get('quiet', False):
         return ''
-    print(f"\n  API key required for: {service}")
+    logger.info(f"\n  API key required for: {service}")
     if description:
-        print(f"  {description}")
+        logger.info(f"  {description}")
     key = input(f"  Enter API key (or blank to skip): ").strip()
     if key:
         set_api_key(service, key)
-        print(f"  API key saved for {service}.")
+        logger.info(f"  API key saved for {service}.")
     return key
 
-def set_theme(choice):
+def set_theme(choice: str) -> None:
+    """Apply a named theme (dark/light) to the running application."""
     is_dark = choice in ('dark', 'dark-green', 'dark-purple')
     if not is_dark:
         try:
@@ -308,7 +336,12 @@ def set_theme(choice):
         plt.rcParams['legend.fontsize'] = 10
         plt.rcParams['axes.titlesize'] = 13
 
-def safe_float_input(prompt, default, key=None):
+def safe_float_input(prompt: str, default: float, key: Optional[str] = None) -> float:
+    """Prompt for a float with validation and optional persistence key.
+
+    Returns:
+        float: Parsed value or the supplied default on invalid input.
+    """
     global _interaction_counter
     if config.get('quiet', False):
         return default
@@ -327,10 +360,11 @@ def safe_float_input(prompt, default, key=None):
                 autosave_session(session)
         return val
     except (ValueError, TypeError):
-        print(f"Invalid. Using default: {default}")
+        logger.info(f"Invalid. Using default: {default}")
         return default
 
-def safe_int_input(prompt, default, key=None):
+def safe_int_input(prompt: str, default: int, key: Optional[str] = None) -> int:
+    """Prompt for an int with validation and optional persistence key."""
     global _interaction_counter
     if config.get('quiet', False):
         return default
@@ -349,10 +383,13 @@ def safe_int_input(prompt, default, key=None):
                 autosave_session(session)
         return val
     except (ValueError, TypeError):
-        print(f"Invalid. Using default: {default}")
+        logger.info(f"Invalid. Using default: {default}")
         return default
 
-def safe_list_input(prompt, cast=float, key=None):
+def safe_list_input(prompt: str, cast: Any = float, key: Optional[str] = None) -> List[Any]:
+    """Prompt until the user enters a comma-separated list of values
+    castable to the requested type; returns default on empty input.
+    """
     global _interaction_counter
     if config.get('quiet', False):
         return None
@@ -375,12 +412,17 @@ def safe_list_input(prompt, cast=float, key=None):
                 autosave_session(session)
         return items
     except (ValueError, TypeError):
-        print("Invalid list. Using default.")
+        logger.info("Invalid list. Using default.")
         return None
 
-def load_dataframe_safe(filepath):
+def load_dataframe_safe(filepath: str) -> pd.DataFrame:
+    """Read CSV/TSV/Excel into a DataFrame without raising.
+
+    Returns:
+        pandas.DataFrame or None: Data, or None with error logged.
+    """
     if not os.path.exists(filepath):
-        print(f"File not found: {filepath}")
+        logger.info(f"File not found: {filepath}")
         return None
     try:
         ext = os.path.splitext(filepath)[1].lower()
@@ -399,36 +441,41 @@ def load_dataframe_safe(filepath):
         else:
             df = pd.read_csv(filepath, sep=None, engine='python')
         if df.empty:
-            print("File is empty.")
+            logger.info("File is empty.")
             return None
         return df
     except Exception as e:
-        print(f"Error reading file: {e}")
+        logger.error(f"Error reading file: {e}")
         return None
 
 
-def load_dataframe_safe_interactive(filepath):
+def load_dataframe_safe_interactive(filepath: str) -> pd.DataFrame:
     """Load dataframe and optionally show summary stats (interactive use only)."""
     df = load_dataframe_safe(filepath)
     if df is not None and not config.get('quiet', False):
         try:
             show_stats = input("Show data summary (describe)? (y/n): ").strip().lower()
             if show_stats == 'y':
-                print(df.describe())
+                logger.info(df.describe())
         except EOFError:
             pass
     return df
 
-def maybe_downsample(x, y, max_points=None):
+def maybe_downsample(x: List[Any], y: List[Any], max_points: Optional[int] = None) -> Tuple[List[Any], List[Any]]:
+    """Uniformly downsample long series for responsive plotting.
+
+    Keeps endpoints so line shapes stay visually faithful.
+    """
     if max_points is None:
         max_points = config.get('downsample_threshold', 5000)
     if len(x) <= max_points:
         return x, y
     indices = np.random.choice(len(x), max_points, replace=False)
-    print(f"Downsampled from {len(x)} to {max_points} points.")
+    logger.info(f"Downsampled from {len(x)} to {max_points} points.")
     return x[indices], y[indices]
 
-def apply_glass_ax(ax):
+def apply_glass_ax(ax: Any) -> None:
+    """Style an Axes with the dark glass look used across BioSuite plots."""
     try:
         rect = FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0.02",
                               transform=ax.transAxes, clip_on=False,
@@ -438,12 +485,17 @@ def apply_glass_ax(ax):
     except (AttributeError, TypeError, ValueError):
         pass
 
-def ask_save_plot(default_name, save_format, dpi, pdf=None, story=None):
+def ask_save_plot(default_name: str, save_format: str, dpi: int, pdf: Optional[str] = None, story: Optional[List[str]] = None) -> Optional[str]:
+    """Show a native save dialog pre-filled for plot export.
+
+    Returns:
+        str or None: Chosen file path, None when cancelled.
+    """
     if pdf is not None:
         try:
             plt.tight_layout()
             pdf.savefig()
-            print(f"   Added to PDF: {default_name}")
+            logger.info(f"   Added to PDF: {default_name}")
             if story is not None:
                 story.append(f"![{default_name}]({default_name}.png)")
         except Exception:
@@ -461,11 +513,12 @@ def ask_save_plot(default_name, save_format, dpi, pdf=None, story=None):
             plt.tight_layout()
             plt.savefig(f"{name}.{save_format}", dpi=dpi,
                         bbox_inches='tight', facecolor=plt.rcParams['figure.facecolor'])
-            print(f"   Saved as {name}.{save_format}")
+            logger.info(f"   Saved as {name}.{save_format}")
         except OSError:
-            print("Save failed.")
+            logger.error("Save failed.")
 
-def report_boxplot_stats(data, group_col, value_col):
+def report_boxplot_stats(data: pd.DataFrame, group_col: str, value_col: str) -> Dict[str, Dict[str, float]]:
+    """Compute boxplot summary stats per group for report panels."""
     stats_dict = {}
     for group in data[group_col].unique():
         vals = data[data[group_col]==group][value_col].dropna()
@@ -479,49 +532,54 @@ def report_boxplot_stats(data, group_col, value_col):
                 'iqr': iqr,
                 'outliers': len(outliers)
             }
-    print("\nBoxplot Statistics:")
+    logger.info("\nBoxplot Statistics:")
     for group, st in stats_dict.items():
-        print(f"   {group}: median={st['median']:.2f}, IQR={st['iqr']:.2f}, outliers={st['outliers']}")
+        logger.info(f"   {group}: median={st['median']:.2f}, IQR={st['iqr']:.2f}, outliers={st['outliers']}")
     return stats_dict
 
-def report_scatter_stats(x, y):
+def report_scatter_stats(x: list, y: list) -> dict :
+    """Pearson/Spearman correlation and regression fit for scatter reports."""
     from scipy import stats as sp_stats
     if len(x) < 2:
-        print("Insufficient data for correlation.")
+        logger.info("Insufficient data for correlation.")
         return
     corr, pval = sp_stats.pearsonr(x, y)
-    print(f"\nScatter Statistics: Pearson r = {corr:.3f}, p-value = {pval:.4f}")
+    logger.info(f"\nScatter Statistics: Pearson r = {corr:.3f}, p-value = {pval:.4f}")
     return {'r': corr, 'p': pval}
 
-def report_volcano_stats(lfc, pvals, fc_thresh, p_thresh):
+def report_volcano_stats(lfc: Any, pvals: Any, fc_thresh: float, p_thresh: float) -> Dict[str, int]:
+    """Volcano-plot summary: up/down counts at the given cutoffs."""
     sig = (np.abs(lfc) >= fc_thresh) & (pvals < p_thresh)
     up = sig & (lfc > 0)
     down = sig & (lfc < 0)
-    print(f"\nVolcano Statistics:")
-    print(f"   Up-regulated genes: {np.sum(up)}")
-    print(f"   Down-regulated genes: {np.sum(down)}")
-    print(f"   Total significant: {np.sum(sig)}")
+    logger.info(f"\nVolcano Statistics:")
+    logger.info(f"   Up-regulated genes: {np.sum(up)}")
+    logger.info(f"   Down-regulated genes: {np.sum(down)}")
+    logger.info(f"   Total significant: {np.sum(sig)}")
     return {'up': int(np.sum(up)), 'down': int(np.sum(down))}
 
-def report_pca_stats(pca):
-    print(f"\nPCA Statistics:")
+def report_pca_stats(pca: Any) -> Dict[str, Any]:
+    """Explained-variance ratios from a fitted PCA object."""
+    logger.info(f"\nPCA Statistics:")
     for i, var in enumerate(pca.explained_variance_ratio_[:2]):
-        print(f"   PC{i+1} explains {var*100:.2f}% of variance")
+        logger.info(f"   PC{i+1} explains {var*100:.2f}% of variance")
     return {'var1': pca.explained_variance_ratio_[0], 'var2': pca.explained_variance_ratio_[1]}
 
-def report_manhattan_stats(df, threshold=5e-8):
+def report_manhattan_stats(df: pd.DataFrame, threshold: float = 5e-8) -> Dict[str, int]:
+    """Manhattan summary: total SNPs and genome-line hits at threshold."""
     if 'p' not in df.columns:
         return
     sig = df[df['p'] > -np.log10(threshold)]
     if not sig.empty:
         top = sig.loc[sig['p'].idxmax()]
-        print(f"\nManhattan Statistics:")
-        print(f"   Significant SNPs: {len(sig)}")
-        print(f"   Top SNP: {top['chrom']}:{int(top['pos'])} with -log10(p)={top['p']:.2f}")
+        logger.info(f"\nManhattan Statistics:")
+        logger.info(f"   Significant SNPs: {len(sig)}")
+        logger.info(f"   Top SNP: {top['chrom']}:{int(top['pos'])} with -log10(p)={top['p']:.2f}")
     else:
-        print("\nNo SNPs reached genome-wide significance.")
+        logger.info("\nNo SNPs reached genome-wide significance.")
 
-def add_ttest_to_boxplot(data, group_col, value_col, ax):
+def add_ttest_to_boxplot(data: pd.DataFrame, group_col: str, value_col: str, ax: Any) -> None:
+    """Overlay pairwise significance brackets on a boxplot Axes."""
     from scipy import stats as sp_stats
     groups = data[group_col].unique()
     if len(groups) == 2:
@@ -537,7 +595,8 @@ def add_ttest_to_boxplot(data, group_col, value_col, ax):
         ax.text(0.5, 1.02, f'ANOVA p = {pval:.4f}', ha='center',
                 transform=ax.transAxes, fontsize=9)
 
-def add_regression_eq(x, y, ax):
+def add_regression_eq(x: List[float], y: List[float], ax: Any) -> None:
+    """Annotate regression equation and R^2 onto a scatter Axes."""
     from scipy import stats as sp_stats
     slope, intercept, r_value, p_value, std_err = sp_stats.linregress(x, y)
     eq = f'y = {slope:.3f}x + {intercept:.3f}\nR² = {r_value**2:.3f}, p = {p_value:.4f}'
@@ -569,7 +628,7 @@ GENETIC_CODE = {
 STOP_CODONS = {'TAA', 'TAG', 'TGA'}
 
 
-def has_tool(name):
+def has_tool(name: str) -> bool :
     """Check if an external command-line tool is available."""
     try:
         r = subprocess.run([name, '--version'], capture_output=True, text=True, timeout=10)
@@ -578,7 +637,7 @@ def has_tool(name):
         return False
 
 
-def read_fasta_simple(filepath):
+def read_fasta_simple(filepath: str) -> List[Tuple[str, str]]:
     """Read a FASTA file into (header, sequence) tuples without Biopython.
 
     This is the shared fallback reader used by modules that don't need

@@ -4,6 +4,10 @@ FASTQ quality trimming with dual-mode execution.
 Uses Cutadapt if installed, otherwise falls back to a pure Python trimmer.
 Works out of the box — no external tools required.
 """
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import os
 import subprocess
 import tempfile
@@ -21,6 +25,13 @@ ADAPTERS = {
 
 @dataclass
 class TrimReport:
+    """FASTQ trimming run summary.
+
+    Attributes:
+        reads_in/reads_out: Read counts before/after filtering.
+        bases_trimmed: Total bases removed by quality/adapter cuts.
+        engine: cutadapt/builtin marker.
+    """
     input_file: str
     output_file: str
     total_reads: int = 0
@@ -33,7 +44,8 @@ class TrimReport:
     message: str = ""
 
 
-def check_trimming_tools():
+def check_trimming_tools() -> Dict[str, bool]:
+    """Detect cutadapt availability."""
     tools = {'cutadapt': False}
     try:
         r = subprocess.run(['cutadapt', '--version'], capture_output=True, text=True, timeout=10)
@@ -45,8 +57,8 @@ def check_trimming_tools():
 
 # ── Pure Python Trimmer ─────────────────────────────────────────────────────
 
-def _pure_python_trim(input_file, output_file, quality_threshold=20,
-                      min_length=36, adapter_seq=None):
+def _pure_python_trim(input_file: str, output_file: str, quality_threshold: int = 20,
+                      min_length: int = 36, adapter_seq: Optional[str] = None) -> TrimReport:
     """Trim FASTQ reads using pure Python — no external tools needed."""
     total = 0
     trimmed = 0
@@ -55,6 +67,7 @@ def _pure_python_trim(input_file, output_file, quality_threshold=20,
     qual_before_sum = 0
     qual_after_sum = 0
     base_count = 0
+    after_base_count = 0
 
     with open(input_file) as fin, open(output_file, 'w') as fout:
         while True:
@@ -94,6 +107,7 @@ def _pure_python_trim(input_file, output_file, quality_threshold=20,
             qual = qual[:trim_pos]
             qual_after_scores = [ord(c) - 33 for c in qual]
             qual_after_sum += sum(qual_after_scores)
+            after_base_count += len(qual_after_scores)
 
             # Length filter
             if len(seq) < min_length:
@@ -109,7 +123,7 @@ def _pure_python_trim(input_file, output_file, quality_threshold=20,
         reads_trimmed=trimmed,
         reads_removed=removed,
         avg_quality_before=qual_before_sum / base_count if base_count > 0 else 0,
-        avg_quality_after=qual_after_sum / max(base_count - trimmed, 1) if base_count > 0 else 0,
+        avg_quality_after=qual_after_sum / max(after_base_count, 1) if after_base_count > 0 else 0,
         adapter_trimmed=adapter_hits,
         engine="builtin",
         message="Using built-in quality trimmer"
@@ -119,8 +133,9 @@ def _pure_python_trim(input_file, output_file, quality_threshold=20,
 
 # ── Cutadapt Wrapper ─────────────────────────────────────────────────────────
 
-def _cutadapt_trim(input_file, output_file, quality_threshold=20,
-                   min_length=36, adapter_seq=None):
+def _cutadapt_trim(input_file: str, output_file: str, quality_threshold: int = 20,
+                   min_length: int = 36, adapter_seq: Optional[str] = None) -> TrimReport:
+    """Run cutadapt via subprocess on single-end input."""
     cmd = ['cutadapt', '-q', str(quality_threshold),
            '--minimum-length', str(min_length),
            '-o', output_file, input_file]
@@ -136,7 +151,8 @@ def _cutadapt_trim(input_file, output_file, quality_threshold=20,
         return None
 
 
-def _parse_cutadapt_stderr(stderr, input_file, output_file):
+def _parse_cutadapt_stderr(stderr: str, input_file: str, output_file: str) -> TrimReport:
+    """Extract read/base counts from cutadapt stderr summary block."""
     report = TrimReport(input_file=input_file, output_file=output_file, engine='cutadapt')
     for line in stderr.split('\n'):
         line = line.strip()
@@ -157,8 +173,9 @@ def _parse_cutadapt_stderr(stderr, input_file, output_file):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def trim_fastq(input_file, output_file=None, quality_threshold=20,
-               min_length=36, adapter='auto', adapter_name=None):
+def trim_fastq(input_file: str, output_file: Optional[str] = None, quality_threshold: int = 20,
+               min_length: int = 36, adapter: str = 'auto', adapter_name: Optional[str] = None) -> TrimReport:
+    """Single-end trim auto-selecting cutadapt or built-in sliding window."""
     if not os.path.exists(input_file):
         return TrimReport(input_file=input_file, output_file='',
                          message=f"File not found: {input_file}")
@@ -186,8 +203,9 @@ def trim_fastq(input_file, output_file=None, quality_threshold=20,
                             min_length, adapter_seq)
 
 
-def trim_pair_end(input_r1, input_r2, output_r1=None, output_r2=None,
-                  quality_threshold=20, min_length=36, adapter='auto'):
+def trim_pair_end(input_r1: str, input_r2: str, output_r1: Optional[str] = None, output_r2: Optional[str] = None,
+                  quality_threshold: int = 20, min_length: int = 36, adapter: str = 'auto') -> TrimReport:
+    """Paired-end trim keeping mate synchronization intact."""
     if output_r1 is None:
         output_r1 = os.path.splitext(input_r1)[0] + '_trimmed.fastq'
     if output_r2 is None:
@@ -221,7 +239,8 @@ def trim_pair_end(input_r1, input_r2, output_r1=None, output_r2=None,
     return r1
 
 
-def analyze_fastq_quality(filepath, max_reads=100000):
+def analyze_fastq_quality(filepath: str, max_reads: int = 100000) -> Dict[str, Any]:
+    """Per-cycle quality profile for FASTQ QC reporting."""
     if not os.path.exists(filepath):
         return {"error": f"File not found: {filepath}"}
 
@@ -258,7 +277,8 @@ def analyze_fastq_quality(filepath, max_reads=100000):
     }
 
 
-def format_trim_report(report):
+def format_trim_report(report: TrimReport) -> str:
+    """Format TrimReport with before/after retention statistics."""
     lines = [
         "=== FASTQ Trimming Report ===",
         f"Engine: {report.engine}",

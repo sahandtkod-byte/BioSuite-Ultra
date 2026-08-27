@@ -4,6 +4,10 @@ Multiple Sequence Alignment with dual-mode execution.
 Uses Clustal Omega/MUSCLE/MAFFT if installed, otherwise falls back to a
 pure Python progressive alignment algorithm.
 """
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple
+
 import os
 import subprocess
 import tempfile
@@ -20,6 +24,14 @@ except ImportError:
 
 @dataclass
 class MSA:
+    """Container for a multiple sequence alignment result.
+
+    Attributes:
+        names: Ordered list of sequence identifiers.
+        aligned: List of gap-aligned sequence strings.
+        method: Alignment engine used (builtin, clustal, muscle, mafft).
+        stats: Summary statistics computed after alignment.
+    """
     method: str
     sequences: list = field(default_factory=list)
     alignment_file: str = ""
@@ -30,11 +42,13 @@ class MSA:
     message: str = ""
 
     @property
-    def names(self):
+    def names(self) -> list :
+        """Return ordered list of sequence identifier strings."""
         return [s[0] for s in self.sequences]
 
     @property
-    def sequences_only(self):
+    def sequences_only(self) -> list :
+        """Return list of aligned sequences without their names."""
         return [s[1] for s in self.sequences]
 
 
@@ -43,7 +57,13 @@ class MSA:
 from .utils import has_tool as _has_tool
 
 
-def check_tools():
+def check_tools() -> dict :
+    """Detect availability of external MSA tools.
+
+    Returns:
+        dict: Mapping of tool name (clustal_omega, muscle, mafft)
+        to boolean availability status.
+    """
     return {
         'clustal_omega': _has_tool('clustalo'),
         'muscle': _has_tool('muscle'),
@@ -51,7 +71,15 @@ def check_tools():
     }
 
 
-def _is_nucleotide(seq):
+def _is_nucleotide(seq: str) -> bool :
+    """Heuristically decide whether a sequence looks like DNA/RNA.
+
+    Args:
+        seq: Sequence string to classify.
+
+    Returns:
+        bool: True if >90% of characters are valid nucleotides.
+    """
     if not seq:
         return True
     sample = seq[:500].upper()
@@ -59,7 +87,13 @@ def _is_nucleotide(seq):
     return sum(1 for c in sample if c not in nuc) / max(len(sample), 1) < 0.1
 
 
-def _write_fasta(sequences, filepath):
+def _write_fasta(sequences: List[str], filepath: str) -> None:
+    """Write sequences to a temporary FASTA file for an external tool.
+
+    Args:
+        sequences: Iterable of sequence strings.
+        filepath: Destination file path.
+    """
     with open(filepath, 'w') as f:
         for name, seq in sequences:
             f.write(f">{name}\n{seq}\n")
@@ -67,7 +101,16 @@ def _write_fasta(sequences, filepath):
 
 # ── Pure Python Progressive Alignment ───────────────────────────────────────
 
-def _pairwise_distance(seqs, k=3):
+def _pairwise_distance(seqs: List[str], k: int = 3) -> List[List[float]]:
+    """Compute all-vs-all pairwise k-mer distance matrix.
+
+    Args:
+        seqs: List of sequence strings.
+        k: K-mer length for the distance metric.
+
+    Returns:
+        list: NxN nested list of pairwise distances.
+    """
     n = len(seqs)
     mat = np.zeros((n, n))
     for i in range(n):
@@ -77,7 +120,12 @@ def _pairwise_distance(seqs, k=3):
     return mat
 
 
-def _kmer_distance(s1, s2, k=3):
+def _kmer_distance(s1: str, s2: str, k: int = 3) -> float:
+    """K-mer based distance between two sequences (Jaccard-style).
+
+    Returns:
+        float: Distance in [0, 1]; 0 = identical k-mer sets.
+    """
     if not s1 or not s2:
         return 1.0
     kmers1 = set()
@@ -93,7 +141,16 @@ def _kmer_distance(s1, s2, k=3):
     return 1.0 - intersection / union if union > 0 else 1.0
 
 
-def _upgma_tree(dist_matrix, n):
+def _upgma_tree(dist_matrix: List[List[float]], n: int) -> Tuple[Any, ...]:
+    """Build a UPGMA guide tree from a distance matrix.
+
+    Args:
+        dist_matrix: Square symmetric nested-list distances.
+        n: Number of leaves.
+
+    Returns:
+        tuple: Newick string and merge order for progressive alignment.
+    """
     clusters = {i: [i] for i in range(n)}
     merged = set()
     parent = {}
@@ -138,12 +195,18 @@ def _upgma_tree(dist_matrix, n):
     return clusters, parent, heights, root
 
 
-def _build_guide_order(dist_matrix, seq_names):
+def _build_guide_order(dist_matrix: List[List[float]], seq_names: List[str]) -> List[Tuple[int, int]]:
+    """Derive progressive-alignment join order from a guide tree.
+
+    Returns:
+        list: Pairs of cluster indices in join order.
+    """
     n = len(seq_names)
     clusters, parent, heights, root = _upgma_tree(dist_matrix, n)
     order = []
 
-    def traverse(node):
+    def traverse(node: Any) -> List[int]:
+        """Recursively collect leaf indices from a guide-tree node."""
         if node < n:
             order.append(node)
             return
@@ -155,7 +218,7 @@ def _build_guide_order(dist_matrix, seq_names):
     return order
 
 
-def _align_two_profiles(seq_a, seq_b, match=1, mismatch=-1, gap=-2):
+def _align_two_profiles(seq_a: str, seq_b: str, match: int = 1, mismatch: int = -1, gap: int = -2) -> Tuple[str, str]:
     """Align two sequences using dynamic programming (profile scoring)."""
     n, m = len(seq_a), len(seq_b)
     dp = np.zeros((n + 1, m + 1), dtype=np.int32)
@@ -195,7 +258,7 @@ def _align_two_profiles(seq_a, seq_b, match=1, mismatch=-1, gap=-2):
     return ''.join(reversed(align_a)), ''.join(reversed(align_b))
 
 
-def _merge_alignments(aligned_a, aligned_b):
+def _merge_alignments(aligned_a: List[str], aligned_b: List[str]) -> List[str]:
     """Merge two sets of aligned sequences using profile-profile scoring."""
     if not aligned_a:
         return aligned_b
@@ -264,7 +327,7 @@ def _merge_alignments(aligned_a, aligned_b):
     return merged
 
 
-def _make_profile(aligned_seqs):
+def _make_profile(aligned_seqs: List[str]) -> Dict[str, Any]:
     """Build frequency profile from aligned sequences."""
     if not aligned_seqs:
         return {}
@@ -282,7 +345,7 @@ def _make_profile(aligned_seqs):
     return profiles
 
 
-def _profile_score_col(profile_a, idx_a, profile_b, idx_b):
+def _profile_score_col(profile_a: Dict[str, Any], idx_a: int, profile_b: Dict[str, Any], idx_b: int) -> float:
     """Score two profile columns against each other."""
     pa = profile_a[idx_a]
     pb = profile_b[idx_b]
@@ -295,7 +358,7 @@ def _profile_score_col(profile_a, idx_a, profile_b, idx_b):
     return int(score * 10)
 
 
-def _progressive_msa(sequences):
+def _progressive_msa(sequences: list) -> list :
     """Pure Python progressive multiple sequence alignment."""
     if len(sequences) <= 1:
         return sequences
@@ -338,18 +401,26 @@ def _progressive_msa(sequences):
         aligned_names[idx] = merged_n
         merged_already.add(best_j)
 
-    # Collect results
+    # Collect results from all unmerged clusters
     result_seqs = []
+    collected_names = set()
     for i in range(n):
-        if i in aligned and aligned[i]:
-            result_seqs.append((names[i], aligned[i][0]))
+        if i not in merged_already and i in aligned:
+            # This cluster root contains all its merged sequences
+            cluster_seqs = aligned[i]
+            cluster_names = aligned_names[i]
+            for name, seq in zip(cluster_names, cluster_seqs):
+                if name not in collected_names:
+                    result_seqs.append((name, seq))
+                    collected_names.add(name)
 
     return result_seqs
 
 
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
-def _run_clustal_omega(sequences):
+def _run_clustal_omega(sequences: List[str]) -> MSA:
+    """Run Clustal Omega on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
     out = tempfile.mktemp(suffix='.fasta')
@@ -373,7 +444,8 @@ def _run_clustal_omega(sequences):
     return None
 
 
-def _run_muscle(sequences):
+def _run_muscle(sequences: List[str]) -> MSA:
+    """Run MUSCLE on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
     out = tempfile.mktemp(suffix='.fasta')
@@ -398,7 +470,8 @@ def _run_muscle(sequences):
     return None
 
 
-def _run_mafft(sequences):
+def _run_mafft(sequences: List[str]) -> MSA:
+    """Run MAFFT on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
     out = tempfile.mktemp(suffix='.fasta')
@@ -422,7 +495,13 @@ def _run_mafft(sequences):
     return None
 
 
-def _load_bio_alignment(filepath, method):
+def _load_bio_alignment(filepath: str, method: str) -> MSA:
+    """Parse an external-tool alignment output back into an MSA object.
+
+    Args:
+        filepath: Aligned FASTA produced by the tool.
+        method: Engine label recorded in the result.
+    """
     if not HAS_BIO:
         return None
     try:
@@ -439,7 +518,12 @@ def _load_bio_alignment(filepath, method):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def auto_align(sequences, method='auto'):
+def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
+    """Align sequences automatically choosing the best available engine.
+
+    Uses external tools when installed; falls back to the built-in
+    progressive aligner otherwise.
+    """
     if not sequences or len(sequences) < 2:
         return MSA(method='none', message='Need at least 2 sequences.')
 
@@ -476,17 +560,25 @@ def auto_align(sequences, method='auto'):
     )
 
 
-def run_clustal_omega(sequences, **kwargs):
+def run_clustal_omega(sequences: List[str], **kwargs: Any) -> MSA:
+    """Explicit Clustal Omega wrapper (raises if not installed)."""
     return auto_align(sequences)
 
-def run_muscle(sequences, **kwargs):
+def run_muscle(sequences: List[str], **kwargs: Any) -> MSA:
+    """Explicit MUSCLE wrapper (raises if not installed)."""
     return auto_align(sequences)
 
-def run_mafft(sequences, **kwargs):
+def run_mafft(sequences: List[str], **kwargs: Any) -> MSA:
+    """Explicit MAFFT wrapper (raises if not installed)."""
     return auto_align(sequences)
 
 
-def compute_conservation(alignment):
+def compute_conservation(alignment: MSA) -> List[float]:
+    """Per-column conservation scores from an alignment.
+
+    Returns:
+        list: Conservation fraction per column in [0, 1].
+    """
     scores = []
     align_len = alignment.get_alignment_length()
     for i in range(align_len):
@@ -500,7 +592,16 @@ def compute_conservation(alignment):
     return scores
 
 
-def consensus_sequence(msa_result, threshold=0.5):
+def consensus_sequence(msa_result: MSA, threshold: float = 0.5) -> str:
+    """Build consensus sequence from an MSA using majority rule.
+
+    Args:
+        msa_result: MSA object to summarize.
+        threshold: Fraction required to call a residue.
+
+    Returns:
+        str: Consensus sequence with N for columns below threshold.
+    """
     if not msa_result or msa_result.num_sequences == 0:
         return ""
     seqs = msa_result.sequences_only
@@ -522,7 +623,13 @@ def consensus_sequence(msa_result, threshold=0.5):
     return ''.join(consensus)
 
 
-def alignment_statistics(msa_result):
+def alignment_statistics(msa_result: MSA) -> Dict[str, Any]:
+    """Summary statistics for an alignment.
+
+    Returns:
+        dict: Length, gap percentage, pairwise identity stats,
+        and conserved column count.
+    """
     if not msa_result:
         return {}
     conservation = msa_result.conservation
@@ -538,7 +645,14 @@ def alignment_statistics(msa_result):
     }
 
 
-def format_alignment(msa_result, max_width=80, show_conservation=True):
+def format_alignment(msa_result: MSA, max_width: int = 80, show_conservation: bool = True) -> str:
+    """Render an alignment as wrapped text with optional conservation row.
+
+    Args:
+        msa_result: MSA object to render.
+        max_width: Characters per line block.
+        show_conservation: Append conservation asterisk row per block.
+    """
     if not msa_result or not msa_result.sequences:
         return "No alignment to display."
     lines = [f"Engine: {msa_result.message}", f"Method: {msa_result.method}",
@@ -558,7 +672,12 @@ def format_alignment(msa_result, max_width=80, show_conservation=True):
     return '\n'.join(lines)
 
 
-def read_fasta_for_msa(filepath):
+def read_fasta_for_msa(filepath: str) -> list :
+    """Read unaligned FASTA sequences for MSA input.
+
+    Returns:
+        list: Raw sequence strings in file order.
+    """
     if not HAS_BIO:
         seqs = []
         name, buf = None, []

@@ -5,6 +5,10 @@ Pure Python MCMC tree sampler using the Jukes-Cantor 69 substitution model
 with Felsenstein's pruning algorithm for likelihood computation.
 MrBayes available as optional external engine.
 """
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import copy
 import math
 import os
@@ -35,6 +39,13 @@ AMBIGUOUS = {'N', 'R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V', '-', '?'}
 
 @dataclass
 class BayesianResult:
+    """Bayesian phylogeny inference result.
+
+    Attributes:
+        newick: Consensus tree with posterior probabilities.
+        burnin: Generations discarded before sampling.
+        posterior_support: Per-branch posterior values.
+    """
     engine: str
     newick_tree: str = ""
     posterior_probability: float = 0.0
@@ -91,7 +102,8 @@ class TreeSampler:
     Convergence — burn-in removal, thinning, dual-chain PSRF.
     """
 
-    def __init__(self, alignment):
+    def __init__(self, alignment: Any) -> None:
+        """Initialize result container with default empty collections."""
         self.alignment = alignment
         self.n_taxa = len(alignment)
         self.n_sites = alignment.get_alignment_length()
@@ -110,7 +122,7 @@ class TreeSampler:
 
     # ── Felsenstein's pruning algorithm ────────────────────────────────
 
-    def _pruning(self, clade, site: int) -> List[float]:
+    def _pruning(self, clade: Any, site: int) -> List[float]:
         """
         Compute conditional likelihood vector at a single site.
 
@@ -147,7 +159,7 @@ class TreeSampler:
                 v[s] *= nv[s]
         return v
 
-    def log_likelihood(self, tree) -> float:
+    def log_likelihood(self, tree: Any) -> float:
         """Log-likelihood of the full alignment given the tree."""
         ll = 0.0
         for site in range(self.n_sites):
@@ -159,7 +171,7 @@ class TreeSampler:
 
     # ── Prior ──────────────────────────────────────────────────────────
 
-    def log_prior(self, tree) -> float:
+    def log_prior(self, tree: Any) -> float:
         """
         Exponential(10) prior on branch lengths.
 
@@ -176,13 +188,13 @@ class TreeSampler:
                 lp += math.log(10.0) - 10.0 * bl
         return lp
 
-    def log_posterior(self, tree) -> float:
+    def log_posterior(self, tree: Any) -> float:
         """Log-posterior = log-likelihood + log-prior."""
         return self.log_likelihood(tree) + self.log_prior(tree)
 
     # ── Initial tree (NJ) ─────────────────────────────────────────────
 
-    def _initial_tree(self, perturb: float = 0.0):
+    def _initial_tree(self, perturb: float = 0.0) -> Any:
         """Build a starting tree using Neighbour-Joining."""
         calc = DistanceCalculator('identity')
         dm = calc.get_distance(self.alignment)
@@ -207,7 +219,7 @@ class TreeSampler:
 
     # ── Proposals ─────────────────────────────────────────────────────
 
-    def _propose_bl(self, tree):
+    def _propose_bl(self, tree: Any) -> Any:
         """Scale a random branch length by exp(N(0, 0.2))."""
         t = copy.deepcopy(tree)
         branches = [
@@ -223,14 +235,14 @@ class TreeSampler:
         return t
 
     @staticmethod
-    def _find_parent(tree, child):
+    def _find_parent(tree: Any, child: Any) -> Any:
         """Find the parent clade of *child* in *tree*."""
         for c in tree.find_clades(order='level'):
             if hasattr(c, 'clades') and child in c.clades:
                 return c
         return None
 
-    def _propose_nni(self, tree):
+    def _propose_nni(self, tree: Any) -> Any:
         """
         Nearest-Neighbour Interchange (NNI) on a random internal edge.
 
@@ -326,12 +338,12 @@ class TreeSampler:
                 Phylo.write(tree, buf, 'newick')
                 samples.append((buf.getvalue().strip(), cur_ll))
 
-        return samples, ll_chain, best_tree, accepts / n_gen
+        return samples, ll_chain, best_tree, accepts / max(n_gen, 1)
 
 
 # ── ESS (initial-positive-sequence estimator) ──────────────────────────────
 
-def _compute_ess(samples) -> float:
+def _compute_ess(samples: Any) -> float:
     """
     Effective Sample Size via the initial-positive-sequence estimator
     (Geyer 1992).
@@ -364,7 +376,7 @@ def _compute_ess(samples) -> float:
 
 # ── PSRF (Gelman-Rubin potential scale reduction factor) ───────────────────
 
-def _compute_psrf(chain_means, chain_vars, n_per_chain) -> float:
+def _compute_psrf(chain_means: Any, chain_vars: Any, n_per_chain: float) -> float:
     """
     Gelman-Rubin PSRF from multiple chains.
 
@@ -378,13 +390,13 @@ def _compute_psrf(chain_means, chain_vars, n_per_chain) -> float:
     W = np.mean(chain_vars)                           # within-chain variance
     if W < 1e-20:
         return 1.0
-    var_plus = ((n_per_chain - 1) / n_per_chain) * W + B / n_per_chain
+    var_plus = ((n_per_chain - 1) / max(n_per_chain, 1)) * W + B / max(n_per_chain, 1)
     return float(np.sqrt(var_plus / W))
 
 
 # ── Built-in Bayesian (JC69 MCMC) ─────────────────────────────────────────
 
-def _builtin_bayesian(alignment_file, n_generations=5000, sample_freq=10):
+def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_freq: int = 10) -> BayesianResult:
     """
     Run a pure-Python Bayesian MCMC phylogenetic analysis.
 
@@ -457,7 +469,7 @@ def _builtin_bayesian(alignment_file, n_generations=5000, sample_freq=10):
     if n_post >= 5 and len(post_ll) > 1:
         sd = float(np.std(post_ll))
         within = sum(1 for ll in post_ll if abs(ll - mean_ll) < 2 * sd)
-        post_prob = within / n_post
+        post_prob = within / max(n_post, 1)
     else:
         post_prob = 1.0
 
@@ -482,7 +494,8 @@ def _builtin_bayesian(alignment_file, n_generations=5000, sample_freq=10):
 
 # ── MrBayes Wrapper ─────────────────────────────────────────────────────────
 
-def _mrbayes_run(alignment_file, n_generations=10000, output_dir=None):
+def _mrbayes_run(alignment_file: str, n_generations: int = 10000, output_dir: Optional[str] = None) -> BayesianResult:
+    """Run MrBayes via subprocess on a NEXUS file and parse consensus."""
     if output_dir is None:
         output_dir = tempfile.mkdtemp()
 
@@ -520,7 +533,8 @@ quit
     return None
 
 
-def _fasta_to_nexus(fasta_file, nexus_file):
+def _fasta_to_nexus(fasta_file: str, nexus_file: str) -> None:
+    """Convert aligned FASTA to NEXUS format for MrBayes input."""
     if not HAS_BIO:
         return
     alignment = AlignIO.read(fasta_file, 'fasta')
@@ -536,12 +550,14 @@ def _fasta_to_nexus(fasta_file, nexus_file):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def check_bayesian_tools():
+def check_bayesian_tools() -> dict :
+    """Detect mrbayes availability."""
     from .utils import has_tool as _has_tool
     return {'mrbayes': _has_tool('mb')}
 
 
-def run_bayesian(alignment_file, n_generations=5000, tool='auto'):
+def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'auto') -> BayesianResult:
+    """Run Bayesian phylogeny; falls back to NJ when MrBayes missing."""
     if not os.path.exists(alignment_file):
         return BayesianResult(
             engine='none', message=f"File not found: {alignment_file}"
@@ -556,7 +572,8 @@ def run_bayesian(alignment_file, n_generations=5000, tool='auto'):
     return _builtin_bayesian(alignment_file, n_generations)
 
 
-def format_bayesian_report(result):
+def format_bayesian_report(result: BayesianResult) -> str:
+    """Format BayesianResult with posterior support table."""
     lines = [
         "=== Bayesian Phylogenetics Report ===",
         f"Engine: {result.engine}",

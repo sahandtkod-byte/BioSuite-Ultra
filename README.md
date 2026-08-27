@@ -5,7 +5,7 @@
 ![Tests](https://img.shields.io/badge/Tests-1444%20passing-brightgreen)
 ![Modules](https://img.shields.io/badge/Modules-47-orange)
 ![Lines](https://img.shields.io/badge/Lines-43K%2B-yellow)
-![Version](https://img.shields.io/badge/Version-4.2.5-blueviolet)
+![Version](https://img.shields.io/badge/Version-5.0.0-blueviolet)
 ![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21256296.svg)
 ![Cloning](https://img.shields.io/badge/Molecular%20Cloning-Free-brightgreen)
 ![JOSS](https://img.shields.io/badge/JOSS-Submitted-blue.svg)

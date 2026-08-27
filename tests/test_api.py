@@ -44,7 +44,7 @@ class TestHealthAndInfo:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "healthy"
-        assert data["version"] == "4.2.5"
+        assert data["version"] == "5.0.0"
         assert "modules" in data
         assert "timestamp" in data
 

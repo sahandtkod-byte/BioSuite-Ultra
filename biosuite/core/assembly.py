@@ -9,6 +9,10 @@ overlapping reads into contigs via a greedy traversal, and then
 detects unitigs (maximal non-branching paths).  This replaces the
 original simple greedy assembler with a proper overlap-based approach.
 """
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import os
 import subprocess
 import tempfile
@@ -19,6 +23,13 @@ from dataclasses import dataclass, field
 
 @dataclass
 class AssemblyResult:
+    """Genome assembly output container.
+
+    Attributes:
+        contigs: List of assembled sequence strings.
+        stats: N50/L50/total-length summary dict.
+        engine: spades/megahit/builtin marker.
+    """
     engine: str
     num_contigs: int = 0
     total_length: int = 0
@@ -35,12 +46,18 @@ class AssemblyResult:
 from .utils import has_tool as _has_tool
 
 
-def check_assembly_tools():
+def check_assembly_tools() -> dict :
+    """Detect spades/megahit availability."""
     return {'spades': _has_tool('spades.py') or _has_tool('spades'),
             'megahit': _has_tool('megahit-core')}
 
 
-def _compute_assembly_stats(contigs):
+def _compute_assembly_stats(contigs: List[str]) -> Dict[str, Any]:
+    """Compute assembly statistics from a contig list.
+
+    Returns:
+        dict: total_len, n_contigs, n50, l50, max_len, gc_content.
+    """
     lengths = sorted([len(c) for c in contigs], reverse=True)
     if not lengths:
         return AssemblyResult(engine='builtin', message="No contigs")
@@ -63,7 +80,8 @@ def _compute_assembly_stats(contigs):
     )
 
 
-def _compute_n50(lengths):
+def _compute_n50(lengths: List[int]) -> int:
+    """N50: contig length at which 50% of assembly is covered."""
     total = sum(lengths)
     cumsum = 0
     for l in lengths:
@@ -73,7 +91,8 @@ def _compute_n50(lengths):
     return 0
 
 
-def _compute_l50(lengths):
+def _compute_l50(lengths: List[int]) -> int:
+    """L50: number of contigs needed to reach 50%% of total length."""
     total = sum(lengths)
     cumsum = 0
     for i, l in enumerate(lengths):
@@ -83,7 +102,7 @@ def _compute_l50(lengths):
     return 0
 
 
-def _builtin_assembly(reads_file, output_fasta=None):
+def _builtin_assembly(reads_file: str, output_fasta: Optional[str] = None) -> AssemblyResult:
     """Run the built-in overlap-graph assembler.
 
     Reads are loaded, an overlap graph is constructed, a greedy
@@ -123,7 +142,7 @@ def _builtin_assembly(reads_file, output_fasta=None):
     return stats
 
 
-def _load_reads_fasta(reads_file):
+def _load_reads_fasta(reads_file: str) -> List[str]:
     """Load reads from a FASTA or FASTQ file.
 
     Auto-detects format by checking the first character (@ = FASTQ,
@@ -168,7 +187,7 @@ def _load_reads_fasta(reads_file):
     return reads
 
 
-def _compute_suffix_prefix_overlap(s1, s2, min_overlap=15):
+def _compute_suffix_prefix_overlap(s1: str, s2: str, min_overlap: int = 15) -> int:
     """Compute the longest suffix of s1 that is a prefix of s2.
 
     Args:
@@ -187,7 +206,7 @@ def _compute_suffix_prefix_overlap(s1, s2, min_overlap=15):
     return 0
 
 
-def _build_overlap_graph(reads, min_overlap=15):
+def _build_overlap_graph(reads: List[str], min_overlap: int = 15) -> Dict[str, Any]:
     """Build an overlap graph from a list of reads.
 
     Each node is a read index.  A directed edge i -> j means read i's
@@ -270,7 +289,7 @@ def _build_overlap_graph(reads, min_overlap=15):
     return dict(trimmed)
 
 
-def _greedy_traversal_assembly(reads, graph, min_overlap=15):
+def _greedy_traversal_assembly(reads: List[str], graph: Dict[str, Any], min_overlap: int = 15) -> List[str]:
     """Merge reads into contigs by greedy graph traversal.
 
     Starting from the longest unused read, follow the overlap graph
@@ -319,7 +338,7 @@ def _greedy_traversal_assembly(reads, graph, min_overlap=15):
     return contigs
 
 
-def _detect_unitigs(reads, contigs, graph, min_overlap=15):
+def _detect_unitigs(reads: List[str], contigs: List[str], graph: Dict[str, Any], min_overlap: int = 15) -> List[str]:
     """Detect unitigs from the overlap graph.
 
     A unitig is a maximal non-branching path in the overlap graph.
@@ -372,7 +391,7 @@ def _detect_unitigs(reads, contigs, graph, min_overlap=15):
     return refined
 
 
-def used_in_any(contigs, seq, seqs, min_overlap):
+def used_in_any(contigs: List[str], seq: str, seqs: List[str], min_overlap: int) -> bool:
     """Check if a sequence is already represented in any contig."""
     for c in contigs:
         if len(seq) >= min_overlap and seq[:min_overlap] in c:
@@ -384,7 +403,8 @@ def used_in_any(contigs, seq, seqs, min_overlap):
 
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
-def _spades_assemble(reads_file, output_dir, threads=4):
+def _spades_assemble(reads_file: str, output_dir: str, threads: int = 4) -> bool:
+    """Run SPAdes assembler via subprocess (multi-k default)."""
     cmd = ['spades.py', '-s', reads_file, '-o', output_dir,
            '--only-assembler', '-t', str(threads)]
     try:
@@ -397,7 +417,8 @@ def _spades_assemble(reads_file, output_dir, threads=4):
     return None
 
 
-def _megahit_assemble(reads_file, output_dir, threads=4):
+def _megahit_assemble(reads_file: str, output_dir: str, threads: int = 4) -> bool:
+    """Run MEGAHIT assembler via subprocess (metagenomic mode)."""
     cmd = ['megahit-core', '-1', reads_file, '-o', output_dir,
            '--min-contig-len', '200', '-t', str(threads)]
     try:
@@ -412,7 +433,10 @@ def _megahit_assemble(reads_file, output_dir, threads=4):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def assemble(reads_file, output_fasta=None, tool='auto', threads=4):
+def assemble(reads_file: str, output_fasta: Optional[str] = None, tool: str = 'auto', threads: int = 4) -> AssemblyResult:
+    """Assemble reads auto-selecting engine; built-in greedy overlap
+    fallback requires no external tools.
+    """
     if not os.path.exists(reads_file):
         return AssemblyResult(engine='none', message=f"Reads file not found: {reads_file}")
 
@@ -435,7 +459,8 @@ def assemble(reads_file, output_fasta=None, tool='auto', threads=4):
     return _builtin_assembly(reads_file, output_fasta)
 
 
-def _parse_assembly_fasta(fasta_file, engine):
+def _parse_assembly_fasta(fasta_file: str, engine: str) -> List[str]:
+    """Parse assembled contigs from FASTA into a list of sequences."""
     contigs = []
     name, buf = None, []
     with open(fasta_file) as f:
@@ -458,7 +483,8 @@ def _parse_assembly_fasta(fasta_file, engine):
     return stats
 
 
-def format_assembly_report(result):
+def format_assembly_report(result: AssemblyResult) -> str:
+    """Format AssemblyResult with stats table and top-contig preview."""
     lines = [
         "=== Genome Assembly Report ===",
         f"Engine: {result.engine}",

@@ -12,6 +12,10 @@ Features:
   - Malformed JSON safe-parsing
   - Configurable timeouts
 """
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
 import os
 import json
 import time
@@ -35,10 +39,20 @@ from .utils import get_api_key, set_api_key, prompt_api_key
 
 @dataclass
 class DBResult:
+    """Result from a biological database query.
+
+    Attributes:
+        source: Database name (ncbi, uniprot, pdb, etc.).
+        query: The original query string or identifier.
+        data: Parsed response data as dictionary.
+        records: List of result records.
+        error: Error message if query failed.
+        cached: Whether the result was served from cache.
+    """
     source: str
     query: str
-    data: dict = field(default_factory=dict)
-    records: list = field(default_factory=list)
+    data: Dict[str, Any] = field(default_factory=dict)
+    records: List[Any] = field(default_factory=list)
     error: str = ""
     cached: bool = False
 
@@ -77,11 +91,17 @@ class _RateLimiter:
     """Thread-safe per-service rate limiter using a simple token-bucket approach."""
 
     def __init__(self):
+        """Initialize rate limiter with empty per-service state."""
         self._locks = {}
         self._last_call = {}
         self._global_lock = threading.Lock()
 
     def wait(self, service: str) -> None:
+        """Block until the minimum interval for the given service has elapsed.
+
+        Args:
+            service: Service identifier (e.g. ncbi, uniprot).
+        """
         interval, _ = RATE_LIMITS.get(service, (0.5, service))
         with self._global_lock:
             if service not in self._locks:
@@ -104,10 +124,20 @@ class _Cache:
     """Simple in-memory TTL cache keyed by (service, args_hash)."""
 
     def __init__(self):
+        """Initialize empty in-memory TTL cache."""
         self._store = {}
         self._lock = threading.Lock()
 
-    def get(self, service: str, key: str):
+    def get(self, service: str, key: str) -> Optional[Any]:
+        """Retrieve a cached value if it exists and has not expired.
+
+        Args:
+            service: Service identifier for TTL lookup.
+            key: Cache key string.
+
+        Returns:
+            Cached value or None if missing/expired.
+        """
         ttl = _CACHE_TTL.get(service, 300)
         full_key = f"{service}:{key}"
         with self._lock:
@@ -118,12 +148,24 @@ class _Cache:
             self._store.pop(full_key, None)
         return None
 
-    def set(self, service: str, key: str, value) -> None:
+    def set(self, service: str, key: str, value: Any) -> None:
+        """Store a value in the cache with current timestamp.
+
+        Args:
+            service: Service identifier for TTL tracking.
+            key: Cache key string.
+            value: Value to cache.
+        """
         full_key = f"{service}:{key}"
         with self._lock:
             self._store[full_key] = (time.time(), value)
 
-    def invalidate(self, service: str = None) -> None:
+    def invalidate(self, service: Optional[str] = None) -> None:
+        """Remove cached entries for a specific service or all services.
+
+        Args:
+            service: Service to invalidate. If None, clears entire cache.
+        """
         with self._lock:
             if service:
                 to_remove = [k for k in self._store if k.startswith(f"{service}:")]
@@ -143,7 +185,7 @@ def _cache_key(*args) -> str:
 
 
 def _http_get(url: str, *, timeout: int = DEFAULT_TIMEOUT,
-              headers: dict = None, service: str = 'general') -> bytes:
+              headers: Optional[Dict[str, str]] = None, service: str = 'general') -> bytes:
     """
     Perform an HTTP GET with retry, rate-limiting, and proper error handling.
 
@@ -215,7 +257,7 @@ def _json_response(raw_bytes: bytes) -> dict:
 
 # ── NCBI Entrez ─────────────────────────────────────────────────────────────
 
-def search_ncbi(query, database='nucleotide', max_results=10, email=None):
+def search_ncbi(query: str, database: str = 'nucleotide', max_results: int = 10, email: Optional[str] = None) -> DBResult:
     """Search NCBI databases via Entrez API.
 
     Free API: https://www.ncbi.nlm.nih.gov/account/settings/
@@ -304,7 +346,7 @@ def search_ncbi(query, database='nucleotide', max_results=10, email=None):
         return DBResult(source='ncbi', query=query, error=str(exc))
 
 
-def fetch_ncbi_sequence(accession, database='nucleotide'):
+def fetch_ncbi_sequence(accession: str, database: str = 'nucleotide') -> DBResult:
     """Fetch a sequence record from NCBI by accession number.
 
     Includes retry, rate limiting, and timeout handling.
@@ -358,7 +400,7 @@ def fetch_ncbi_sequence(accession, database='nucleotide'):
 
 # ── UniProt ──────────────────────────────────────────────────────────────────
 
-def search_uniprot(query, max_results=10):
+def search_uniprot(query: str, max_results: int = 10) -> DBResult:
     """Search UniProt protein database.
 
     Free API: https://www.uniprot.org/help/api
@@ -406,7 +448,7 @@ def search_uniprot(query, max_results=10):
         return DBResult(source='uniprot', query=query, error=str(exc))
 
 
-def fetch_uniprot(accession):
+def fetch_uniprot(accession: str) -> DBResult:
     """Fetch a UniProt record by accession.
 
     Includes retry, caching, and rate limiting.
@@ -454,7 +496,7 @@ def fetch_uniprot(accession):
 
 # ── PDB / RCSB ──────────────────────────────────────────────────────────────
 
-def search_pdb(query, max_results=10):
+def search_pdb(query: str, max_results: int = 10) -> DBResult:
     """Search RCSB PDB for protein structures.
 
     Free API: https://search.rcsb.org/
@@ -540,7 +582,7 @@ def search_pdb(query, max_results=10):
 
 # ── KEGG ─────────────────────────────────────────────────────────────────────
 
-def search_kegg(query, database='pathway', max_results=10):
+def search_kegg(query: str, database: str = 'pathway', max_results: int = 10) -> DBResult:
     """Search KEGG database.
 
     Free for academics: https://www.genome.jp/kegg/
@@ -587,7 +629,7 @@ def search_kegg(query, database='pathway', max_results=10):
         return DBResult(source='kegg', query=query, error=str(exc))
 
 
-def fetch_kegg_pathway(pathway_id):
+def fetch_kegg_pathway(pathway_id: str) -> DBResult:
     """Fetch a KEGG pathway record.
 
     Includes retry, caching, and rate limiting.
@@ -627,7 +669,7 @@ def fetch_kegg_pathway(pathway_id):
 
 # ── Ensembl ──────────────────────────────────────────────────────────────────
 
-def search_ensembl(query, species='human'):
+def search_ensembl(query: str, species: str = 'human') -> DBResult:
     """Search Ensembl REST API.
 
     Free API: https://rest.ensembl.org/
@@ -684,7 +726,7 @@ def invalidate_cache(service: str = None) -> None:
     logger.info(f"Cache invalidated for service={service or 'ALL'}")
 
 
-def cache_info() -> dict:
+def cache_info() -> Dict[str, int]:
     """Return cache statistics: number of entries per service."""
     info = {}
     with _cache._lock:
@@ -696,7 +738,7 @@ def cache_info() -> dict:
 
 # ── Universal Search ─────────────────────────────────────────────────────────
 
-def search_all(query, databases=None):
+def search_all(query: str, databases: Optional[List[str]] = None) -> Dict[str, DBResult]:
     """Search multiple databases simultaneously.
 
     Args:
@@ -735,7 +777,7 @@ def search_all(query, databases=None):
     return results
 
 
-def format_search_results(results, source=None):
+def format_search_results(results: Any, source: Optional[str] = None) -> str:
     """Format search results as readable string."""
     if source and source in results:
         result = results[source]
@@ -751,7 +793,8 @@ def format_search_results(results, source=None):
     return "No results"
 
 
-def _format_single(result):
+def _format_single(result: DBResult) -> str:
+    """Render one database record for single-result display mode."""
     if result.error:
         return f"Error: {result.error}"
     if not result.records:
