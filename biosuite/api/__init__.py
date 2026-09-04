@@ -14,25 +14,28 @@ API Documentation:
     http://localhost:8000/redoc (ReDoc)
 """
 import os
-import sys
-import json
-import time
 import tempfile
-from typing import Optional, List, Dict, Any
-from dataclasses import asdict
+import time
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query, File, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
-from fastapi import Depends
-from biosuite import __version__
-from biosuite.api.auth import verify_api_key
-from biosuite.api.security import verify_admin_token, create_access_token, ADMIN_USERNAME, ADMIN_PASSWORD
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
+
+from biosuite import __version__
+from biosuite.api.auth import verify_api_key
+from biosuite.api.security import (
+    ADMIN_PASSWORD,
+    ADMIN_USERNAME,
+    create_access_token,
+    verify_admin_token,
+)
+
 # ── App Setup ────────────────────────────────────────────────────────────────
 
 app = FastAPI(
@@ -254,8 +257,9 @@ async def api_smith_waterman(req: AlignmentRequest):
 @app.post("/api/v1/blast/search")
 async def api_blast_search(req: BLASTRequest):
     """Sequence similarity search using built-in k-mer engine."""
-    from biosuite.core.blast import run_blast, format_blast_result
     import tempfile
+
+    from biosuite.core.blast import format_blast_result, run_blast
 
     # Create temp query file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
@@ -292,6 +296,7 @@ async def api_blast_search(req: BLASTRequest):
 async def api_differential_expression(req: DifferentialExpressionRequest):
     """Differential expression analysis between two groups."""
     import pandas as pd
+
     from biosuite.core.expression import differential_expression
 
     # Convert dict to DataFrame
@@ -311,8 +316,9 @@ async def api_differential_expression(req: DifferentialExpressionRequest):
 @app.post("/api/v1/expression/normalize/cpm")
 async def api_cpm_normalization(counts: Dict[str, List[int]]):
     """CPM normalization."""
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+
     from biosuite.core.expression import cpm_normalization
 
     df = pd.DataFrame(counts)
@@ -323,8 +329,9 @@ async def api_cpm_normalization(counts: Dict[str, List[int]]):
 @app.post("/api/v1/expression/normalize/tpm")
 async def api_tpm_normalization(counts: Dict[str, List[int]], gene_lengths: List[float]):
     """TPM normalization."""
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+
     from biosuite.core.expression import tpm_normalization
 
     df = pd.DataFrame(counts)
@@ -335,7 +342,9 @@ async def api_tpm_normalization(counts: Dict[str, List[int]], gene_lengths: List
 @app.post("/api/v1/expression/normalize/deseq2")
 async def api_deseq2_normalization(counts: Dict[str, List[int]]):
     """DESeq2 median-of-ratios normalization."""
+    import numpy as np
     import pandas as pd
+
     from biosuite.core.expression import deseq2_normalization
 
     df = pd.DataFrame(counts)
@@ -394,7 +403,11 @@ async def api_classify_16s(sequences: List[Dict[str, str]]):
 @app.post("/api/v1/metagenomics/diversity")
 async def api_diversity(counts: List[int]):
     """Calculate alpha diversity metrics."""
-    from biosuite.core.metagenomics import shannon_entropy, simpson_index, chao1_estimator
+    from biosuite.core.metagenomics import (
+        chao1_estimator,
+        shannon_entropy,
+        simpson_index,
+    )
 
     return {
         "shannon": round(shannon_entropy(counts), 4),
@@ -408,7 +421,7 @@ async def api_diversity(counts: List[int]):
 @app.post("/api/v1/epitope/predict")
 async def api_epitope_predict(req: EpitopeRequest):
     """Predict T-cell and B-cell epitopes."""
-    from biosuite.core.epitope import predict_t_cell_epitopes, predict_b_cell_epitopes
+    from biosuite.core.epitope import predict_b_cell_epitopes, predict_t_cell_epitopes
 
     t_cell = predict_t_cell_epitopes(req.sequence, mhc_type=req.mhc_type)
     b_cell = predict_b_cell_epitopes(req.sequence)
@@ -426,7 +439,8 @@ async def api_epitope_predict(req: EpitopeRequest):
 async def api_gwas_run(snps: List[Dict[str, Any]]):
     """Run GWAS analysis."""
     import pandas as pd
-    from biosuite.core.gwas import run_gwas, detect_lead_snps
+
+    from biosuite.core.gwas import detect_lead_snps, run_gwas
 
     df = pd.DataFrame(snps)
     results = run_gwas(df)
@@ -478,6 +492,7 @@ async def api_upgma(sequences: List[str]):
 async def api_hwe(genotype_counts: Dict[str, int]):
     """Hardy-Weinberg equilibrium test."""
     import numpy as np
+
     from biosuite.core.popgen import hardy_weinberg_test
 
     result = hardy_weinberg_test(genotype_counts)
@@ -498,6 +513,7 @@ async def api_hwe(genotype_counts: Dict[str, int]):
 async def api_fst(populations: List[List[List[int]]]):
     """Calculate pairwise FST between populations."""
     import numpy as np
+
     from biosuite.core.popgen import calculate_fst
 
     matrices = [np.array(p) for p in populations]
@@ -508,6 +524,7 @@ async def api_fst(populations: List[List[List[int]]]):
 async def api_tajimas_d(genotype_matrix: List[List[int]]):
     """Calculate Tajima's D."""
     import numpy as np
+
     from biosuite.core.popgen import tajimas_d
 
     matrix = np.array(genotype_matrix)
@@ -520,6 +537,7 @@ async def api_tajimas_d(genotype_matrix: List[List[int]]):
 async def api_volcano_plot(req: VolcanoRequest):
     """Generate volcano plot."""
     import numpy as np
+
     from biosuite.plotting.plot_api import volcano
 
     fig = volcano(
@@ -542,6 +560,7 @@ async def api_volcano_plot(req: VolcanoRequest):
 async def api_pca_plot(req: PCARequest):
     """Generate PCA plot."""
     import numpy as np
+
     from biosuite.plotting.plot_api import pca
 
     data = np.array(req.data)
@@ -555,6 +574,7 @@ async def api_pca_plot(req: PCARequest):
 async def api_manhattan_plot(req: ManhattanRequest):
     """Generate Manhattan plot."""
     import numpy as np
+
     from biosuite.plotting.plot_api import manhattan
 
     fig = manhattan(
@@ -570,6 +590,7 @@ async def api_manhattan_plot(req: ManhattanRequest):
 async def api_heatmap(data: List[List[float]], title: str = "Heatmap"):
     """Generate heatmap."""
     import numpy as np
+
     from biosuite.plotting.plot_api import heatmap
 
     fig = heatmap(np.array(data), title=title, interactive=False)
@@ -585,12 +606,11 @@ async def api_run_pipeline(steps: List[Dict[str, Any]]):
     """Run a pipeline of analysis steps."""
     from biosuite.core.workflow.pipeline import Pipeline
 
-    p = Pipeline("api_pipeline")
+    # build the pipeline object; per-step dynamic dispatch not yet wired
+    Pipeline("api_pipeline")
     for step in steps:
-        func_name = step.get('function', '')
-        args = step.get('args', {})
-        # Dynamic function loading would go here
-        pass
+        step.get('function', '')
+        step.get('args', {})
 
     return {"status": "Pipeline execution not yet implemented via API", "steps": len(steps)}
 
@@ -599,7 +619,7 @@ async def api_run_pipeline(steps: List[Dict[str, Any]]):
 @app.get("/api/v1/database/ncbi")
 async def api_search_ncbi(query: str = Query(..., description="Search query"), max_results: int = 10):
     """Search NCBI databases."""
-    from biosuite.core.databases import search_ncbi, format_search_results
+    from biosuite.core.databases import format_search_results, search_ncbi
 
     result = search_ncbi(query, max_results=max_results)
     return {"results": result.records, "count": result.data.get('count', 0)}
@@ -641,7 +661,7 @@ async def api_detect_format(file_path: str = Query(..., description="File path")
 @app.post("/api/v1/file/read")
 async def api_read_file(file_path: str = Query(..., description="File path")):
     """Read any supported bioinformatics file."""
-    from biosuite.core.file_formats import read_file, format_file_summary
+    from biosuite.core.file_formats import format_file_summary, read_file
 
     result = read_file(file_path)
     summary = format_file_summary(result)
@@ -650,12 +670,12 @@ async def api_read_file(file_path: str = Query(..., description="File path")):
 # ── Provenance ───────────────────────────────────────────────────────────────
 
 @app.post("/api/v1/provenance/record")
-async def api_record_step(module: str, function: str, params: Dict[str, Any] = {}, result_summary: str = ""):
+async def api_record_step(module: str, function: str, params: Optional[Dict[str, Any]] = None, result_summary: str = ""):
     """Record an analysis step for reproducibility."""
     from biosuite.core.provenance import ProvenanceTracker
 
     tracker = ProvenanceTracker()
-    step = tracker.record(module, function, params, result_summary)
+    step = tracker.record(module, function, params or {}, result_summary)
     return {"step_id": step.step_id, "session_id": step.session_id}
 
 @app.get("/api/v1/provenance/summary")

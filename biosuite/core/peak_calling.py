@@ -6,9 +6,10 @@ Pure Python pileup-based peak caller as default, MACS2 as optional.
 import os
 import subprocess
 import tempfile
-import numpy as np
 from collections import defaultdict
 from dataclasses import dataclass, field
+
+import numpy as np
 
 
 @dataclass
@@ -59,50 +60,84 @@ def _read_sam_positions(sam_file, min_mapq=20):
     return positions
 
 
-def _compute_coverage(positions, window=200, step=50):
-    coverage = {}
+CHUNK_SIZE = 5_000_000  # bp per coverage chunk (dense per-chromosome was
+#                          a ~2 GB array on human chromosomes -> OOM)
+
+
+def _chunked_smoothed_coverage(starts, window=200, chunk=CHUNK_SIZE):
+    """Yield smoothed coverage arrays over consecutive genomic chunks.
+
+    Dense per-chromosome coverage allocation made the built-in caller
+    allocate ~2 GB for a single human chromosome and crash with a
+    MemoryError; chunks cap memory at ~200 MB regardless of chromosome
+    length.  Overlap of ``window`` bases between chunks keeps the running
+    mean and the peak state machine seamless at chunk boundaries.
+    """
+    if not starts:
+        return
+    starts = np.sort(np.asarray(starts, dtype=np.int64))
+    max_pos = int(starts[-1]) + window
+    kernel = np.ones(50) / 50
+    offset = 0
+    while offset < max_pos:
+        end = min(offset + chunk, max_pos)
+        padded_end = min(end + window, max_pos)
+        lo = np.searchsorted(starts, offset)
+        hi = np.searchsorted(starts, padded_end, side='right')
+        cov = np.zeros(padded_end - offset)
+        for s in starts[lo:hi]:
+            cov[s - offset:min(s - offset + window, len(cov))] += 1
+        smoothed = np.convolve(cov, kernel, mode='same')
+        yield offset, smoothed[:end - offset]
+        offset = end
+
+
+def _find_peaks_from_coverage(positions, min_score=5, min_distance=200):
+    """Peak-calling directly from read-start positions (chunked)."""
+    peaks = []
     for chrom, starts in positions.items():
         if not starts:
             continue
-        max_pos = max(starts) + window
-        cov = np.zeros(max_pos)
-        for s in starts:
-            end = min(s + window, max_pos)
-            cov[s:end] += 1
-        coverage[chrom] = cov
-    return coverage
 
+        # First pass: pooled threshold over sampled chunks
+        sample_vals = []
+        for _off, smoothed in _chunked_smoothed_coverage(starts):
+            pos = smoothed[smoothed > 0]
+            if pos.size:
+                sample_vals.append(np.percentile(pos, 95))
+        threshold = float(np.median(sample_vals)) if sample_vals else float(min_score)
 
-def _find_peaks_from_coverage(coverage, min_score=5, min_distance=200):
-    peaks = []
-    for chrom, cov in coverage.items():
-        smoothed = np.convolve(cov, np.ones(50) / 50, mode='same')
-        threshold = np.percentile(smoothed[smoothed > 0], 95) if np.any(smoothed > 0) else min_score
-
+        # Second pass: state machine, seamless across chunks
         in_peak = False
         peak_start = 0
-        peak_max = 0
+        peak_max = 0.0
         peak_summit = 0
-
-        for i in range(len(smoothed)):
-            if smoothed[i] > threshold and not in_peak:
-                in_peak = True
-                peak_start = i
-                peak_max = smoothed[i]
-                peak_summit = i
-            elif smoothed[i] > threshold and in_peak:
-                if smoothed[i] > peak_max:
-                    peak_max = smoothed[i]
-                    peak_summit = i
-            elif smoothed[i] <= threshold and in_peak:
-                in_peak = False
-                if peak_max >= min_score:
-                    peaks.append(Peak(
-                        chrom=chrom, start=peak_start, end=i,
-                        summit=peak_summit, score=peak_max,
-                        p_value=1e-5, fold_enrichment=peak_max / max(threshold, 1),
-                        length=i - peak_start
-                    ))
+        for off, smoothed in _chunked_smoothed_coverage(starts):
+            for i in range(len(smoothed)):
+                if smoothed[i] > threshold:
+                    if not in_peak:
+                        in_peak, peak_start = True, off + i
+                        peak_max, peak_summit = smoothed[i], off + i
+                    elif smoothed[i] > peak_max:
+                        peak_max, peak_summit = smoothed[i], off + i
+                elif in_peak:
+                    in_peak = False
+                    if peak_max >= min_score:
+                        peaks.append(Peak(
+                            chrom=chrom, start=peak_start, end=off + i,
+                            summit=peak_summit, score=peak_max,
+                            p_value=1e-5,
+                            fold_enrichment=peak_max / max(threshold, 1.0),
+                            length=off + i - peak_start
+                        ))
+        if in_peak and peak_max >= min_score:
+            end = int(np.max(starts)) + 200
+            peaks.append(Peak(
+                chrom=chrom, start=peak_start, end=end, summit=peak_summit,
+                score=peak_max, p_value=1e-5,
+                fold_enrichment=peak_max / max(threshold, 1.0),
+                length=end - peak_start
+            ))
 
     peaks.sort(key=lambda p: p.score, reverse=True)
     return peaks
@@ -113,8 +148,7 @@ def _builtin_call_peaks(sam_file, output_bed=None, min_score=5):
     if not positions:
         return PeakReport(engine='builtin', message="No mapped reads found.")
 
-    coverage = _compute_coverage(positions)
-    peaks = _find_peaks_from_coverage(coverage, min_score=min_score)
+    peaks = _find_peaks_from_coverage(positions, min_score=min_score)
 
     report = PeakReport(
         engine='builtin',
@@ -181,7 +215,12 @@ def annotate_peaks_with_genes(peaks, gene_bed_file):
         min_dist = float('inf')
         for g in genes:
             if g['chrom'] == peak.chrom:
-                dist = min(abs(peak.start - g['start']), abs(peak.end - g['end']))
+                # distance 0 for overlapping intervals (was computed even
+                # then, so intersected genes were artificially distant)
+                if peak.start < g['end'] and g['start'] < peak.end:
+                    dist = 0
+                else:
+                    dist = min(abs(peak.start - g['end']), abs(g['start'] - peak.end))
                 if dist < min_dist:
                     min_dist = dist
                     nearest = g['name']

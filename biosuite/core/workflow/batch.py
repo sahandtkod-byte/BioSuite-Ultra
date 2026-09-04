@@ -4,8 +4,8 @@ Tracks progress, collects results, handles failures gracefully.
 """
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class BatchJob:

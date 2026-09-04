@@ -17,9 +17,23 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from biosuite.core.utils import config, save_config, set_theme, load_session
-from biosuite.plotting.biological_plots import export_all_to_folder, generate_markdown_story, batch_export_to_pdf
-from biosuite.cli.menu import main_cli
+try:
+    from biosuite.core.utils import config, save_config, set_theme, load_session
+    from biosuite.plotting.biological_plots import export_all_to_folder, generate_markdown_story, batch_export_to_pdf
+    from biosuite.cli.menu import main_cli
+except ModuleNotFoundError as e:
+    missing = getattr(e, 'name', None) or str(e)
+    if missing == 'biosuite' or missing.startswith('biosuite.'):
+        hint = ("BioSuite package not found. Run this script from the project root "
+                "(the folder containing run.py and biosuite/).")
+    else:
+        hint = (f"Missing dependency: '{missing}'.\n"
+                "Install the core dependencies once, either of:\n"
+                "    python -m pip install -e .\n"
+                "    python -m pip install -r requirements.txt\n"
+                "(The first command is lighter — it installs only the core stack.)")
+    print(f"\n[run.py] {hint}\n", file=sys.stderr)
+    raise SystemExit(2) from None
 
 
 def run_benchmark():

@@ -3,10 +3,10 @@ Synteny dotplot for whole-genome comparison.
 Plots positional matches between two genomes as dots on a 2D grid.
 Pure Python / matplotlib implementation.
 """
-import numpy as np
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-from collections import defaultdict
 
 
 def compute_dotplot(seq1, seq2, word_size=10, step=1):
@@ -86,7 +86,9 @@ def plot_dotplot(seq1, seq2, word_size=10, title="Dotplot",
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    if show_histograms and hits:
+    # Guard: when an external ax was passed, no histogram axes exist —
+    # the old code called .hist on None and crashed.
+    if show_histograms and hits and ax_histx is not None:
         # X histogram
         ax_histx.hist(xs, bins=50, color=dot_color, alpha=0.7, edgecolor='black')
         ax_histx.set_ylabel("Count")
@@ -262,7 +264,6 @@ def plot_synteny(genes1, genes2, genome1_name="Genome 1", genome2_name="Genome 2
     plot_gene_order(genes2, genome2_name, ax=ax2, colors=colors2)
 
     # Draw connecting lines
-    from matplotlib.lines import Line2D
     for g in common:
         i1 = genes1.index(g)
         i2 = genes2.index(g)

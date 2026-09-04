@@ -6,34 +6,101 @@ Supports both interactive menu mode and non-interactive command mode:
     biosuite --cmd gc ATCGATCG  # Non-interactive
     biosuite --cmd translate ATCGATCG --frame 1
 """
-import sys
-import os
 import argparse
-import matplotlib.pyplot as plt
-from .. import __version__
-from ..core.utils import config, set_theme, save_config
-from ..plotting.biological_plots import (
-    volcano_plot, pca_plot, manhattan_plot, ma_plot, venn_diagram,
-    barplot_custom, boxplot_custom, heatmap_custom, scatter_custom, timeseries_plot,
-    qq_plot, clustered_heatmap, circos_plot, alignment_viewer,
-    violin_plot, raincloud_plot, ridge_plot, dot_plot,
-    export_all_to_folder, generate_markdown_story, batch_export_to_pdf
-)
-from ..plotting.math_plots import sine_plot, cosine_plot, linear_plot, quadratic_plot, cubic_plot, exponential_plot, logistic_plot
-from ..plotting.specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
-from ..plotting.upset_plots import plot_upset, compute_upset_matrix, compute_set_statistics, plot_set_sizes
-from ..plotting.genome_browser import plot_genome_tracks, parse_bed, parse_vcf, create_coverage_from_bam, create_bed_track, create_variant_track
-from ..plotting.conservation_plots import plot_sequence_logo, plot_conservation_bar, plot_logo_with_conservation, compute_conservation_scores, plot_motif_enrichment
-from ..plotting.synteny import plot_dotplot, plot_synteny_dotplot, compute_synteny_score, plot_synteny
-from ..core.workflow.pipeline import Pipeline, format_pipeline_report
-from ..core.workflow.batch import BatchProcessor, format_batch_report
-from ..core.workflow.report import create_report, generate_pipeline_report, generate_batch_report
-from ..core.go_browser import GOBrowser, format_go_results
-from ..core.pathway_viz import PathwayMap, draw_pathway, create_kegg_style_pathway, format_pathway_report
-from ..core.gwas import run_gwas, detect_lead_snps, generate_gwas_data, format_gwas_report
-from ..core.epitope import (predict_t_cell_epitopes, predict_b_cell_epitopes,
-                              predict_linear_epitopes, format_epitope_report)
+import os
+import sys
 
+import matplotlib.pyplot as plt
+
+
+def _enable_utf8_stdio():
+    """Make CLI output safe on Windows classic consoles.
+
+    Windows' legacy cmd defaults to cp1252; any box-drawing character in
+    the banner (e.g. '█') then raises UnicodeEncodeError and kills run.py
+    at startup. Reconfigure stdio to UTF-8 with replace-fallback; no-ops
+    on streams without ``reconfigure`` (pytest capture, very old runtimes).
+    """
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError):  # fmt: skip
+            pass
+
+
+from .. import __version__
+from ..core.epitope import (
+    format_epitope_report,
+    predict_b_cell_epitopes,
+    predict_t_cell_epitopes,
+)
+from ..core.go_browser import GOBrowser, format_go_results
+from ..core.gwas import (
+    detect_lead_snps,
+    format_gwas_report,
+    generate_gwas_data,
+    run_gwas,
+)
+from ..core.pathway_viz import (
+    create_kegg_style_pathway,
+    draw_pathway,
+    format_pathway_report,
+)
+from ..core.utils import config, save_config, set_theme
+from ..core.workflow.batch import BatchProcessor, format_batch_report
+from ..core.workflow.pipeline import Pipeline, format_pipeline_report
+from ..core.workflow.report import (
+    create_report,
+)
+from ..plotting.biological_plots import (
+    alignment_viewer,
+    barplot_custom,
+    boxplot_custom,
+    circos_plot,
+    clustered_heatmap,
+    dot_plot,
+    heatmap_custom,
+    ma_plot,
+    manhattan_plot,
+    pca_plot,
+    qq_plot,
+    raincloud_plot,
+    ridge_plot,
+    scatter_custom,
+    timeseries_plot,
+    venn_diagram,
+    violin_plot,
+    volcano_plot,
+)
+from ..plotting.conservation_plots import (
+    plot_logo_with_conservation,
+)
+from ..plotting.genome_browser import (
+    create_coverage_from_bam,
+    plot_genome_tracks,
+)
+from ..plotting.math_plots import (
+    cosine_plot,
+    cubic_plot,
+    exponential_plot,
+    linear_plot,
+    logistic_plot,
+    quadratic_plot,
+    sine_plot,
+)
+from ..plotting.specialized_plots import (
+    gsea_plot,
+    motif_logo,
+    sankey_diagram,
+    umap_plot,
+)
+from ..plotting.synteny import (
+    compute_synteny_score,
+    plot_synteny_dotplot,
+)
+from ..plotting.upset_plots import (
+    plot_upset,
+)
 
 G = '\033[92m'  # Green
 C = '\033[96m'  # Cyan
@@ -131,6 +198,7 @@ def _launch_api(port=8000):
     """Launch the REST API server."""
     try:
         import uvicorn
+
         from ..api import app
         print(f"Starting API server on port {port}...")
         uvicorn.run(app, host="0.0.0.0", port=port)
@@ -211,9 +279,7 @@ def _item(num, name, desc="", color=W):
         print(f"  {C}│{R}  {B}{G}{num:>3}{R}  {color}{name}{R}")
 
 
-def _col2(n1, n2, c1="", c2="", d1="", d2=""):
-    p1 = f"{n1:<26}" + (f" {D}{d1}{R}" if d1 else "")
-    p2 = f"{n2:<26}" + (f" {D}{d2}{R}" if d2 else "")
+def _col2(n1, n2, c1="", c2="", _d1="", _d2=""):
     print(f"  {C}│{R}  {G}{n1:>3}{R} {c1}  {G}{n2:>3}{R} {c2}")
 
 
@@ -331,6 +397,8 @@ def print_menu():
 
 def main_cli(argv=None):
     """Main CLI entry point. Supports interactive menu and non-interactive commands."""
+    _enable_utf8_stdio()
+
     parser = _build_parser()
 
     # Non-interactive mode: parse arguments
@@ -389,7 +457,7 @@ def main_cli(argv=None):
 
         # ── Sequence Analysis (20-28) ──
         elif choice == '20':
-            from ..core.blast import run_blast, format_blast_result
+            from ..core.blast import format_blast_result, run_blast
             q = input("  Query FASTA: ").strip()
             db = input("  Database FASTA: ").strip()
             if q and db:
@@ -397,7 +465,12 @@ def main_cli(argv=None):
                 print(format_blast_result(result))
 
         elif choice == '21':
-            from ..core.msa import auto_align, format_alignment, consensus_sequence, read_fasta_for_msa
+            from ..core.msa import (
+                auto_align,
+                consensus_sequence,
+                format_alignment,
+                read_fasta_for_msa,
+            )
             fp = input("  FASTA file: ").strip()
             seqs = read_fasta_for_msa(fp)
             if seqs:
@@ -452,7 +525,7 @@ def main_cli(argv=None):
 
         # ── Transcriptomics (30-35) ──
         elif choice == '30':
-            from ..core.trimming import trim_fastq, format_trim_report
+            from ..core.trimming import format_trim_report, trim_fastq
             infile = input("  Input FASTQ: ").strip()
             out = input("  Output [auto]: ").strip() or None
             qual = int(input("  Quality [20]: ") or "20")
@@ -460,14 +533,14 @@ def main_cli(argv=None):
             print(format_trim_report(trim_fastq(infile, out, qual, ml)))
 
         elif choice == '31':
-            from ..core.quantification import quantify_reads, format_quant_report
+            from ..core.quantification import format_quant_report, quantify_reads
             reads = input("  Reads FASTQ: ").strip()
             trans = input("  Transcriptome FASTA: ").strip()
             sample = input("  Sample name [s1]: ").strip() or "s1"
             print(format_quant_report(quantify_reads(reads, trans, sample)))
 
         elif choice == '32':
-            from ..core.expression import read_counts_matrix, differential_expression
+            from ..core.expression import differential_expression, read_counts_matrix
             fp = input("  Count matrix: ").strip()
             cond = input("  Conditions (comma-sep): ").strip().split(',')
             counts = read_counts_matrix(fp)
@@ -475,21 +548,22 @@ def main_cli(argv=None):
                 print(differential_expression(counts, cond).head(20).to_string())
 
         elif choice == '33':
-            from ..core.expression import read_counts_matrix, cpm_normalization
+            from ..core.expression import cpm_normalization, read_counts_matrix
             counts = read_counts_matrix(input("  Count matrix: ").strip())
             if counts is not None:
                 print(cpm_normalization(counts).head(10).to_string())
 
         elif choice == '34':
-            from ..core.expression import read_counts_matrix, tpm_normalization
             import numpy as np
+
+            from ..core.expression import read_counts_matrix, tpm_normalization
             counts = read_counts_matrix(input("  Count matrix: ").strip())
             if counts is not None:
                 lens = np.array([float(x) for x in input("  Gene lengths (kb, comma-sep): ").split(',')])
                 print(tpm_normalization(counts, lens).head(10).to_string())
 
         elif choice == '35':
-            from ..core.enrichment import run_ora, run_gsea, format_enrichment_report
+            from ..core.enrichment import format_enrichment_report, run_gsea, run_ora
             genes = [g.strip() for g in input("  Gene IDs: ").split(',') if g.strip()]
             m = input("  Method (ORA/GSEA) [ORA]: ").strip().upper() or "ORA"
             result = run_ora(genes) if m == 'ORA' else run_gsea(genes)
@@ -514,7 +588,11 @@ def main_cli(argv=None):
 
         elif choice == '44':
             from ..core.msa import read_fasta_for_msa
-            from ..core.phylogeny import distance_matrix, upgma_tree, plot_phylogenetic_tree
+            from ..core.phylogeny import (
+                distance_matrix,
+                plot_phylogenetic_tree,
+                upgma_tree,
+            )
             seqs = read_fasta_for_msa(input("  Aligned FASTA: ").strip())
             if seqs:
                 names = [n for n, _ in seqs]
@@ -528,11 +606,11 @@ def main_cli(argv=None):
                                                   bootstrap=int(input("  Bootstrap [100]: ") or "100"))))
 
         elif choice == '46':
-            from ..core.bayesian_phylogeny import run_bayesian, format_bayesian_report
+            from ..core.bayesian_phylogeny import format_bayesian_report, run_bayesian
             print(format_bayesian_report(run_bayesian(input("  Aligned FASTA: ").strip())))
 
         elif choice == '47':
-            from ..core.ngs import read_vcf, manhattan_from_vcf
+            from ..core.ngs import manhattan_from_vcf, read_vcf
             df = read_vcf(input("  VCF file: ").strip())
             if df is not None:
                 mh = manhattan_from_vcf(df)
@@ -542,7 +620,11 @@ def main_cli(argv=None):
 
         # ── Single-Cell & Proteomics (50-53) ──
         elif choice == '50':
-            from ..core.single_cell import load_count_matrix, run_full_pipeline, format_sc_report
+            from ..core.single_cell import (
+                format_sc_report,
+                load_count_matrix,
+                run_full_pipeline,
+            )
             adata, err = load_count_matrix(input("  Count matrix (h5ad/csv/10x): ").strip())
             if err:
                 print(f"  Error: {err}")
@@ -550,14 +632,16 @@ def main_cli(argv=None):
                 print(format_sc_report(run_full_pipeline(adata)[1]))
 
         elif choice == '51':
-            from ..core.structure import full_analysis, format_structure_report
+            from ..core.structure import format_structure_report, full_analysis
             pdb = input("  PDB ID or file: ").strip()
-            import os
             info = full_analysis(filepath=pdb) if os.path.exists(pdb) else full_analysis(pdb_id=pdb)
             print(format_structure_report(info))
 
         elif choice == '52':
-            from ..core.structure_prediction import predict_structure, format_prediction_report
+            from ..core.structure_prediction import (
+                format_prediction_report,
+                predict_structure,
+            )
             seq = input("  Protein seq or UniProt ID: ").strip()
             result = predict_structure(sequence=seq) if len(seq) > 10 else predict_structure(uniprot_id=seq)
             print(format_prediction_report(result))
@@ -578,13 +662,14 @@ def main_cli(argv=None):
             print(format_crispr_report(design_guides(seq, pam_type=pam)))
 
         elif choice == '57':
-            from ..core.metabolism import run_fba, format_flux_report
+            from ..core.metabolism import format_flux_report, run_fba
             model = input("  SBML file (blank=demo): ").strip()
             print(format_flux_report(run_fba(model_file=model if model else None)))
 
         elif choice == '58':
             import numpy as np
-            from ..core.popgen import full_analysis, format_popgen_report
+
+            from ..core.popgen import format_popgen_report, full_analysis
             print("  Enter rows (0/1/2 genotypes, comma-sep):")
             rows = []
             while True:
@@ -595,24 +680,30 @@ def main_cli(argv=None):
                 print(format_popgen_report(full_analysis(np.array(rows))))
 
         elif choice == '59':
-            from ..core.epigenomics import parse_bisulfite_bed, calculate_methylation_levels, format_epigenomics_report
+            from ..core.epigenomics import (
+                calculate_methylation_levels,
+                format_epigenomics_report,
+                parse_bisulfite_bed,
+            )
             print(format_epigenomics_report(calculate_methylation_levels(parse_bisulfite_bed(input("  BED file: ").strip()))))
 
         elif choice == '60':
-            from ..core.metabolomics import detect_peaks
             import numpy as np
+
+            from ..core.metabolomics import detect_peaks
             arr = np.array([float(x) for x in input("  Intensities (comma-sep): ").split(',')])
             features = detect_peaks(arr)
             print(f"  Detected {len(features)} peaks")
 
         elif choice == '61':
-            from ..core.md_simulation import run_simulation, format_md_report
+            from ..core.md_simulation import format_md_report, run_simulation
             print(format_md_report(run_simulation(input("  PDB file: ").strip(),
                                                    steps=int(input("  Steps [1000]: ") or "1000"))))
 
         elif choice == '62':
-            from ..core.bio_ml import train_random_forest, train_svm, format_ml_report
             import numpy as np
+
+            from ..core.bio_ml import format_ml_report, train_random_forest, train_svm
             print("  Enter feature rows (comma-sep):")
             rows = []
             while True:
@@ -638,30 +729,33 @@ def main_cli(argv=None):
         elif choice == '110': exponential_plot()
         elif choice == '111': logistic_plot()
 
-        # ── Analysis (81-86) ──
-        elif choice == '81':
+        # ── Analysis (120-125) ──  (renumbered from 81-86: the display
+        # labels these 120-125 and option 81 already means Synteny Dotplot —
+        # the old shadowing made Synteny unreachable and 120-125 "Invalid".)
+        elif choice == '120':
             from ..core.codon_usage import codon_usage_table, format_codon_usage
             seq = input("  DNA sequence: ").strip().upper()
             result = codon_usage_table(seq)
             print(format_codon_usage(result))
 
-        elif choice == '82':
-            from ..core.codon_usage import kmer_composition, format_kmer_composition
+        elif choice == '121':
+            from ..core.codon_usage import format_kmer_composition, kmer_composition
             seq = input("  Sequence: ").strip().upper()
             k = int(input("  K-mer size [3]: ") or "3")
             result = kmer_composition(seq, k=k)
             print(format_kmer_composition(result))
 
-        elif choice == '83':
+        elif choice == '122':
             from ..core.codon_usage import sequence_complexity
             seq = input("  Sequence: ").strip().upper()
             result = sequence_complexity(seq)
             print(f"  Average complexity: {result['average_complexity']}")
             print(f"  Low complexity: {result['is_low_complexity']}")
 
-        elif choice == '84':
-            from ..core.survival import kaplan_meier, log_rank_test, format_km_result
+        elif choice == '123':
             import numpy as np
+
+            from ..core.survival import format_km_result, kaplan_meier
             print("  Enter survival times (comma-sep):")
             times = np.array([float(x) for x in input("  Times: ").split(',')])
             print("  Enter event indicators (1=event, 0=censored, comma-sep):")
@@ -669,8 +763,12 @@ def main_cli(argv=None):
             result = kaplan_meier(times, events)
             print(format_km_result(result))
 
-        elif choice == '85':
-            from ..plotting.network_plots import plot_network, create_ppi_network, network_statistics
+        elif choice == '124':
+            from ..plotting.network_plots import (
+                create_ppi_network,
+                network_statistics,
+                plot_network,
+            )
             print("  Enter interactions (protein_a,protein_b,weight — one per line, empty to finish):")
             interactions = []
             while True:
@@ -686,8 +784,8 @@ def main_cli(argv=None):
                 import matplotlib.pyplot as plt
                 plt.show()
 
-        elif choice == '86':
-            from ..plotting.network_plots import network_statistics, create_ppi_network
+        elif choice == '125':
+            from ..plotting.network_plots import create_ppi_network, network_statistics
             print("  Enter interactions (protein_a,protein_b,weight — one per line, empty to finish):")
             interactions = []
             while True:
@@ -747,8 +845,9 @@ def main_cli(argv=None):
                 print("  No tracks added.")
 
         elif choice == '79':
-            from ..plotting.interactive_plots import interactive_scatter
             import numpy as np
+
+            from ..plotting.interactive_plots import interactive_scatter
             use_file = input("  Load from file? (y/n): ").strip().lower()
             if use_file == 'y':
                 fp = input("  CSV file: ").strip()
@@ -810,7 +909,10 @@ def main_cli(argv=None):
             print(format_orf_results(orfs))
 
         elif choice == '64':
-            from ..core.orf_finder import find_restriction_sites, format_restriction_sites
+            from ..core.orf_finder import (
+                find_restriction_sites,
+                format_restriction_sites,
+            )
             seq = input("  DNA sequence: ").strip().upper()
             enzymes = input("  Enzymes (comma-sep, or blank for all): ").strip()
             enzyme_list = [e.strip() for e in enzymes.split(',') if e.strip()] or None
@@ -837,45 +939,49 @@ def main_cli(argv=None):
 
         # ── Database Search (67-72) ──
         elif choice == '67':
-            from ..core.databases import search_ncbi, format_search_results
+            from ..core.databases import format_search_results, search_ncbi
             query = input("  Search query: ").strip()
             results = search_ncbi(query)
             print(format_search_results(results))
 
         elif choice == '68':
-            from ..core.databases import search_uniprot, format_search_results
+            from ..core.databases import format_search_results, search_uniprot
             query = input("  Protein/gene name: ").strip()
             results = search_uniprot(query)
             print(format_search_results(results))
 
         elif choice == '69':
-            from ..core.databases import search_pdb, format_search_results
+            from ..core.databases import format_search_results, search_pdb
             query = input("  Protein name or keyword: ").strip()
             results = search_pdb(query)
             print(format_search_results(results))
 
         elif choice == '70':
-            from ..core.databases import search_kegg, format_search_results
+            from ..core.databases import format_search_results, search_kegg
             query = input("  Pathway/compound name: ").strip()
             results = search_kegg(query)
             print(format_search_results(results))
 
         elif choice == '71':
-            from ..core.databases import search_ensembl, format_search_results
+            from ..core.databases import format_search_results, search_ensembl
             gene = input("  Gene symbol: ").strip()
             species = input("  Species [human]: ").strip() or "human"
             results = search_ensembl(gene, species=species)
             print(format_search_results(results))
 
         elif choice == '72':
-            from ..core.databases import search_all, format_search_results
+            from ..core.databases import format_search_results, search_all
             query = input("  Search query: ").strip()
             results = search_all(query)
             print(format_search_results(results))
 
         # ── File Formats (73-76) ──
         elif choice == '73':
-            from ..core.file_formats import parse_bed, format_bed_summary, bed_to_dataframe
+            from ..core.file_formats import (
+                bed_to_dataframe,
+                format_bed_summary,
+                parse_bed,
+            )
             fp = input("  BED file path: ").strip()
             records = parse_bed(fp)
             print(format_bed_summary(records))
@@ -883,7 +989,10 @@ def main_cli(argv=None):
             print(df.head(10).to_string())
 
         elif choice == '74':
-            from ..core.file_formats import parse_gff, format_gff_summary, gff_to_dataframe
+            from ..core.file_formats import (
+                format_gff_summary,
+                parse_gff,
+            )
             fp = input("  GFF/GTF file path: ").strip()
             records = parse_gff(fp)
             print(format_gff_summary(records))
@@ -1020,8 +1129,13 @@ def main_cli(argv=None):
 
         elif choice == 'b':
             import numpy as np
-            from ..core.variant_calling import (detect_structural_variants, detect_cnv,
-                                                 format_sv_report, format_cnv_report)
+
+            from ..core.variant_calling import (
+                detect_cnv,
+                detect_structural_variants,
+                format_cnv_report,
+                format_sv_report,
+            )
             print("  SV / CNV Detection from Coverage Data")
             use_demo = input("  Use demo data? (y/n) [y]: ").strip().lower() or 'y'
             if use_demo == 'y':
@@ -1047,7 +1161,12 @@ def main_cli(argv=None):
 
         elif choice == 'c':
             import numpy as np
-            from ..core.file_formats import read_bigwig, bigwig_summary, format_bigwig_summary
+
+            from ..core.file_formats import (
+                bigwig_summary,
+                format_bigwig_summary,
+                read_bigwig,
+            )
             print("  BigWig Reader")
             fp = input("  BigWig file path: ").strip()
             if fp and os.path.exists(fp):
@@ -1069,7 +1188,12 @@ def main_cli(argv=None):
             import matplotlib
             matplotlib.use('Agg')
             import matplotlib.pyplot as plt
-            from ..plotting.plasmid_map import create_sample_plasmid, draw_plasmid, format_plasmid_report
+
+            from ..plotting.plasmid_map import (
+                create_sample_plasmid,
+                draw_plasmid,
+                format_plasmid_report,
+            )
             pm = create_sample_plasmid()
             print(format_plasmid_report(pm))
             fig = draw_plasmid(pm)
@@ -1077,7 +1201,11 @@ def main_cli(argv=None):
             plt.close()
 
         elif choice == 'm':
-            from ..core.cloning import find_restriction_sites, simulate_digestion, format_digest_report
+            from ..core.cloning import (
+                find_restriction_sites,
+                format_digest_report,
+                simulate_digestion,
+            )
             seq = input("  DNA sequence: ").strip().upper()
             enzymes = input("  Enzymes (comma-sep, e.g. EcoRI,BamHI): ").strip().split(',')
             enzymes = [e.strip() for e in enzymes if e.strip()]
@@ -1091,7 +1219,8 @@ def main_cli(argv=None):
             import matplotlib
             matplotlib.use('Agg')
             import matplotlib.pyplot as plt
-            from ..core.cloning import simulate_digestion, plot_virtual_gel
+
+            from ..core.cloning import plot_virtual_gel, simulate_digestion
             seq = input("  DNA sequence: ").strip().upper()
             enzymes = input("  Enzymes (comma-sep): ").strip().split(',')
             enzymes = [e.strip() for e in enzymes if e.strip()]
@@ -1104,7 +1233,11 @@ def main_cli(argv=None):
                 print("  Invalid input.")
 
         elif choice == 'o':
-            from ..core.cloning import design_primers, simulate_pcr, format_primer_report
+            from ..core.cloning import (
+                design_primers,
+                format_primer_report,
+                simulate_pcr,
+            )
             template = input("  Template sequence: ").strip().upper()
             start = int(input("  Amplicon start: ") or "0")
             end = int(input("  Amplicon end: ") or str(len(template)))
@@ -1121,9 +1254,9 @@ def main_cli(argv=None):
             import matplotlib
             matplotlib.use('Agg')
             import matplotlib.pyplot as plt
+
             from ..plotting.sequence_viewer import draw_sequence_view
             seq = input("  DNA sequence (or FASTA path): ").strip()
-            import os
             if os.path.exists(seq):
                 from ..core.sequence import read_fasta
                 records = read_fasta(seq)
@@ -1134,7 +1267,7 @@ def main_cli(argv=None):
             plt.close()
 
         elif choice == 'q':
-            from ..core.cloning import simulate_ligation, format_digest_report
+            from ..core.cloning import format_digest_report, simulate_ligation
             print("  Enter fragment sizes (comma-separated):")
             sizes = input("  Sizes: ").strip()
             if sizes:
@@ -1158,8 +1291,16 @@ def main_cli(argv=None):
 
         # ── Phase 6 Features (d-k) ──
         elif choice == 'd':
-            from ..plotting.plot_api import volcano, pca, manhattan, scatter, boxplot, heatmap
             import numpy as np
+
+            from ..plotting.plot_api import (
+                boxplot,
+                heatmap,
+                manhattan,
+                pca,
+                scatter,
+                volcano,
+            )
             print("  Interactive Plot Generator (Plotly)")
             print("  Plot types: 1=Volcano  2=PCA  3=Manhattan  4=Scatter  5=Boxplot  6=Heatmap")
             ptype = input("  Select plot type [1]: ").strip() or "1"
@@ -1252,7 +1393,11 @@ def main_cli(argv=None):
                     print(f"  Created: biosuite-plugin-{name}/")
 
         elif choice == 'g':
-            from ..core.file_formats import detect_file_format, read_file, format_file_summary
+            from ..core.file_formats import (
+                detect_file_format,
+                format_file_summary,
+                read_file,
+            )
             fp = input("  File path: ").strip()
             if fp and os.path.exists(fp):
                 fmt = detect_file_format(fp)
@@ -1263,7 +1408,7 @@ def main_cli(argv=None):
                 print("  File not found.")
 
         elif choice == 'h':
-            from ..core.expression import read_counts_matrix, deseq2_normalization
+            from ..core.expression import deseq2_normalization, read_counts_matrix
             fp = input("  Count matrix: ").strip()
             counts = read_counts_matrix(fp)
             if counts is not None:
@@ -1272,7 +1417,10 @@ def main_cli(argv=None):
                 print(normalized.head(10).to_string())
 
         elif choice == 'i':
-            from ..core.expression import read_counts_matrix, variance_stabilizing_transformation
+            from ..core.expression import (
+                read_counts_matrix,
+                variance_stabilizing_transformation,
+            )
             fp = input("  Count matrix: ").strip()
             counts = read_counts_matrix(fp)
             if counts is not None:
@@ -1281,7 +1429,7 @@ def main_cli(argv=None):
                 print(vst.head(10).to_string())
 
         elif choice == 'j':
-            from ..core.expression import read_counts_matrix, differential_expression
+            from ..core.expression import differential_expression, read_counts_matrix
             fp = input("  Count matrix: ").strip()
             cond = input("  Conditions (comma-sep): ").strip().split(',')
             counts = read_counts_matrix(fp)
@@ -1291,7 +1439,11 @@ def main_cli(argv=None):
                 print(result.head(20).to_string())
 
         elif choice == 'k':
-            from ..core.file_formats import detect_file_format, read_file, format_file_summary
+            from ..core.file_formats import (
+                detect_file_format,
+                format_file_summary,
+                read_file,
+            )
             fp = input("  File path: ").strip()
             if fp and os.path.exists(fp):
                 fmt = detect_file_format(fp)
@@ -1299,7 +1451,7 @@ def main_cli(argv=None):
                 result = read_file(fp)
                 print(format_file_summary(result))
                 if 'records' in result and result['records']:
-                    print(f"\n  First 5 records:")
+                    print("\n  First 5 records:")
                     for rec in result['records'][:5]:
                         print(f"    {rec}")
             else:
@@ -1309,9 +1461,10 @@ def main_cli(argv=None):
             port = input("  Port [8000]: ").strip() or "8000"
             print(f"\n  {G}Starting BioSuite API Server on port {port}...{R}")
             print(f"  API Docs: http://localhost:{port}/docs")
-            print(f"  Press Ctrl+C to stop\n")
+            print("  Press Ctrl+C to stop\n")
             try:
                 import uvicorn
+
                 from ..api import app
                 uvicorn.run(app, host="0.0.0.0", port=int(port))
             except KeyboardInterrupt:

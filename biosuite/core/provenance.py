@@ -4,12 +4,11 @@ Provenance tracking for reproducible bioinformatics analyses.
 Records every analysis step with parameters, timestamps, and results.
 Exports as JSON, HTML timeline, or SQLite for sharing and auditing.
 """
-import os
 import json
 import sqlite3
 import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from dataclasses import dataclass, field, asdict
 from functools import wraps
 
 

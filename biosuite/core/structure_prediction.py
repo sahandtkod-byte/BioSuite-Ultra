@@ -4,10 +4,10 @@ Protein structure prediction with dual-mode execution.
 Pure Python ESMFold via the esm library as default, AlphaFold DB API as optional.
 Both are free for academic use.
 """
-import os
 import tempfile
-import numpy as np
 from dataclasses import dataclass, field
+
+import numpy as np
 
 try:
     import esm
@@ -36,7 +36,12 @@ class PredictionResult:
 
 
 def check_prediction_tools():
-    return {'esmfold': HAS_ESM, 'torch': HAS_ESM}
+    try:
+        import torch  # noqa: F401
+        has_torch = True
+    except ImportError:
+        has_torch = False
+    return {'esmfold': HAS_ESM, 'torch': has_torch}
 
 
 # ── Pure Python ESMFold ─────────────────────────────────────────────────────
@@ -75,14 +80,26 @@ def _esmfold_predict(sequence, output_file=None):
 
 
 def _extract_plddt(pdb_string):
+    """One pLDDT per RESIDUE (not per atom).
+
+    The old version appended the B-factor of every ATOM record, inflating
+    the list ~9x relative to the residue count: the report then claimed
+    e.g. 280 confident residues for a 30-residue protein.
+    """
     scores = []
+    seen = set()
     for line in pdb_string.split('\n'):
-        if line.startswith('ATOM') and len(line) >= 66:
+        if line.startswith(('ATOM', 'HETATM')) and len(line) >= 66:
+            chain = line[21]
+            resseq = line[22:26].strip()
             try:
                 bf = float(line[60:66].strip())
-                scores.append(bf)
             except ValueError:
-                pass
+                continue
+            if (chain, resseq) in seen:
+                continue
+            seen.add((chain, resseq))
+            scores.append(bf)
     return scores
 
 
@@ -116,6 +133,7 @@ def _alphafold_fetch(uniprot_id, output_file=None):
                 pdb_string=pdb_string,
                 plddt_scores=plddt,
                 confidence=confidence,
+                num_residues=len(plddt),
                 output_file=output_file or '',
                 message=f"AlphaFold DB: {uniprot_id}, confidence {confidence:.1f}%"
             )
@@ -131,16 +149,19 @@ def predict_structure(sequence=None, uniprot_id=None, output_file=None):
     if output_file is None:
         output_file = tempfile.mktemp(suffix='.pdb')
 
+    last_result = None
     if uniprot_id:
-        result = _alphafold_fetch(uniprot_id, output_file)
-        if result.pdb_string:
-            return result
+        last_result = _alphafold_fetch(uniprot_id, output_file)
+        if last_result.pdb_string:
+            return last_result
 
     if sequence:
-        result = _esmfold_predict(sequence, output_file)
-        if result.pdb_string:
-            return result
+        last_result = _esmfold_predict(sequence, output_file)
+        if last_result.pdb_string:
+            return last_result
 
+    if last_result is not None:
+        return last_result  # surface the engine error, not a generic text
     return PredictionResult(engine='none', message="No sequence or UniProt ID provided")
 
 

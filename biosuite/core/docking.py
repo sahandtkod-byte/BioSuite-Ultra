@@ -6,9 +6,10 @@ Pure Python simple docking scoring as default, AutoDock Vina as optional.
 import os
 import subprocess
 import tempfile
-import numpy as np
 import warnings
 from dataclasses import dataclass, field
+
+import numpy as np
 
 from .utils import PerformanceWarning
 
@@ -102,6 +103,8 @@ def _builtin_dock(receptor_file, ligand_file, center=None, num_poses=5):
             z=round(center[2] + noise[2], 3)
         ))
     poses.sort(key=lambda p: p.energy)
+    for new_rank, pose in enumerate(poses, start=1):
+        pose.rank = new_rank
 
     return DockingResult(
         engine='builtin',
@@ -114,19 +117,46 @@ def _builtin_dock(receptor_file, ligand_file, center=None, num_poses=5):
 
 # ── Vina Wrapper ────────────────────────────────────────────────────────────
 
+def _parse_vina_output_pdbqt(path):
+    """Parse `MODEL <i>` / `REMARK VINA RESULT: <energy>` records into
+    (rank, energy) pairs — the only data written for docking poses."""
+    energies = []
+    import re
+    pat = re.compile(r"REMARK\s+VINA RESULT:\s*(-?\d+\.?\d*)")
+    try:
+        with open(path) as fh:
+            for line in fh:
+                m = pat.match(line.strip())
+                if m:
+                    energies.append(float(m.group(1)))
+    except OSError:
+        return []
+    return [(i + 1, e) for i, e in enumerate(energies)]
+
+
 def _vina_dock(receptor_pdbqt, ligand_pdbqt, center, box_size, num_poses):
+    """Run vina; return (rank, energy) pose list or None on failure."""
+    # tempfile.mktemp is a TOCTOU race and the file was never deleted;
+    # use mkstemp and always unlink afterwards.
+    fd, out_path = tempfile.mkstemp(suffix='.pdbqt')
+    os.close(fd)
     cmd = ['vina', '--receptor', receptor_pdbqt, '--ligand', ligand_pdbqt,
            '--center_x', str(center[0]), '--center_y', str(center[1]),
            '--center_z', str(center[2]),
            '--size_x', str(box_size[0]), '--size_y', str(box_size[1]),
            '--size_z', str(box_size[2]),
-           '--num_modes', str(num_poses), '--out', tempfile.mktemp(suffix='.pdbqt')]
+           '--num_modes', str(num_poses), '--out', out_path]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
         if r.returncode == 0:
-            return r.stdout
+            return _parse_vina_output_pdbqt(out_path)
     except (OSError, subprocess.SubprocessError):
         pass
+    finally:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
     return None
 
 
@@ -141,10 +171,21 @@ def dock(receptor_file, ligand_file, center=None, box_size=(20, 20, 20),
 
     tools = check_docking_tools()
     if tool in ('vina', 'auto') and tools['vina']:
-        result = _vina_dock(receptor_file, ligand_file, center or [0, 0, 0],
-                           box_size, num_poses)
-        if result:
-            return DockingResult(engine='vina', message="AutoDock Vina (external)")
+        vina_poses = _vina_dock(receptor_file, ligand_file, center or [0, 0, 0],
+                                box_size, num_poses)
+        if vina_poses:
+            # Previously the vina run was accepted but its output was
+            # thrown away, leaving energy=0 / poses=[] — a silent lie.
+            cx, cy, cz = (center or [0, 0, 0])
+            poses = [Pose(rank=rank, energy=energy, x=cx, y=cy, z=cz)
+                     for rank, energy in vina_poses]
+            return DockingResult(
+                engine='vina',
+                binding_energy=poses[0].energy,
+                poses=poses,
+                num_poses=len(poses),
+                message=(f"AutoDock Vina (external): {len(poses)} poses, "
+                         f"best energy={poses[0].energy:.2f} kcal/mol"))
 
     warnings.warn(
         "AutoDock Vina not found. Using built-in distance-based scoring. "

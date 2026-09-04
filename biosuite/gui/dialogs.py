@@ -3,9 +3,8 @@ Custom themed dialogs and splash screen for BioSuite GUI.
 No native Windows widgets — all cyberpunk-themed.
 """
 import customtkinter as ctk
-import tkinter as tk
 
-from .themes import FONT_FAMILY, FONT_BODY, FONT_BUTTON, FONT_MONO, FONT_SMALL
+from .themes import FONT_BODY, FONT_BUTTON, FONT_FAMILY, FONT_MONO, FONT_SMALL
 
 
 class _BaseDialog(ctk.CTkToplevel):

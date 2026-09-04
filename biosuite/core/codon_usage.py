@@ -1,9 +1,9 @@
 """
 Codon usage bias analysis and k-mer counting.
 """
-import numpy as np
 from collections import Counter
-from dataclasses import dataclass
+
+import numpy as np
 
 from .utils import GENETIC_CODE as CODON_TABLE
 
@@ -50,7 +50,8 @@ def sequence_complexity(sequence, window=20):
         complexities.append({'position': i, 'complexity': round(complexity, 4)})
     avg = np.mean([c['complexity'] for c in complexities]) if complexities else 0
     return {'regions': complexities, 'average_complexity': round(float(avg), 4),
-            'is_low_complexity': avg < 0.3}
+            # plain Python bool: np.bool_ breaks json.dumps on the API path
+            'is_low_complexity': bool(avg < 0.3)}
 
 
 def format_codon_usage(result):

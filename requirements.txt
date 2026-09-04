@@ -24,7 +24,7 @@ biotite>=0.37
 
 # === Tier 3: Specialized ===
 ete3>=3.1
-cobra>=3.0
+cobra>=0.26.0  # NOTE: cobra is a 0.x package — no cobra 3.0 exists; earlier ">=3.0" pin could never resolve on any platform.
 shap>=0.42
 statsmodels>=0.14
 umap-learn>=0.5

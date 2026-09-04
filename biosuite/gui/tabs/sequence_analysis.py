@@ -2,10 +2,41 @@
 Sequence analysis tabs: Sequence, Alignment, Phylogeny, ORF/Primers/Enzymes.
 """
 import os
-import customtkinter as ctk
 from tkinter import filedialog
 
-from ..themes import FONT_BODY, FONT_BUTTON, FONT_SMALL
+import customtkinter as ctk
+
+
+def _parse_sequence_text(text):
+    """Extract a DNA sequence from pasted text.
+
+    Handles FASTA (header lines start with '>'), FASTQ (4-line records:
+    @header / seq / + / quality — the quality line may itself start with
+    A/C/G/T and must NOT be treated as sequence), and plain raw sequence.
+
+    Pure string logic kept module-level so it is unit-testable headlessly.
+    """
+    text = text.strip()
+    if not text:
+        return ""
+    lines = text.split('\n')
+    out = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i].strip()
+        if line.startswith('>'):
+            i += 1  # FASTA header
+        elif line.startswith('@') and i + 2 < n and lines[i + 2].lstrip().startswith('+'):
+            # FASTQ record: header, sequence, +, quality
+            out.append(lines[i + 1].strip().replace(' ', ''))
+            i += 4
+        elif line.startswith('+'):
+            i += 1  # stray FASTQ separator
+        else:
+            out.append(line.replace(' ', ''))
+            i += 1
+    return ''.join(out)
 
 
 class SequenceAnalysisTabMixin:
@@ -24,10 +55,18 @@ class SequenceAnalysisTabMixin:
         self._label(left, 'Input Sequence (FASTA/FASTQ)', 'sub').pack(padx=14, pady=(14, 4), anchor='w')
         self.seq_text = self._text_box(left, height=280)
         self.seq_text.pack(fill='both', expand=True, padx=10, pady=(0, 6))
+        self.seq_text.bind('<KeyRelease>', lambda e: self._seq_refresh_info())
+        info_row = ctk.CTkFrame(left, fg_color='transparent')
+        info_row.pack(fill='x', padx=10, pady=(0, 4))
+        self.seq_info_label = self._label(info_row, "0 bp", 'dim')
+        self.seq_info_label.pack(side='left')
         btn_row = ctk.CTkFrame(left, fg_color='transparent')
         btn_row.pack(fill='x', padx=10, pady=(0, 10))
-        self._action_button(btn_row, "Load File", self._load_seq_file).pack(side='left', padx=(0, 6))
-        self._action_button(btn_row, "Clear", lambda: self.seq_text.delete("1.0", "end"), 'danger').pack(side='left')
+        self._action_button(btn_row, "Load File", self._load_seq_file,
+                            tip="Open a FASTA/FASTQ/GenBank file").pack(side='left', padx=(0, 6))
+        self._action_button(btn_row, "Clear",
+                            lambda: (self.seq_text.delete("1.0", "end"), self._seq_refresh_info()),
+                            'danger').pack(side='left')
 
         right = self._card(body)
         right.pack(side='right', fill='both', expand=True, padx=(6, 0))
@@ -36,80 +75,107 @@ class SequenceAnalysisTabMixin:
         self.seq_stats.pack(fill='both', expand=True, padx=10, pady=(0, 6))
         btn_row2 = ctk.CTkFrame(right, fg_color='transparent')
         btn_row2.pack(fill='x', padx=10, pady=(0, 10))
-        for label, cmd in [("GC%", self._seq_gc), ("Rev Comp", self._seq_revcomp),
-                           ("Translate", self._seq_translate), ("Stats", self._seq_stats_cmd)]:
-            self._action_button(btn_row2, label, cmd).pack(side='left', padx=(0, 6))
+        for label, cmd, tip in [
+                ("GC%", self._seq_gc, "GC content percentage"),
+                ("Rev Comp", self._seq_revcomp, "Reverse complement of the sequence"),
+                ("Translate", self._seq_translate, "Translate DNA to protein (all 6 frames for long inputs)"),
+                ("Stats", self._seq_stats_cmd, "Full composition statistics")]:
+            self._action_button(btn_row2, label, cmd, tip=tip).pack(side='left', padx=(0, 6))
+        self._action_button(btn_row2, "Copy", self._seq_copy_results, 'success',
+                            tip="Copy results to clipboard").pack(side='left')
 
     def _load_seq_file(self):
         path = filedialog.askopenfilename(filetypes=[
             ("FASTA/FASTQ/GenBank", "*.fasta *.fa *.fq *.fastq *.gb *.genbank")])
         if not path:
             return
-        try:
+
+        def work():
+            # File I/O + formatting off the UI thread so large files
+            # don't freeze the window.
             from ...core.sequence import read_fasta, read_fastq, read_genbank
             if path.endswith(('.fasta', '.fa')):
                 data = read_fasta(path)
-                content = "\n".join(f">{name}\n{seq}" for name, seq in data) if data else ""
-            elif path.endswith(('.fastq', '.fq')):
+                return "\n".join(f">{name}\n{seq}" for name, seq in data) if data else ""
+            if path.endswith(('.fastq', '.fq')):
                 data = read_fastq(path)
-                content = "\n".join(f"@{name}\n{seq}\n+\n{qual}" for name, seq, qual in data) if data else ""
-            else:
-                data = read_genbank(path)
-                content = "\n".join(f">{name}\n{seq}" for name, seq, _ in data) if data else ""
+                return "\n".join(f"@{name}\n{seq}\n+\n{qual}" for name, seq, qual in data) if data else ""
+            data = read_genbank(path)
+            return "\n".join(f">{name}\n{seq}" for name, seq, _ in data) if data else ""
+
+        def done(content):
             self.seq_text.delete("1.0", "end")
             self.seq_text.insert("end", content)
-            self._set_status(f"Loaded {os.path.basename(path)}")
-        except Exception as e:
-            self._msg_error("Error", str(e))
+            self._set_status(f"Loaded {os.path.basename(path)}  ({len(content):,} chars)")
+
+        self._run_bg(work, on_result=done,
+                     status=f"Loading {os.path.basename(path)}...")
 
     def _get_seq(self):
-        text = self.seq_text.get("1.0", "end").strip()
-        return ''.join(line.strip() for line in text.split('\n')
-                       if not line.startswith(('>', '@', '+'))).replace(' ', '')
+        return _parse_sequence_text(self.seq_text.get("1.0", "end"))
+
+    def _seq_refresh_info(self):
+        """Live bp counter under the sequence input."""
+        try:
+            n = len(self._get_seq())
+            self.seq_info_label.configure(text=f"{n:,} bp" if n else "0 bp")
+        except Exception:
+            pass
+
+    def _seq_copy_results(self):
+        content = self.seq_stats.get("1.0", "end-1c")
+        if not content.strip():
+            self._msg_info("Nothing to Copy", "Run an analysis first.")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(content)
+        self._set_status("Results copied to clipboard")
+
+    def _seq_op(self, work, label):
+        """Shared guard + background runner for the four sequence ops."""
+        seq = self._get_seq()
+        if not seq:
+            self._msg_warning("No sequence", "Enter or load a sequence first.")
+            return None
+        def done(text):
+            self.seq_stats.delete("1.0", "end")
+            self.seq_stats.insert("end", text)
+        self._run_bg(lambda: work(seq), on_result=done, status=f"{label}...")
+        return seq
 
     def _seq_gc(self):
-        from ...core.sequence import gc_content, sequence_stats
-        seq = self._get_seq()
-        if not seq:
-            self._msg_warning("No sequence", "Enter or load a sequence first.")
-            return
-        self.seq_stats.delete("1.0", "end")
-        self.seq_stats.insert("end", f"Length: {len(seq)}\n")
-        self.seq_stats.insert("end", f"GC%: {gc_content(seq):.2f}%\n")
-        s = sequence_stats(seq)
-        self.seq_stats.insert("end", f"A:{s['A']} T:{s['T']} G:{s['G']} C:{s['C']} N:{s['N']}\n")
+        def work(seq):
+            from ...core.sequence import gc_content, sequence_stats
+            s = sequence_stats(seq)
+            return (f"Length: {len(seq):,}\n"
+                    f"GC%: {gc_content(seq):.2f}%\n"
+                    f"A:{s['A']} T:{s['T']} G:{s['G']} C:{s['C']} N:{s['N']}\n")
+        self._seq_op(work, "Computing GC%")
 
     def _seq_revcomp(self):
-        from ...core.sequence import reverse_complement
-        seq = self._get_seq()
-        if not seq:
-            self._msg_warning("No sequence", "Enter or load a sequence first.")
-            return
-        rc = reverse_complement(seq)
-        self.seq_stats.delete("1.0", "end")
-        self.seq_stats.insert("end", f"Original ({len(seq)} bp):\n{seq[:200]}{'...' if len(seq)>200 else ''}\n\n")
-        self.seq_stats.insert("end", f"Reverse Complement ({len(rc)} bp):\n{rc[:200]}{'...' if len(rc)>200 else ''}\n")
+        def work(seq):
+            from ...core.sequence import reverse_complement
+            rc = reverse_complement(seq)
+            return (f"Original ({len(seq):,} bp):\n{seq[:200]}{'...' if len(seq) > 200 else ''}\n\n"
+                    f"Reverse Complement ({len(rc):,} bp):\n"
+                    f"{rc[:200]}{'...' if len(rc) > 200 else ''}\n")
+        self._seq_op(work, "Reverse-complementing")
 
     def _seq_translate(self):
-        from ...core.sequence import translate
-        seq = self._get_seq()
-        if not seq:
-            self._msg_warning("No sequence", "Enter or load a sequence first.")
-            return
-        prot = translate(seq, frame=1)
-        self.seq_stats.delete("1.0", "end")
-        self.seq_stats.insert("end", f"Translation (frame 1, {len(prot)} aa):\n{prot[:300]}{'...' if len(prot)>300 else ''}\n")
+        def work(seq):
+            from ...core.sequence import translate
+            prot = translate(seq, frame=1)
+            return (f"Translation (frame 1, {len(prot):,} aa):\n"
+                    f"{prot[:300]}{'...' if len(prot) > 300 else ''}\n")
+        self._seq_op(work, "Translating")
 
     def _seq_stats_cmd(self):
-        from ...core.sequence import sequence_stats
-        seq = self._get_seq()
-        if not seq:
-            self._msg_warning("No sequence", "Enter or load a sequence first.")
-            return
-        stats = sequence_stats(seq)
-        self.seq_stats.delete("1.0", "end")
-        for k, v in stats.items():
-            self.seq_stats.insert("end", f"{k}: {v:.4f}\n" if isinstance(v, float) else f"{k}: {v}\n")
+        def work(seq):
+            from ...core.sequence import sequence_stats
+            stats = sequence_stats(seq)
+            return "".join(f"{k}: {v:.4f}\n" if isinstance(v, float)
+                           else f"{k}: {v}\n" for k, v in stats.items())
+        self._seq_op(work, "Computing stats")
 
     # ─── Alignment Tab ────────────────────────────────────────────────────────
 
@@ -183,7 +249,11 @@ class SequenceAnalysisTabMixin:
         self.phylo_result.pack(fill='both', expand=True)
 
     def _build_tree(self):
-        from ...core.phylogeny import distance_matrix, upgma_tree, plot_phylogenetic_tree
+        from ...core.phylogeny import (
+            distance_matrix,
+            plot_phylogenetic_tree,
+            upgma_tree,
+        )
         text = self.phylo_input.get("1.0", "end").strip()
         if not text:
             self._msg_warning("No data", "Enter aligned sequences (>name and sequence).")

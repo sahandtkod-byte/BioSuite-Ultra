@@ -96,3 +96,9 @@ _tmp_repo/
 # ── Docs build output ──────────────────────────────────────────────────────
 docs/_build/
 docs/_autosummary/
+*.patch
+bio_suite_cache/
+.coverage
+coverage/
+# Runtime plot-story export (tests write to cwd)
+story.md

@@ -3,10 +3,10 @@ UpSet plots for multi-set intersections.
 Better than Venn diagrams for 3+ sets — shows all intersection sizes.
 Pure Python implementation using matplotlib.
 """
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from itertools import combinations
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def compute_upset_matrix(sets_dict):

@@ -6,22 +6,22 @@ in Jupyter notebooks and Google Colab.
 
 Usage in Jupyter:
     %pip install biosuite-ultra
-    %load_ext biosuite.notebook.magic
+    %load_ext biosuite.notebook
 
     # Quick analysis
     %biosuite gc ATCGATCGATCG
 
     # Interactive widgets
-    from biosuite.notebook.widgets import SequenceAnalyzer
+    from biosuite.notebook import SequenceAnalyzer
     analyzer = SequenceAnalyzer()
     analyzer.show()
 """
-import os
 import json
+import os
 from pathlib import Path
 
 try:
-    from IPython.core.magic import Magics, magics_class, line_magic, cell_magic
+    from IPython.core.magic import Magics, cell_magic, line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments
     HAS_IPYTHON = True
 except ImportError:
@@ -29,7 +29,7 @@ except ImportError:
 
 try:
     import ipywidgets as widgets
-    from IPython.display import display, HTML, clear_output
+    from IPython.display import HTML, clear_output, display
     HAS_WIDGETS = True
 except ImportError:
     HAS_WIDGETS = False
@@ -145,7 +145,7 @@ if HAS_IPYTHON:
             if isinstance(obj, pd.DataFrame):
                 print(f"DataFrame: {obj.shape[0]} rows x {obj.shape[1]} columns")
                 print(f"Columns: {list(obj.columns[:10])}...")
-                print(f"\nFirst 5 rows:")
+                print("\nFirst 5 rows:")
                 display(obj.head())
             elif isinstance(obj, np.ndarray):
                 print(f"Array: shape={obj.shape}, dtype={obj.dtype}")
@@ -193,15 +193,21 @@ if HAS_IPYTHON:
                         print(f"  Skipping {mod_name} (dependencies missing)")
                 # Also import plotting
                 try:
-                    from biosuite.plotting.plot_api import (volcano, pca, manhattan,
-                                                             heatmap, scatter, boxplot)
+                    from biosuite.plotting.plot_api import (
+                        boxplot,
+                        heatmap,
+                        manhattan,
+                        pca,
+                        scatter,
+                        volcano,
+                    )
                     ip.user_ns['volcano'] = volcano
                     ip.user_ns['pca'] = pca
                     ip.user_ns['manhattan'] = manhattan
                     ip.user_ns['heatmap'] = heatmap
                     ip.user_ns['scatter'] = scatter
                     ip.user_ns['boxplot'] = boxplot
-                    print(f"  Loaded plotting: volcano, pca, manhattan, heatmap, scatter, boxplot")
+                    print("  Loaded plotting: volcano, pca, manhattan, heatmap, scatter, boxplot")
                 except ImportError:
                     pass
                 print("\nAll functions loaded into namespace!")

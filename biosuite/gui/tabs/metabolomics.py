@@ -2,10 +2,9 @@
 Metabolomics Analysis tab: Peak detection, feature alignment, PCA.
 """
 import os
-import customtkinter as ctk
 from tkinter import filedialog
 
-from ..themes import FONT_FAMILY, FONT_SMALL
+import customtkinter as ctk
 
 
 class MetabolomicsTabMixin:
@@ -66,7 +65,7 @@ class MetabolomicsTabMixin:
             self._msg_warning("Input Required", "Please load a CSV intensity matrix.")
             return
         try:
-            from ...core.metabolomics import detect_peaks, format_metabolomics_report
+            from ...core.metabolomics import detect_peaks
             df = pd.read_csv(path)
             matrix = df.select_dtypes(include=[np.number]).values
             all_features = []
@@ -88,7 +87,8 @@ class MetabolomicsTabMixin:
     def _meta_demo(self):
         try:
             import numpy as np
-            from ...core.metabolomics import detect_peaks, MetabolomicsReport
+
+            from ...core.metabolomics import MetabolomicsReport, detect_peaks
             np.random.seed(42)
             # Simulate chromatogram
             x = np.linspace(0, 100, 1000)
@@ -111,7 +111,8 @@ class MetabolomicsTabMixin:
     def _meta_pca(self):
         try:
             import numpy as np
-            from ...core.metabolomics import pca_feature_matrix, detect_peaks
+
+            from ...core.metabolomics import pca_feature_matrix
             np.random.seed(42)
             # Generate sample data
             matrix = np.random.rand(10, 50) * 100
@@ -132,23 +133,5 @@ class MetabolomicsTabMixin:
             self._msg_error("Error", str(e))
 
     def _show_plot_figure(self, fig):
-        import matplotlib.pyplot as plt
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        win = ctk.CTkToplevel(self)
-        win.title("Plot")
-        win.geometry("800x600")
-        win.configure(fg_color=self.T['bg'])
-        canvas = FigureCanvasTkAgg(fig, master=win)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill='both', expand=True)
-
-        def on_close():
-            canvas.get_tk_widget().destroy()
-            fig.clear()
-            plt.close(fig)
-            win.destroy()
-
-        win.protocol("WM_DELETE_WINDOW", on_close)
-        btn = ctk.CTkButton(win, text="Close", command=on_close,
-                           fg_color=self.T['accent'], text_color='#000000')
-        btn.pack(pady=8)
+        """Display a figure via the shared interactive plot window (zoom/pan/save)."""
+        self._show_plot_from_figure(fig, "Metabolomics Plot")

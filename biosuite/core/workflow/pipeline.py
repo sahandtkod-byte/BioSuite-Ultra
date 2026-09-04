@@ -3,6 +3,7 @@ Pipeline builder — chain bioinformatics steps into automated workflows.
 Each step is a function + kwargs. Pipelines are serial by default,
 with optional parallel branches for independent steps.
 """
+import inspect
 import time
 import traceback
 from collections import OrderedDict
@@ -29,6 +30,22 @@ class PipelineStep:
         start = time.time()
         try:
             merged_kwargs = {**self.kwargs, **ctx}
+            # Drop context keys the function cannot accept: intermediate
+            # results are added to the context under each step's name, so
+            # a plain `def step2(x)` would die with "unexpected keyword
+            # 'step1'" once step 1 succeeded.  (Functions with **kwargs
+            # and builtins keep the full context.)
+            try:
+                sig = inspect.signature(self.func)
+                params = sig.parameters
+                accepts_var_kw = any(
+                    p.kind == inspect.Parameter.VAR_KEYWORD
+                    for p in params.values())
+                if not accepts_var_kw:
+                    merged_kwargs = {k: v for k, v in merged_kwargs.items()
+                                     if k in params}
+            except (TypeError, ValueError):
+                pass  # builtin / C function: keep behaviour
             self.result = self.func(*self.args, **merged_kwargs)
             self.status = "done"
         except Exception as e:

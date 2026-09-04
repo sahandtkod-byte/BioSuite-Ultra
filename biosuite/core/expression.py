@@ -11,6 +11,11 @@ import numpy as np
 import pandas as pd
 from scipy import stats as sp_stats
 
+from .log import get_logger
+
+logger = get_logger(__name__)
+
+
 
 def read_counts_matrix(filepath: str) -> pd.DataFrame | None:
     """Read a gene count matrix (featureCounts/HTSeq output).
@@ -30,7 +35,7 @@ def read_counts_matrix(filepath: str) -> pd.DataFrame | None:
         df.columns = ['gene'] + [f'Sample_{i}' for i in range(1, df.shape[1])]
         return df
     except Exception as e:
-        print(f"Error reading counts matrix: {e}")
+        logger.error(f"Error reading counts matrix: {e}")
         return None
 
 

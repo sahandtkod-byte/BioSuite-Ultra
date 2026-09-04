@@ -13,14 +13,13 @@ Provides:
 
 from __future__ import annotations
 
-import textwrap
-from dataclasses import dataclass, field
-from typing import List, Optional, Sequence as Seq, Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
-import matplotlib
+import matplotlib.patches as mpatches
+
 # matplotlib.use("Agg")  # Removed: caller manages backend                       # headless-safe backend
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 
 # ── Genetic code ──────────────────────────────────────────────────────────────
@@ -163,9 +162,12 @@ def _find_orfs_reverse(seq: str, min_aa: int = 10) -> list:
                     j += 3
                 protein_len = (j - start) // 3
                 if protein_len >= min_aa:
-                    # Map back to original coordinate space
-                    orig_end = seq_len - (frame + i)       # approximate mapping
-                    orig_start = seq_len - (frame + j)
+                    # Map back to original coordinate space EXACTLY:
+                    # rc span [start, j) == original span [L-j, L-start).
+                    # (old code subtracted `frame` too — silently off by
+                    # up to 2 bp on every reverse ORF.)
+                    orig_end = seq_len - start
+                    orig_start = seq_len - j
                     orfs.append({
                         "frame": -(frame + 1),
                         "start": max(0, orig_start),
@@ -225,17 +227,16 @@ def draw_sequence_view(
     track_heights += [0.4] * n_frames              # 6 translation rows
 
     if ax is not None:
+        # Reuse the caller's gridspec slot — the old code DELETED EVERY
+        # axes in the shared figure, leaked a throwaway subplots figure,
+        # then crashed on an illegal 4-positional-arg add_subplot call.
         fig = ax.figure
+        sub = ax.get_subplotspec()
         ax.remove()
-        gridspec_kw = {"height_ratios": track_heights}
-        fig_tmp, axes = plt.subplots(
-            len(track_heights), 1, figsize=figsize, gridspec_kw=gridspec_kw,
-        )
-        # Remove existing axes safely (compatible with matplotlib 3.8+)
-        for ax in fig.axes[:]:
-            fig.delaxes(ax)
-        for i, a in enumerate(axes):
-            fig.add_subplot(len(track_heights), 1, i + 1, axes[i] if hasattr(axes[i], 'figure') else axes[i])
+        gs_tracks = sub.subgridspec(len(track_heights), 1,
+                                    height_ratios=track_heights)
+        axes = [fig.add_subplot(gs_tracks[i])
+                for i in range(len(track_heights))]
     else:
         fig, axes = plt.subplots(
             len(track_heights), 1, figsize=figsize,
@@ -272,7 +273,6 @@ def draw_sequence_view(
 
     # Adaptive font size
     font_size = min(7, max(3, 800 / max(1, seq_len)))
-    char_width = 1  # one character = 1 bp in our coordinate system
 
     # Render each nucleotide
     for i, nt in enumerate(seq):
@@ -410,9 +410,12 @@ def draw_translation_view(
 
     # Layout: 2 rows — DNA, AA
     if ax is not None:
+        # Stay INSIDE the caller's slot (old code spanned the whole
+        # figure, covering every other dashboard panel).
         fig = ax.figure
+        sub = ax.get_subplotspec()
         ax.remove()
-        gs = fig.add_gridspec(2, 1, height_ratios=[1, 1])
+        gs = sub.subgridspec(2, 1, height_ratios=[1, 1])
         ax_dna = fig.add_subplot(gs[0])
         ax_aa = fig.add_subplot(gs[1])
     else:
@@ -517,7 +520,10 @@ def draw_gc_content_plot(
     cumsum = np.concatenate(([0.0], np.cumsum(arr)))
 
     positions = np.arange(window - 1, seq_len)
-    gc_vals = (cumsum[positions + 1] - cumsum[positions - (window - 1) + 1]) / window * 100
+    # Window [p-w+1, p]: cumsum[p+1] - cumsum[p-w+1].  The old index
+    # (cumsum[p-w+2]) dropped the FIRST base of every window while still
+    # dividing by w — a systematic GC underestimate (e.g. 2% -> 0%).
+    gc_vals = (cumsum[positions + 1] - cumsum[positions - window + 1]) / window * 100
     gc_avg = np.mean(gc_vals)
 
     fig, ax_f = _ensure_axes(ax, figsize)

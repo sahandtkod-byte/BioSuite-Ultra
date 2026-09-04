@@ -1,10 +1,9 @@
 """
 Workflow and domain-specific tabs: Pipeline, Batch, GO Browser, Pathway, GWAS, Epitope.
 """
-import customtkinter as ctk
 from tkinter import filedialog
 
-from ..themes import FONT_BODY, FONT_SMALL
+import customtkinter as ctk
 
 
 class WorkflowTabMixin:
@@ -185,8 +184,11 @@ class WorkflowTabMixin:
         self.pathway_info.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
     def _draw_pathway(self):
-        import matplotlib.pyplot as plt
-        from ...core.pathway_viz import create_custom_pathway, draw_pathway, format_pathway_report
+        from ...core.pathway_viz import (
+            create_custom_pathway,
+            draw_pathway,
+            format_pathway_report,
+        )
         genes = [g.strip() for g in self.pathway_genes.get().split(',') if g.strip()]
         if not genes:
             return
@@ -194,16 +196,23 @@ class WorkflowTabMixin:
         self.pathway_info.delete("1.0", "end")
         self.pathway_info.insert("end", format_pathway_report(pm))
         fig = draw_pathway(pm)
-
-
+        # fig used to be dropped on the floor — the user clicked
+        # "Draw Pathway" and only got text.  Record + display it.
+        self._record_plot(fig, f"Custom Pathway ({len(genes)} genes)")
+        self._show_plot_from_figure(fig, "Custom Pathway")
 
     def _kegg_demo(self):
-        import matplotlib.pyplot as plt
-        from ...core.pathway_viz import create_kegg_style_pathway, draw_pathway, format_pathway_report
+        from ...core.pathway_viz import (
+            create_kegg_style_pathway,
+            draw_pathway,
+            format_pathway_report,
+        )
         pm = create_kegg_style_pathway()
         self.pathway_info.delete("1.0", "end")
         self.pathway_info.insert("end", format_pathway_report(pm))
         fig = draw_pathway(pm)
+        self._record_plot(fig, "KEGG-Style Pathway")
+        self._show_plot_from_figure(fig, "KEGG-Style Pathway")
 
 
 
@@ -234,14 +243,38 @@ class WorkflowTabMixin:
 
     def _gwas_load(self):
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
-        if path:
-            import pandas as pd
+        if not path:
+            return
+        import pandas as pd
+        try:
             self._gwas_data = pd.read_csv(path)
-            self.gwas_results.delete("1.0", "end")
-            self.gwas_results.insert("end", f"Loaded {len(self._gwas_data)} SNPs\n")
+        except Exception as e:
+            self._msg_error("Error", f"Could not load CSV: {e}")
+            return
+        self.gwas_results.delete("1.0", "end")
+        self.gwas_results.insert("end", f"Loaded {len(self._gwas_data)} SNPs\n\n")
+        # Loaded data used to sit in self._gwas_data with no way to analyse
+        # it (only "Run Demo" called the pipeline).  Run it on the file:
+        try:
+            from ...core.gwas import (
+                detect_lead_snps,
+                format_gwas_report,
+                run_gwas,
+            )
+            results = run_gwas(self._gwas_data)
+            leads = detect_lead_snps(results)
+            self.gwas_results.insert("end", format_gwas_report(results, leads))
+            self._set_status(f"GWAS: analysed {len(self._gwas_data)} SNPs")
+        except Exception as e:
+            self._msg_error("GWAS Error", str(e))
 
     def _gwas_demo(self):
-        from ...core.gwas import run_gwas, detect_lead_snps, generate_gwas_data, format_gwas_report
+        from ...core.gwas import (
+            detect_lead_snps,
+            format_gwas_report,
+            generate_gwas_data,
+            run_gwas,
+        )
         data = generate_gwas_data(n_snps=2000)
         results = run_gwas(data)
         leads = detect_lead_snps(results)
@@ -278,7 +311,11 @@ class WorkflowTabMixin:
         self.epi_results.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
     def _run_epitope(self):
-        from ...core.epitope import predict_t_cell_epitopes, predict_b_cell_epitopes, format_epitope_report
+        from ...core.epitope import (
+            format_epitope_report,
+            predict_b_cell_epitopes,
+            predict_t_cell_epitopes,
+        )
         seq = self.epi_seq.get("1.0", "end").strip().upper()
         if not seq:
             self._msg_warning("No sequence", "Enter a protein sequence first.")

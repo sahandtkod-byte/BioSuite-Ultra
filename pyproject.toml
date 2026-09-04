@@ -103,4 +103,62 @@ include = ["biosuite*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-v --tb=short"
+markers = [
+    "slow: long-running analyses (deselect with -m 'not slow')",
+    "integration: cross-module end-to-end flows",
+]
+
+# ─── Coverage configuration ───────────────────────────────────────────────
+[tool.coverage.run]
+source = ["biosuite"]
+branch = true
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "def __str__",
+    "def __repr__",
+]
+
+# ─── Lint configuration (ruff) ────────────────────────────────────────────
+# CI runs two ruff passes:
+#   1. hard gate:  ruff check --select E9,F821  (syntax errors, undefined names)
+#   2. advisory:   full rule set (non-blocking while debt is being paid down)
+[tool.ruff]
+target-version = "py39"
+line-length = 110
+extend-exclude = ["examples", "docs", ".git"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "C4",       # comprehensions
+    "B",        # bugbear
+]
+ignore = [
+    "E501",     # long lines handled by formatter, not blocker
+    "B008",     # function call in default arg — used deliberately for DI
+    "UP006",    # keep typing.Dict/List look consistent across the codebase
+    "UP045",
+    "UP035",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E402", "F401"]
+"benchmarks/*" = ["C4"]
+"*/__init__.py" = ["F401"]   # re-export convenience surfaces

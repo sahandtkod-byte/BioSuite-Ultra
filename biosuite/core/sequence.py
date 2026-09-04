@@ -11,7 +11,13 @@ These functions operate on plain strings and do not require Biopython
 from __future__ import annotations
 
 import os
+
 import numpy as np
+
+from .log import get_logger
+
+logger = get_logger(__name__)
+
 
 try:
     from Bio import SeqIO
@@ -54,7 +60,7 @@ def read_fasta(filepath: str) -> list[tuple[str, str]] | None:
                 sequences.append((name, ''.join(seq)))
         return sequences
     except Exception as e:
-        print(f"Error reading FASTA: {e}")
+        logger.error(f"Error reading FASTA: {e}")
         return None
 
 
@@ -92,7 +98,7 @@ def read_fastq(filepath: str) -> list[tuple[str, str, str]] | None:
                 sequences.append((name, seq, qual))
         return sequences
     except Exception as e:
-        print(f"Error reading FASTQ: {e}")
+        logger.error(f"Error reading FASTQ: {e}")
         return None
 
 
@@ -110,7 +116,7 @@ def read_genbank(filepath: str) -> list[tuple[str, str, list]] | None:
         or None if Biopython not installed or file not found.
     """
     if not HAS_BIO:
-        print("Biopython not installed. Cannot read GenBank.")
+        logger.warning("Biopython not installed. Cannot read GenBank.")
         return None
     if not os.path.exists(filepath):
         return None
@@ -128,7 +134,7 @@ def read_genbank(filepath: str) -> list[tuple[str, str, list]] | None:
             records.append((record.id, seq, features))
         return records
     except Exception as e:
-        print(f"Error reading GenBank: {e}")
+        logger.error(f"Error reading GenBank: {e}")
         return None
 
 

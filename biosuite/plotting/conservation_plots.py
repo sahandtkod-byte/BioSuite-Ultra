@@ -3,10 +3,10 @@ Conservation and sequence logo visualization.
 Generates information-content-weighted sequence logos and conservation bars.
 Pure Python / matplotlib implementation.
 """
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from collections import Counter
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def _shannon_entropy(freqs):

@@ -3,8 +3,6 @@ Epitope prediction — MHC binding prediction for vaccine design.
 B-cell and T-cell epitope prediction using amino acid properties.
 Pure Python implementation.
 """
-import numpy as np
-from collections import Counter
 
 
 # ─── Amino Acid Properties ──────────────────────────────────────────────────

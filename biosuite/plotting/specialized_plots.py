@@ -1,11 +1,15 @@
 """Specialized plots: GSEA, Motif Logo, Sankey Diagram, UMAP."""
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
-from scipy import stats
-from ..core.utils import (config, session, autosave_session, safe_float_input, safe_int_input,
-                          load_dataframe_safe, maybe_downsample, apply_glass_ax, ask_save_plot)
+
+from ..core.utils import (
+    apply_glass_ax,
+    ask_save_plot,
+    config,
+    load_dataframe_safe,
+)
+
 # Import internal drawing functions from biological_plots (for motif and sankey)
 from .biological_plots import draw_motif_logo, draw_sankey
 

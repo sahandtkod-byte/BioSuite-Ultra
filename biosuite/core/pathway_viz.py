@@ -2,10 +2,11 @@
 Pathway visualization — draw KEGG/Reactome-style pathway maps
 with gene expression overlays. Pure Python/matplotlib.
 """
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Circle
 from collections import OrderedDict
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import FancyBboxPatch
 
 
 class PathwayNode:
@@ -73,7 +74,7 @@ class PathwayMap:
 
     def layout_grid(self, n_cols=3, spacing_x=3, spacing_y=2):
         """Arrange nodes in a grid."""
-        for i, (nid, node) in enumerate(self.nodes.items()):
+        for i, (_nid, node) in enumerate(self.nodes.items()):
             row = i // n_cols
             col = i % n_cols
             node.x = col * spacing_x
@@ -81,7 +82,7 @@ class PathwayMap:
 
     def layout_linear(self, spacing=3):
         """Arrange nodes in a line."""
-        for i, (nid, node) in enumerate(self.nodes.items()):
+        for i, (_nid, node) in enumerate(self.nodes.items()):
             node.x = i * spacing
             node.y = 0
 
@@ -125,7 +126,7 @@ def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
             ax.text(mx, my + 0.2, edge.label, fontsize=7, ha='center', color='gray')
 
     # Draw nodes
-    for nid, node in pathway_map.nodes.items():
+    for _nid, node in pathway_map.nodes.items():
         color = node.color if (node_colors and node.color) else '#4ecdc4'
         rect = FancyBboxPatch((node.x - node.width / 2, node.y - node.height / 2),
                                node.width, node.height,
@@ -212,7 +213,7 @@ def format_pathway_report(pathway_map):
     lines = [f"Pathway: {pathway_map.name}",
              f"Nodes: {len(pathway_map.nodes)}",
              f"Edges: {len(pathway_map.edges)}", ""]
-    for nid, node in pathway_map.nodes.items():
+    for _nid, node in pathway_map.nodes.items():
         expr = f" (expr={node.expression:.2f})" if node.expression is not None else ""
         lines.append(f"  {node.name}{expr}")
     lines.append("\nConnections:")

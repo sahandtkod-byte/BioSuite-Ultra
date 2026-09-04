@@ -1,9 +1,9 @@
 """
 HTML report generator — combine results, plots, and tables into styled reports.
 """
-import os
 import base64
 import io
+import html
 from datetime import datetime
 
 
@@ -179,12 +179,17 @@ def generate_pipeline_report(pipeline, output_path="pipeline_report.html"):
         "Results": len(pipeline.results),
     })
     for step in pipeline.steps:
+        # Escape everything taken from steps: names/errors come from user
+        # analysis code and their exceptions, so raw HTML here would be a
+        # stored-XSS vector when the report is opened in a browser.
         status = "success" if step.status == "done" else "error"
-        content = f'<div class="{status}">Status: {step.status} | Time: {step.elapsed:.2f}s</div>'
+        content = (f'<div class="{status}">Status: {html.escape(step.status)} '
+                   f'| Time: {step.elapsed:.2f}s</div>')
         if step.error:
-            content += f'<div class="error">{step.error}</div>'
-        report.add_section(step.name, content)
-    report.add_text("\n".join(pipeline._log), "Execution Log")
+            content += f'<div class="error">{html.escape(str(step.error))}</div>'
+        report.add_section(html.escape(str(step.name)), content)
+    report.add_text(html.escape("\n".join(pipeline._log)).replace("\n", "<br>"),
+                    "Execution Log")
     report.save(output_path)
     return output_path
 
@@ -197,9 +202,10 @@ def generate_batch_report(processor, output_path="batch_report.html"):
     report.add_stats({"Total": len(processor.jobs), "Done": n_done, "Failed": n_fail})
     for job in processor.jobs:
         status = "success" if job.status == "done" else "error"
-        content = f'<div class="{status}">{job.sample_id} — {job.status} ({job.elapsed:.2f}s)</div>'
+        content = (f'<div class="{status}">{html.escape(str(job.sample_id))} — '
+                   f'{html.escape(job.status)} ({job.elapsed:.2f}s)</div>')
         if job.error:
-            content += f'<div class="error">{job.error}</div>'
-        report.add_section(job.sample_id, content, level=3)
+            content += f'<div class="error">{html.escape(str(job.error))}</div>'
+        report.add_section(html.escape(str(job.sample_id)), content, level=3)
     report.save(output_path)
     return output_path

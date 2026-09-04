@@ -2,10 +2,11 @@
 Genome browser track viewer — BAM coverage, VCF variants, BED intervals.
 Pure Python implementation with matplotlib.
 """
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, FancyBboxPatch
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import Rectangle
 
 
 def parse_bed(path, max_regions=10000):
@@ -139,8 +140,11 @@ def _compute_coverage_sam(path, region, bin_size):
             if end > max_end:
                 max_end = end
 
-            for bp in range(pos, end, bin_size):
-                coverage_dict[bp // bin_size] += 1
+            # Bin-aligned counting: stepping by bin_size from the read
+            # START skips bins when the read starts mid-bin (old code
+            # undercounted every read not starting on a bin boundary).
+            for b in range(pos // bin_size, (end - 1) // bin_size + 1):
+                coverage_dict[b] += 1
 
     n_bins = max_end // bin_size + 1
     positions = np.arange(n_bins) * bin_size
@@ -156,7 +160,9 @@ def _parse_cigar_length(cigar):
     length = 0
     for n, op in zip(nums, ops):
         n = int(n)
-        if op in ('M', 'D', '=', 'X'):
+        # N (spliced/skipped region) consumes reference exactly like D —
+        # old code under-spanned spliced reads by the intron length.
+        if op in ('M', 'D', 'N', '=', 'X'):
             length += n
     return length
 

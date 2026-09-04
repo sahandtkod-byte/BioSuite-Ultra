@@ -21,13 +21,16 @@ Usage:
     pm.discover()
     pm.list_plugins()
 """
-import os
-import sys
-import json
 import importlib
+import json
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
+
+from .log import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -156,7 +159,7 @@ class PluginManager:
                         self.plugins[info.name] = info
                         discovered.append(info.name)
                 except Exception as e:
-                    print(f"Warning: Failed to load plugin {ep.name}: {e}")
+                    logger.error(f"Warning: Failed to load plugin {ep.name}: {e}")
         except ImportError:
             pass
 
@@ -186,7 +189,7 @@ class PluginManager:
                                 self.plugins[info.name] = info
                                 discovered.append(info.name)
                     except Exception as e:
-                        print(f"Warning: Failed to load local plugin {item}: {e}")
+                        logger.warning(f"Failed to load local plugin {item}: {e}")
 
         return discovered
 
@@ -415,6 +418,7 @@ pip install .
 
 ```python
 from biosuite.core.plugin import PluginManager
+
 pm = PluginManager()
 pm.discover()
 pm.load_plugin("{plugin_name}")

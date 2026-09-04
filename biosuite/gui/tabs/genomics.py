@@ -1,11 +1,9 @@
 """
 Genomics tabs: NGS/VCF, Assembly, Metagenomics, 16S rRNA, SV/CNV, BigWig.
 """
-import os
-import customtkinter as ctk
 from tkinter import filedialog
 
-from ..themes import FONT_BODY, FONT_SMALL
+import customtkinter as ctk
 
 
 class GenomicsTabMixin:
@@ -33,9 +31,10 @@ class GenomicsTabMixin:
         self.vcf_result.pack(fill='both', expand=True)
 
     def _load_vcf(self):
-        import numpy as np
         import matplotlib.pyplot as plt
-        from ...core.ngs import read_vcf, manhattan_from_vcf
+        import numpy as np
+
+        from ...core.ngs import manhattan_from_vcf, read_vcf
         path = self.vcf_path.get().strip()
         if not path:
             self._msg_warning("No file", "Select a VCF file first.")
@@ -113,26 +112,28 @@ class GenomicsTabMixin:
 
         file_row = ctk.CTkFrame(inner, fg_color='transparent')
         file_row.pack(fill='x', pady=(0, 8))
-        self.meta_path = self._input_entry(file_row, "Reads FASTQ file...")
-        self.meta_path.pack(side='left', fill='x', expand=True, padx=(0, 8))
+        # NOTE: metabolomics.py also uses self.meta_path / self.meta_result —
+        # share nothing or the two tabs clobber each other's attributes.
+        self.mg_path = self._input_entry(file_row, "Reads FASTQ file...")
+        self.mg_path.pack(side='left', fill='x', expand=True, padx=(0, 8))
         self._action_button(file_row, "Browse",
-                            lambda: self._browse_file(self.meta_path, [("FASTQ", "*.fastq *.fq")])
+                            lambda: self._browse_file(self.mg_path, [("FASTQ", "*.fastq *.fq")])
                             ).pack(side='right')
 
         self._action_button(inner, "Run Classification", self._run_meta).pack(pady=(0, 8))
-        self.meta_result = self._text_box(inner, height=250)
-        self.meta_result.pack(fill='both', expand=True)
+        self.mg_result = self._text_box(inner, height=250)
+        self.mg_result.pack(fill='both', expand=True)
 
     def _run_meta(self):
-        path = self.meta_path.get().strip()
+        path = self.mg_path.get().strip()
         if not path:
             self._msg_warning("No file", "Select a reads file.")
             return
         try:
             from ...core.metagenomics import classify_reads, format_metagenomics_report
             result = classify_reads(path)
-            self.meta_result.delete("1.0", "end")
-            self.meta_result.insert("end", format_metagenomics_report(result))
+            self.mg_result.delete("1.0", "end")
+            self.mg_result.insert("end", format_metagenomics_report(result))
             self._set_status(f"Metagenomics: {len(result.classifications)} reads classified")
         except Exception as e:
             self._msg_error("Error", str(e))
@@ -213,14 +214,44 @@ class GenomicsTabMixin:
     def _svcnv_load(self):
         import numpy as np
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv"), ("Text", "*.txt")])
-        if path:
+        if not path:
+            return
+        try:
             self._svcnv_data = np.loadtxt(path, delimiter=',')
-            self.svcnv_results.delete("1.0", "end")
-            self.svcnv_results.insert("end", f"Loaded {len(self._svcnv_data)} coverage values\n")
+        except (OSError, ValueError) as e:
+            self._msg_error("Error", f"Could not load coverage CSV: {e}")
+            return
+        self.svcnv_results.delete("1.0", "end")
+        self.svcnv_results.insert("end",
+                                  f"Loaded {len(self._svcnv_data)} coverage values\n\n")
+        # The loaded data used to sit in self._svcnv_data with no analysis
+        # path (only "Demo Data" ran the detectors); run them on the input:
+        try:
+            from ...core.variant_calling import (
+                detect_cnv,
+                detect_structural_variants,
+                format_cnv_report,
+                format_sv_report,
+            )
+            cov = np.asarray(self._svcnv_data, dtype=float)
+            ref = np.full_like(cov, float(np.median(cov)))
+            svs = detect_structural_variants(cov, ref)
+            cnv = detect_cnv(cov, ref)
+            self.svcnv_results.insert("end", format_sv_report(svs))
+            self.svcnv_results.insert("end", f"\n{format_cnv_report(cnv)}")
+            self._set_status(f"SV/CNV: analysed {len(cov)} coverage values")
+        except Exception as e:
+            self._msg_error("Error", str(e))
 
     def _svcnv_demo(self):
         import numpy as np
-        from ...core.variant_calling import detect_structural_variants, detect_cnv, format_sv_report, format_cnv_report
+
+        from ...core.variant_calling import (
+            detect_cnv,
+            detect_structural_variants,
+            format_cnv_report,
+            format_sv_report,
+        )
         np.random.seed(42)
         cov = np.random.poisson(30, 5000).astype(float)
         cov[1500:2000] *= 0.3
@@ -268,7 +299,11 @@ class GenomicsTabMixin:
         if not self._bigwig_path:
             self._msg_warning("No file", "Browse for a BigWig file first.")
             return
-        from ...core.file_formats import read_bigwig, bigwig_summary, format_bigwig_summary
+        from ...core.file_formats import (
+            bigwig_summary,
+            format_bigwig_summary,
+            read_bigwig,
+        )
         try:
             data = read_bigwig(self._bigwig_path)
             self.bigwig_info.delete("1.0", "end")

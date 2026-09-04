@@ -2,11 +2,10 @@
 Database and utility tabs: Databases, File Formats, API Keys.
 """
 import os
+
 import customtkinter as ctk
-from tkinter import filedialog
 
 from ...core.utils import config, save_config
-from ..themes import FONT_BODY, FONT_SMALL
 
 
 class DatabasesTabMixin:
@@ -47,7 +46,15 @@ class DatabasesTabMixin:
             return
         db = self.db_combo.get().strip().lower()
         try:
-            from ...core.databases import search_ncbi, search_uniprot, search_pdb, search_kegg, search_ensembl, search_all, format_search_results
+            from ...core.databases import (
+                format_search_results,
+                search_all,
+                search_ensembl,
+                search_kegg,
+                search_ncbi,
+                search_pdb,
+                search_uniprot,
+            )
             if db == 'all':
                 results = search_all(query)
             elif db == 'ncbi':
@@ -100,12 +107,12 @@ class DatabasesTabMixin:
         try:
             ext = os.path.splitext(path)[1].lower()
             if ext in ('.bed',):
-                from ...core.file_formats import parse_bed, format_bed_summary
+                from ...core.file_formats import format_bed_summary, parse_bed
                 records = parse_bed(path)
                 self.ff_result.delete("1.0", "end")
                 self.ff_result.insert("end", format_bed_summary(records))
             elif ext in ('.gff', '.gtf'):
-                from ...core.file_formats import parse_gff, format_gff_summary
+                from ...core.file_formats import format_gff_summary, parse_gff
                 records = parse_gff(path)
                 self.ff_result.delete("1.0", "end")
                 self.ff_result.insert("end", format_gff_summary(records))

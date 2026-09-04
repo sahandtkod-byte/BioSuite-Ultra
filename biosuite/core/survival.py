@@ -1,9 +1,9 @@
 """
 Survival analysis: Kaplan-Meier curves, log-rank test, Cox proportional hazards.
 """
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass, field
+
+import numpy as np
 
 try:
     from scipy import stats as sp_stats
@@ -41,27 +41,33 @@ def kaplan_meier(times, events, confidence_level: float = 0.95) -> KaplanMeierRe
     events = events[sorted_idx]
 
     unique_times = np.unique(times[events == 1])
-    n_at_risk = len(times)
     survival = 1.0
     km_times = [0.0]
     km_survival = [1.0]
     km_lower = [1.0]
     km_upper = [1.0]
+    km_at_risk = [len(times)]
+    greenwood_term = 0.0  # cumulative sum d_i / (n_i (n_i - d_i))
 
     for t in sorted(unique_times):
-        at_risk = np.sum(times >= t)
-        event_count = np.sum((times == t) & (events == 1))
+        at_risk = int(np.sum(times >= t))
+        event_count = int(np.sum((times == t) & (events == 1)))
         if at_risk > 0:
             survival *= (1 - event_count / at_risk)
 
         km_times.append(float(t))
         km_survival.append(round(survival, 4))
+        km_at_risk.append(at_risk)
 
-        se = survival * np.sqrt(np.sum([1/((at_risk - i) * (at_risk - i - 1))
-            for i in range(event_count) if at_risk - i > 1])) if at_risk > 1 else 0
+        # Greenwood's formula, CUMULATIVE over risk sets — the old code
+        # recomputed a single-step approximation per time point, so the
+        # CI width never grew with time as it must.
+        if at_risk > event_count > 0:
+            greenwood_term += event_count / (at_risk * (at_risk - event_count))
+        se = survival * np.sqrt(greenwood_term)
         z = sp_stats.norm.ppf(1 - (1 - confidence_level) / 2) if HAS_SCIPY else 1.96
-        km_lower.append(round(max(0, survival - z * se), 4))
-        km_upper.append(round(min(1, survival + z * se), 4))
+        km_lower.append(round(max(0.0, survival - z * se), 4))
+        km_upper.append(round(min(1.0, survival + z * se), 4))
 
     median_surv = 0.0
     for i, s in enumerate(km_survival):
@@ -74,6 +80,7 @@ def kaplan_meier(times, events, confidence_level: float = 0.95) -> KaplanMeierRe
     return KaplanMeierResult(
         times=km_times, survival_probs=km_survival,
         confidence_lower=km_lower, confidence_upper=km_upper,
+        n_at_risk=km_at_risk,
         median_survival=median_surv, number_events=int(np.sum(events))
     )
 
@@ -85,8 +92,7 @@ def log_rank_test(times1, events1, times2, events2) -> dict:
     t1, e1 = np.array(times1), np.array(events1)
     t2, e2 = np.array(times2), np.array(events2)
     all_times = np.unique(np.concatenate([t1, t2]))
-    n1, n2 = len(t1), len(t2)
-    d1_sum, d2_sum = 0, 0
+    d1_sum = 0
     v_sum = 0
     for t in all_times:
         d1 = np.sum((t1 == t) & (e1 == 1))
@@ -97,8 +103,14 @@ def log_rank_test(times1, events1, times2, events2) -> dict:
         if n_total == 0:
             continue
         d1_sum += d1 - n1_at_risk * (d1 + d2) / n_total
-        v = n1_at_risk * n2_at_risk * (d1 + d2) * (n_total - d1 - d2) / (n_total**2 * (n_total - 1))
-        v_sum += v
+        # Guard n_total == 1: the (n_total - 1) denominator is 0 and the
+        # O-E contribution is provably 0 there anyway — the old code let
+        # 0/0 produce NaN which poisoned v_sum, silently turning STRONG
+        # group differences into p = 1.0 on unpaired-end datasets.
+        if n_total > 1 and (d1 + d2) > 0:
+            v = (n1_at_risk * n2_at_risk * (d1 + d2) * (n_total - d1 - d2)
+                 / (n_total**2 * (n_total - 1)))
+            v_sum += v
 
     statistic = d1_sum**2 / v_sum if v_sum > 0 else 0
     p_value = 1 - sp_stats.chi2.cdf(statistic, df=1) if HAS_SCIPY and statistic > 0 else 1.0
@@ -127,7 +139,10 @@ def cox_ph_summary(times, events, covariates) -> dict:
     hr = median_l / median_h if median_h > 0 else 999
     return {'hazard_ratio': round(float(hr), 3), 'p_value': lr['p_value'],
             'median_high_group': round(float(median_h), 1),
-            'median_low_group': round(float(median_l), 1)}
+            'median_low_group': round(float(median_l), 1),
+            'note': ('median-split approximation: no covariate model fit; '
+                     'the reported ratio is median_low/median_high, not a '
+                     'fitted Cox hazard ratio')}
 
 
 def format_km_result(result):

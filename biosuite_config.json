@@ -4,12 +4,15 @@
   "save_format": "png",
   "interactive": false,
   "downsample_threshold": 5000,
-  "quiet": true,
+  "quiet": false,
   "api_keys": {
     "ncbi_email": "",
     "ncbi_api_key": "",
     "uniprot_email": "",
     "kegg_email": "",
-    "alphafold_email": ""
-  }
+    "alphafold_email": "",
+    "unittest_svc_circle": "",
+    "svcX": "KEY123"
+  },
+  "marker": "xyz"
 }

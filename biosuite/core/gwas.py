@@ -5,7 +5,7 @@ Pure Python/numpy/scipy implementation.
 """
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2_contingency, chi2
+from scipy.stats import chi2_contingency
 
 
 def gwas_chi_squared(controls_alt_count: int, cases_alt_count: int, controls_total: int, cases_total: int) -> dict:
@@ -25,7 +25,9 @@ def gwas_chi_squared(controls_alt_count: int, cases_alt_count: int, controls_tot
     table = [[controls_alt_count, ref_controls],
              [cases_alt_count, ref_cases]]
     chi2_stat, p_val, dof, expected = chi2_contingency(table, correction=True)
-    odds_ratio = (controls_alt_count * ref_cases) / max(ref_controls * cases_alt_count, 1)
+    # OR = P(alt | case) / P(alt | ctrl) odds — the old formula was the
+    # reciprocal, so genuinely protective/associated alleles were inverted.
+    odds_ratio = (cases_alt_count * ref_controls) / max(ref_cases * controls_alt_count, 1)
     return {
         "chi2_stat": chi2_stat,
         "p_value": p_val,
@@ -111,8 +113,10 @@ def detect_lead_snps(gwas_results, p_threshold: float = 5e-8, window_kb: int = 5
         return pd.DataFrame()
 
     lead_snps = []
-    for chrom, group in sig.groupby("chrom"):
-        group = group.sort_values("pos")
+    for _chrom, group in sig.groupby("chrom"):
+        # Most significant SNP claims the locus — sorting by position made
+        # the LEFTMOST SNP the lead even when a neighbour was stronger.
+        group = group.sort_values("p_value")
         used = set()
         for _, row in group.iterrows():
             if row["snp_id"] in used:
@@ -131,22 +135,22 @@ def generate_gwas_data(n_snps=5000, n_chromosomes=22, seed=42):
     Returns:
         DataFrame with chrom, pos, snp_id, case_alt, case_ref, ctrl_alt, ctrl_ref.
     """
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)  # local: no global RNG side effects
     data = []
     snp_idx = 0
     for chrom in range(1, n_chromosomes + 1):
         n_snps_chr = n_snps // n_chromosomes
-        for i in range(n_snps_chr):
+        for _i in range(n_snps_chr):
             snp_idx += 1
-            pos = np.random.randint(1, 250_000_000)
-            ctrl_alt = np.random.randint(5, 200)
-            ctrl_ref = np.random.randint(5, 200)
+            pos = rng.integers(1, 250_000_000)
+            ctrl_alt = rng.integers(5, 200)
+            ctrl_ref = rng.integers(5, 200)
             # Add some signals
             if chrom == 6 and 25_000_000 < pos < 35_000_000:
-                case_alt = ctrl_alt + np.random.randint(20, 60)
+                case_alt = ctrl_alt + rng.integers(20, 60)
             else:
-                case_alt = ctrl_alt + np.random.randint(-10, 10)
-            case_ref = max(5, ctrl_ref + np.random.randint(-10, 10))
+                case_alt = ctrl_alt + rng.integers(-10, 10)
+            case_ref = max(5, ctrl_ref + rng.integers(-10, 10))
             data.append({
                 "chrom": f"chr{chrom}", "pos": pos,
                 "snp_id": f"rs{snp_idx}",

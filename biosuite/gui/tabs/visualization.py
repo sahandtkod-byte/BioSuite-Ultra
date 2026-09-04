@@ -1,16 +1,15 @@
 """
 Visualization tabs: Plots Gallery, UpSet, Genome Browser, Conservation, Synteny, Interactive.
 """
-import os
-import re
 import builtins
+import re
 import threading
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog
 
-from ..themes import (THEMES, PLOT_CATEGORIES, PLOT_FUNCS, FONT_FAMILY, FONT_BODY,
-                       FONT_SMALL, FONT_BUTTON, FONT_HEADING)
+import customtkinter as ctk
+
+from ..themes import FONT_BODY, FONT_FAMILY, PLOT_CATEGORIES, PLOT_FUNCS
+from ..widgets import attach_tooltip
 
 # Thread lock for matplotlib/builtins monkey-patching
 _plot_lock = threading.Lock()
@@ -29,10 +28,19 @@ class VisualizationTabMixin:
         header = ctk.CTkFrame(f, fg_color='transparent')
         header.pack(fill='x', pady=(0, 8))
         self._label(header, 'Plots Gallery', 'title').pack(side='left')
-        self.plot_search = self._input_entry(header, "Search plots...", width=280)
-        self.plot_search.pack(side='right')
+        search_box = ctk.CTkFrame(header, fg_color='transparent')
+        search_box.pack(side='right')
+        self.plot_search = self._input_entry(search_box, "Search plots...", width=260)
+        self.plot_search.pack(side='left')
+        clear_btn = ctk.CTkButton(search_box, text="✕", width=30, height=36, corner_radius=8,
+                                  font=(FONT_FAMILY, 12), fg_color=T['card'],
+                                  hover_color=T['border'], text_color=T['text_dim'],
+                                  command=self._clear_plot_search)
+        clear_btn.pack(side='left', padx=(6, 0))
+        attach_tooltip(clear_btn, "Clear search (or press Esc in the box)", T)
         self._search_after_id = None
         self.plot_search.bind('<KeyRelease>', self._on_search_key)
+        self.plot_search.bind('<Escape>', lambda e: self._clear_plot_search())
 
         mid = ctk.CTkFrame(f, fg_color='transparent')
         mid.pack(fill='both', expand=True, pady=(0, 8))
@@ -68,9 +76,15 @@ class VisualizationTabMixin:
 
         btn_row = ctk.CTkFrame(f, fg_color='transparent')
         btn_row.pack(fill='x')
-        self._action_button(btn_row, "Generate Plot", self._generate_selected_plot).pack(side='left', padx=(0, 8))
-        self._action_button(btn_row, "Export All", self._export_all_plots, 'success').pack(side='left', padx=(0, 8))
-        self._action_button(btn_row, "Batch PDF", self._batch_pdf, 'accent_dim').pack(side='left')
+        b1 = self._action_button(btn_row, "Generate Plot", self._generate_selected_plot)
+        b1.pack(side='left', padx=(0, 8))
+        attach_tooltip(b1, "Render the selected plot in an interactive viewer (zoom/pan/save)", T)
+        b2 = self._action_button(btn_row, "Export All", self._export_all_plots, 'success')
+        b2.pack(side='left', padx=(0, 8))
+        attach_tooltip(b2, "Export every plot type to a folder as PNG files", T)
+        b3 = self._action_button(btn_row, "Batch PDF", self._batch_pdf, 'accent_dim')
+        b3.pack(side='left')
+        attach_tooltip(b3, "Bundle all plots into a single multi-page PDF", T)
 
     def _select_category(self, cat):
         T = self.T
@@ -86,6 +100,20 @@ class VisualizationTabMixin:
         if self._search_after_id:
             self.after_cancel(self._search_after_id)
         self._search_after_id = self.after(150, self._apply_plot_search)
+
+    def _clear_plot_search(self):
+        """Clear the gallery search box and refresh the list."""
+        try:
+            self.plot_search.delete(0, 'end')
+        except Exception:
+            pass
+        if self._search_after_id:
+            try:
+                self.after_cancel(self._search_after_id)
+            except Exception:
+                pass
+            self._search_after_id = None
+        self._apply_plot_search()
 
     def _apply_plot_search(self):
         if not hasattr(self, 'plot_buttons_frame'):
@@ -131,6 +159,7 @@ class VisualizationTabMixin:
 
     def _generate_plot_by_id(self, plot_id):
         self._set_status(f"Generating {plot_id}...")
+        self._show_progress(f"Generating {plot_id}...")
         def run():
             import matplotlib
             matplotlib.use('Agg')  # Non-interactive backend for thread safety
@@ -144,70 +173,30 @@ class VisualizationTabMixin:
                 func = PLOT_FUNCS.get(plot_id)
                 if func:
                     func()
-                    # Save last figure to temp file and display on main thread
+                    # Hand the live figure to the main thread so it can be
+                    # embedded with real zoom/pan/save (no static PNG loss).
                     if plt.get_fignums():
                         fig = plt.gcf()
-                        import tempfile, os
-                        tmp = os.path.join(tempfile.gettempdir(), f"biosuite_plot_{plot_id}.png")
-                        fig.savefig(tmp, dpi=150, bbox_inches='tight')
-                        plt.close('all')
-                        self.after(0, lambda p=tmp: self._show_plot_image(p))
+                        name = self._plot_name_for(plot_id)
+                        self.after(0, lambda f=fig, n=name: self._show_plot_from_figure(f, n))
                 else:
                     self.after(0, lambda: self._msg_error("Error", f"Plot '{plot_id}' not found."))
             except Exception as e:
-                self.after(0, lambda: self._msg_error("Plot Error", str(e)))
+                self.after(0, lambda e=e: self._msg_error("Plot Error", str(e)))
             finally:
                 builtins.input = original_input
                 plt.show = _original_show
+                self.after(0, self._hide_progress)
                 self.after(0, lambda: self._set_status("Ready"))
         threading.Thread(target=run, daemon=True).start()
 
-    def _show_plot_image(self, path):
-        """Display a saved plot image in a new window with Save As option."""
-        from tkinter import filedialog, Label, Frame, Button
-        from PIL import Image, ImageTk
-        
-        win = tk.Toplevel(self)
-        win.title("Plot Result")
-        win.geometry("950x750")
-        win.configure(bg='#1a1a2e')
-        photo_ref = [None]  # prevent GC
-        
-        try:
-            img = Image.open(path)
-            img.thumbnail((900, 650), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
-            photo_ref[0] = photo
-            label = Label(win, image=photo, bg='#1a1a2e')
-            label.pack(fill='both', expand=True, padx=10, pady=10)
-        except Exception as e:
-            Label(win, text=f"Error: {e}", bg='#1a1a2e', fg='white').pack(pady=20)
-        
-        # Bottom buttons
-        btn_frame = Frame(win, bg='#1a1a2e')
-        btn_frame.pack(fill='x', padx=10, pady=5)
-        
-        def save_as():
-            ext = filedialog.asksaveasfilename(
-                defaultextension=".png",
-                filetypes=[("PNG", "*.png"), ("PDF", "*.pdf"), ("SVG", "*.svg"), ("All", "*.*")],
-                title="Save Plot As"
-            )
-            if ext:
-                import shutil
-                shutil.copy2(path, ext)
-                self._set_status(f"Plot saved to: {ext}")
-        
-        def on_close():
-            photo_ref[0] = None
-            win.destroy()
-        
-        Button(btn_frame, text="Save As...", command=save_as,
-               bg='#00cc66', fg='black', relief='flat', padx=15).pack(side='left', padx=5)
-        Button(btn_frame, text="Close", command=on_close,
-               bg='#ff4444', fg='white', relief='flat', padx=15).pack(side='right', padx=5)
-        
-        win.protocol("WM_DELETE_WINDOW", on_close)
+    def _plot_name_for(self, plot_id):
+        """Human-readable name for a plot id (for window title/history)."""
+        for cat, plots in PLOT_CATEGORIES.items():
+            for name, pid in plots:
+                if pid == plot_id:
+                    return name
+        return plot_id.replace('_', ' ').title()
 
     def _gui_input(self, prompt):
         result = [None]
@@ -249,7 +238,7 @@ class VisualizationTabMixin:
                     self._export_all_to_folder(folder)
                     self.after(0, lambda: self._msg_success("Done", f"All plots exported to:\n{folder}"))
                 except Exception as e:
-                    self.after(0, lambda: self._msg_error("Export Error", str(e)))
+                    self.after(0, lambda e=e: self._msg_error("Export Error", str(e)))
                 finally:
                     self.after(0, lambda: self._set_status("Ready"))
             threading.Thread(target=run, daemon=True).start()
@@ -264,7 +253,7 @@ class VisualizationTabMixin:
                     self._batch_export_to_pdf(path)
                     self.after(0, lambda: self._msg_success("Done", f"PDF saved:\n{path}"))
                 except Exception as e:
-                    self.after(0, lambda: self._msg_error("PDF Error", str(e)))
+                    self.after(0, lambda e=e: self._msg_error("PDF Error", str(e)))
                 finally:
                     self.after(0, lambda: self._set_status("Ready"))
             threading.Thread(target=run, daemon=True).start()
@@ -297,7 +286,8 @@ class VisualizationTabMixin:
 
     def _run_upset(self):
         import matplotlib.pyplot as plt
-        from ...plotting.upset_plots import plot_upset, compute_set_statistics
+
+        from ...plotting.upset_plots import compute_set_statistics, plot_upset
         text = self.upset_text.get("1.0", "end").strip()
         if not text:
             self._msg_warning("No data", "Enter set data first.")
@@ -367,8 +357,11 @@ class VisualizationTabMixin:
             self.gb_tracks_text.insert("end", f"vcf:{path}\n")
 
     def _gb_view(self):
-        import matplotlib.pyplot as plt
-        from ...plotting.genome_browser import plot_genome_tracks, create_bed_track, create_variant_track
+        from ...plotting.genome_browser import (
+            create_bed_track,
+            create_variant_track,
+            plot_genome_tracks,
+        )
         text = self.gb_tracks_text.get("1.0", "end").strip()
         if not text:
             self._msg_warning("No tracks", "Add BED or VCF files first.")
@@ -425,8 +418,10 @@ class VisualizationTabMixin:
         self.cons_stats.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
     def _run_cons(self):
-        import matplotlib.pyplot as plt
-        from ...plotting.conservation_plots import plot_logo_with_conservation, compute_conservation_scores
+        from ...plotting.conservation_plots import (
+            compute_conservation_scores,
+            plot_logo_with_conservation,
+        )
         text = self.cons_text.get("1.0", "end").strip()
         if not text:
             self._msg_warning("No sequences", "Enter aligned sequences first.")
@@ -444,7 +439,6 @@ class VisualizationTabMixin:
             self._msg_error("Error", str(e))
 
     def _run_motif(self):
-        import matplotlib.pyplot as plt
         from ...plotting.conservation_plots import plot_motif_enrichment
         text = self.cons_text.get("1.0", "end").strip()
         motifs = self._ask_input("Motifs", "Enter motifs (comma-sep):", "ATG,CG,GCG")
@@ -498,8 +492,7 @@ class VisualizationTabMixin:
         self.syn_stats.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
     def _run_synteny(self):
-        import matplotlib.pyplot as plt
-        from ...plotting.synteny import plot_synteny_dotplot, compute_synteny_score
+        from ...plotting.synteny import compute_synteny_score, plot_synteny_dotplot
         g1 = [g.strip() for g in self.syn_g1.get().split(',') if g.strip()]
         g2 = [g.strip() for g in self.syn_g2.get().split(',') if g.strip()]
         if not g1 or not g2:
@@ -588,7 +581,7 @@ class VisualizationTabMixin:
 
             # Try new plot_api first for new plot types
             if plot_type in ('pca', 'manhattan', 'boxplot', 'violin', 'qq-plot'):
-                from ...plotting.plot_api import pca, manhattan, boxplot, violin, qqplot
+                from ...plotting.plot_api import boxplot, manhattan, pca, qqplot, violin
                 if plot_type == 'pca':
                     data = np.random.randn(30, 50) if not isinstance(self._inter_data, dict) else self._inter_data.get('x', np.random.randn(30, 50))
                     fig = pca(data, labels=['Ctrl']*15 + ['Treat']*15, interactive=True, output_html=output)
@@ -608,8 +601,14 @@ class VisualizationTabMixin:
                     fig = qqplot(pvals, interactive=True, output_html=output)
             else:
                 # Use existing interactive_plots for legacy types
-                from ...plotting.interactive_plots import (interactive_scatter, interactive_bar,
-                    interactive_heatmap, interactive_volcano, interactive_line, interactive_pie)
+                from ...plotting.interactive_plots import (
+                    interactive_bar,
+                    interactive_heatmap,
+                    interactive_line,
+                    interactive_pie,
+                    interactive_scatter,
+                    interactive_volcano,
+                )
                 if plot_type == 'scatter':
                     if isinstance(self._inter_data, dict):
                         x, y = self._inter_data['x'], self._inter_data['y']

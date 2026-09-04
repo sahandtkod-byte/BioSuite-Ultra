@@ -11,14 +11,12 @@ original simple greedy assembler with a proper overlap-based approach.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
 import os
 import subprocess
 import tempfile
-import numpy as np
-from collections import Counter, defaultdict, deque
+from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -52,11 +50,12 @@ def check_assembly_tools() -> dict :
             'megahit': _has_tool('megahit-core')}
 
 
-def _compute_assembly_stats(contigs: List[str]) -> Dict[str, Any]:
+def _compute_assembly_stats(contigs: List[str]) -> AssemblyResult:
     """Compute assembly statistics from a contig list.
 
     Returns:
-        dict: total_len, n_contigs, n50, l50, max_len, gc_content.
+        AssemblyResult with total_length, num_contigs, N50, L50, longest/
+        shortest contig, per-contig lengths and overall GC content.
     """
     lengths = sorted([len(c) for c in contigs], reverse=True)
     if not lengths:
@@ -220,58 +219,34 @@ def _build_overlap_graph(reads: List[str], min_overlap: int = 15) -> Dict[str, A
         Dict mapping read_index -> list of (target_index, overlap_len)
         for the best (longest) overlap to each target.
     """
-    n = len(reads)
     graph = defaultdict(list)
     seqs = [seq for _, seq in reads]
 
-    # For efficiency, group reads by their last k-mer (k=min_overlap)
-    # to reduce the number of pairwise comparisons
+    # Index ALL suffixes of length >= min_overlap: a suffix/prefix overlap of
+    # any length L >= min_overlap can then be found by exact lookup.  (The old
+    # code only indexed the single min_overlap k-mer plus suffixes shorter
+    # than 2*min_overlap — this only ever found overlaps EXACTLY min_overlap
+    # long, so typical 30+ bp read overlaps produced no edges and no contigs
+    # were ever merged.)
     suffix_index = defaultdict(list)
     for i, seq in enumerate(seqs):
-        if len(seq) >= min_overlap:
-            kmer = seq[-min_overlap:]
-            suffix_index[kmer].append(i)
+        for plen in range(min_overlap, len(seq) + 1):
+            suffix_index[seq[-plen:]].append(i)
 
-    prefix_index = defaultdict(list)
-    for i, seq in enumerate(seqs):
-        if len(seq) >= min_overlap:
-            kmer = seq[:min_overlap]
-            prefix_index[kmer].append(i)
-
-    # Find overlaps using k-mer index for candidate filtering
-    best_overlaps = {}  # (i,j) -> overlap_len
-    for i, seq_i in enumerate(seqs):
-        suffix_kmer = seq_i[-min_overlap:] if len(seq_i) >= min_overlap else seq_i
-        candidates = set()
-        # Check suffix k-mer matches
-        if suffix_kmer in prefix_index:
-            candidates.update(prefix_index[suffix_kmer])
-        # Also do a broader check: look at last min_overlap bases
-        for plen in range(min_overlap, min(len(seq_i), 2 * min_overlap)):
-            suffix = seq_i[-plen:]
-            for j, seq_j in enumerate(seqs):
-                if i == j:
-                    continue
-                if seq_j.startswith(suffix):
-                    candidates.add(j)
-
-        for j in candidates:
-            if i == j:
+    best_overlaps = {}  # (i, j) -> overlap length
+    for j, seq_j in enumerate(seqs):
+        for plen in range(min_overlap, len(seq_j) + 1):
+            prefix = seq_j[:plen]
+            if prefix not in suffix_index:
                 continue
-            olap = _compute_suffix_prefix_overlap(
-                seqs[i], seqs[j], min_overlap
-            )
-            if olap > 0:
+            for i in suffix_index[prefix]:
+                if i == j or len(seq_j) < plen:
+                    continue
                 key = (i, j)
-                if key not in best_overlaps or olap > best_overlaps[key]:
-                    best_overlaps[key] = olap
+                if plen > best_overlaps.get(key, 0):
+                    best_overlaps[key] = plen
 
-    # Build adjacency list (best overlap per target)
-    best_for_target = {}
-    for (i, j), olap in best_overlaps.items():
-        if j not in best_for_target or olap > best_for_target[j][1]:
-            best_for_target[j] = (i, olap)
-
+    # Build adjacency list (all overlap edges per source)
     for (i, j), olap in best_overlaps.items():
         # Keep only the best overlap for each source -> target
         graph[i].append((j, olap))
@@ -339,76 +314,28 @@ def _greedy_traversal_assembly(reads: List[str], graph: Dict[str, Any], min_over
 
 
 def _detect_unitigs(reads: List[str], contigs: List[str], graph: Dict[str, Any], min_overlap: int = 15) -> List[str]:
-    """Detect unitigs from the overlap graph.
+    """Unitig pass-through: the greedy traversal already produces maximal
+    non-branching contigs.
 
-    A unitig is a maximal non-branching path in the overlap graph.
-    Here we refine contigs by checking for unambiguous extensions at
-    each end — if a contig's terminal read has exactly one outgoing
-    edge with sufficient overlap, we extend; otherwise we stop.
-
-    Args:
-        reads: List of (header, sequence) tuples.
-        contigs: Current contig list from _greedy_traversal_assembly.
-        graph: Overlap graph.
-        min_overlap: Minimum overlap.
-
-    Returns:
-        Refined list of contig sequences.
+    The former implementation tried to extend each contig by one more read
+    but guarded the extension with a k-mer membership test over the CURRENT
+    contig set.  Because every read is already a substring of some contig
+    after the greedy pass, that guard is always true and the extension could
+    never fire — the function spent O(reads x contigs x contig-bases) on
+    substring scans that provably did nothing (minutes on real read sets),
+    while the signature stays for API compatibility.
     """
-    if not graph:
-        return contigs
-
-    # Build reverse graph for backward extension
-    rev_graph = defaultdict(list)
-    for i, targets in graph.items():
-        for j, olap in targets:
-            rev_graph[j].append((i, olap))
-
-    refined = []
-    seqs = [seq for _, seq in reads]
-
-    # Map each contig back to its constituent reads (approximate)
-    # by finding which reads were merged — we track via read-set overlap
-    for contig in contigs:
-        # Try to find the last read in this contig by checking
-        # which read's sequence appears at the end
-        tail_read = -1
-        for i, seq in enumerate(seqs):
-            if contig.endswith(seq) and len(seq) > min_overlap:
-                tail_read = i
-                break
-
-        if tail_read >= 0:
-            # Check for unambiguous forward extension (unitig property)
-            fwd_targets = graph.get(tail_read, [])
-            if len(fwd_targets) == 1:
-                j, olap = fwd_targets[0]
-                if not used_in_any(contigs, seqs[j], seqs, min_overlap):
-                    contig = contig + seqs[j][olap:]
-
-        refined.append(contig)
-
-    return refined
-
-
-def used_in_any(contigs: List[str], seq: str, seqs: List[str], min_overlap: int) -> bool:
-    """Check if a sequence is already represented in any contig."""
-    for c in contigs:
-        if len(seq) >= min_overlap and seq[:min_overlap] in c:
-            return True
-        if len(seq) >= min_overlap and seq[-min_overlap:] in c:
-            return True
-    return False
+    return contigs
 
 
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
-def _spades_assemble(reads_file: str, output_dir: str, threads: int = 4) -> bool:
+def _spades_assemble(reads_file: str, output_dir: str, threads: int = 4) -> Optional[str]:
     """Run SPAdes assembler via subprocess (multi-k default)."""
     cmd = ['spades.py', '-s', reads_file, '-o', output_dir,
            '--only-assembler', '-t', str(threads)]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
         contig_file = os.path.join(output_dir, 'contigs.fasta')
         if os.path.exists(contig_file):
             return contig_file
@@ -417,12 +344,12 @@ def _spades_assemble(reads_file: str, output_dir: str, threads: int = 4) -> bool
     return None
 
 
-def _megahit_assemble(reads_file: str, output_dir: str, threads: int = 4) -> bool:
+def _megahit_assemble(reads_file: str, output_dir: str, threads: int = 4) -> Optional[str]:
     """Run MEGAHIT assembler via subprocess (metagenomic mode)."""
     cmd = ['megahit-core', '-1', reads_file, '-o', output_dir,
            '--min-contig-len', '200', '-t', str(threads)]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
         contig_file = os.path.join(output_dir, 'final.contigs.fa')
         if os.path.exists(contig_file):
             return contig_file
@@ -459,8 +386,8 @@ def assemble(reads_file: str, output_fasta: Optional[str] = None, tool: str = 'a
     return _builtin_assembly(reads_file, output_fasta)
 
 
-def _parse_assembly_fasta(fasta_file: str, engine: str) -> List[str]:
-    """Parse assembled contigs from FASTA into a list of sequences."""
+def _parse_assembly_fasta(fasta_file: str, engine: str) -> AssemblyResult:
+    """Parse assembled contigs from FASTA and compute AssemblyResult stats."""
     contigs = []
     name, buf = None, []
     with open(fasta_file) as f:

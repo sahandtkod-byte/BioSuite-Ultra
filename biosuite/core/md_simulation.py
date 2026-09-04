@@ -10,15 +10,16 @@ Implements:
 - Proper PDB parsing with residue/chain metadata
 - Correct radius of gyration calculation
 """
-import os
 import math
-import numpy as np
+import os
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional, Dict
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 
 try:
-    from openmm.app import PDBFile, ForceField, Simulation, Modeller
-    from openmm import unit, LangevinMiddleIntegrator
+    from openmm import LangevinMiddleIntegrator, unit
+    from openmm.app import PME, ForceField, HBonds, Modeller, PDBFile, Simulation
     HAS_OPENMM = True
 except ImportError:
     HAS_OPENMM = False
@@ -150,9 +151,15 @@ _ELEMENT_MAP = {
 
 
 def _guess_element(atom_name: str) -> str:
-    """Guess element from atom name (PDB convention: first letter is element)."""
-    clean = atom_name.strip().lstrip('0123456789')
-    first = clean[0].upper() if clean else 'C'
+    """Guess element from atom name (PDB convention: column-aligned naming).
+
+    Two-letter heavy-metal ion names (FE/ZN/MG) resolve to their metal
+    element; 'CA' stays carbon (the alpha-carbon collision in PDB files).
+    """
+    clean = atom_name.strip().lstrip('0123456789').upper()
+    if len(clean) >= 2 and clean[:2] in ('FE', 'ZN', 'MG'):
+        return clean[:2]
+    first = clean[0] if clean else 'C'
     if first in _ELEMENT_MAP:
         return first
     return 'C'  # fallback

@@ -1,14 +1,17 @@
 """All biological plots: Volcano, PCA, Manhattan, MA, Venn, Barplot, Boxplot, Heatmap, Scatter, Timeseries, QQ, ClusteredHeatmap, Circos, Alignment, Violin, Raincloud, Ridge, Dot."""
+import os
+
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
-from scipy import stats as sp_stats
-from matplotlib.patches import FancyBboxPatch, Wedge, Circle, Arc, Rectangle, ConnectionPatch
-from matplotlib.path import Path
+import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
-import os
-import sys
+from matplotlib.patches import (
+    Circle,
+    ConnectionPatch,
+    Rectangle,
+)
+from scipy import stats as sp_stats
 
 try:
     from tqdm import tqdm
@@ -16,11 +19,24 @@ try:
 except ImportError:
     HAS_TQDM = False
 
-from ..core.utils import (config, session, autosave_session, safe_float_input, safe_int_input,
-                          safe_list_input, load_dataframe_safe, maybe_downsample, apply_glass_ax,
-                          ask_save_plot, report_boxplot_stats, report_scatter_stats,
-                          report_volcano_stats, report_pca_stats, report_manhattan_stats,
-                          add_ttest_to_boxplot, add_regression_eq, _interrupted)
+from ..core.utils import (
+    add_ttest_to_boxplot,
+    apply_glass_ax,
+    ask_save_plot,
+    autosave_session,
+    config,
+    load_dataframe_safe,
+    maybe_downsample,
+    report_boxplot_stats,
+    report_manhattan_stats,
+    report_pca_stats,
+    report_volcano_stats,
+    safe_float_input,
+    safe_int_input,
+    safe_list_input,
+    session,
+)
+
 
 def draw_venn2(subsets, set_labels=('A', 'B'), ax=None):
     if ax is None:
@@ -858,8 +874,16 @@ def dot_plot(pdf=None):
 
 def export_all_to_folder(folder_name="biosuite_export"):
     import builtins
-    from .math_plots import (sine_plot, cosine_plot, linear_plot,
-                              quadratic_plot, cubic_plot, exponential_plot, logistic_plot)
+
+    from .math_plots import (
+        cosine_plot,
+        cubic_plot,
+        exponential_plot,
+        linear_plot,
+        logistic_plot,
+        quadratic_plot,
+        sine_plot,
+    )
     from .specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
     print(f"\nExporting all plots to folder: {folder_name}")
     if not os.path.exists(folder_name):
@@ -910,6 +934,17 @@ def export_all_to_folder(folder_name="biosuite_export"):
         except OSError:
             pass
 
+    # Patch the auto-saver into EVERY module that IMPORTS ask_save_plot
+    # (math_plots / specialized_plots imported the symbol into their own
+    # namespaces; patching only this module silently skipped 16 of the
+    # 29 plots — sine/cosine/logistic/... were never written to disk).
+    from . import math_plots as _mp
+    from . import specialized_plots as _sp
+    _orig_map = {}
+    for _mod in (_mp, _sp):
+        if hasattr(_mod, 'ask_save_plot'):
+            _orig_map[_mod] = _mod.ask_save_plot
+            _mod.ask_save_plot = auto_save_plot
     import biosuite.plotting.biological_plots as bp_mod
     bp_mod.ask_save_plot = auto_save_plot
 
@@ -923,6 +958,8 @@ def export_all_to_folder(folder_name="biosuite_export"):
     finally:
         builtins.input = original_input
         bp_mod.ask_save_plot = _orig_ask_save
+        for _mod, _fn in _orig_map.items():
+            _mod.ask_save_plot = _fn
         config['save_format'] = original_format
         config['quiet'] = original_quiet
         os.chdir(original_cwd)
@@ -949,10 +986,18 @@ def generate_markdown_story(plot_names, output_path="story.md"):
     print(f"Story report saved to {output_path}")
 
 def batch_export_to_pdf(pdf_path="biosuite_report.pdf"):
-    from .math_plots import (sine_plot, cosine_plot, linear_plot,
-                              quadratic_plot, cubic_plot, exponential_plot, logistic_plot)
-    from .specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
     import builtins
+
+    from .math_plots import (
+        cosine_plot,
+        cubic_plot,
+        exponential_plot,
+        linear_plot,
+        logistic_plot,
+        quadratic_plot,
+        sine_plot,
+    )
+    from .specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
     print(f"\nBatch exporting all plots to {pdf_path}...")
     plot_funcs = [
         volcano_plot, pca_plot, manhattan_plot, ma_plot, venn_diagram,
@@ -980,9 +1025,6 @@ def batch_export_to_pdf(pdf_path="biosuite_report.pdf"):
         config['quiet'] = original_quiet
         builtins.input = original_input
 
-from .math_plots import (sine_plot, cosine_plot, linear_plot,
-                          quadratic_plot, cubic_plot, exponential_plot, logistic_plot)
-from .specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
 
 
 

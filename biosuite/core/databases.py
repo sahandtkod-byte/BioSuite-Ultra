@@ -14,27 +14,23 @@ Features:
 """
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
+import threading
+import time
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import os
-import json
-import time
-import hashlib
-import logging
-import tempfile
-import threading
-from dataclasses import dataclass, field
-from functools import wraps
-
 try:
-    import urllib.request
-    import urllib.parse
     import urllib.error
+    import urllib.parse
+    import urllib.request
     HAS_URLLIB = True
 except ImportError:
     HAS_URLLIB = False
 
-from .utils import get_api_key, set_api_key, prompt_api_key
+from .utils import get_api_key, prompt_api_key
 
 
 @dataclass
@@ -472,7 +468,7 @@ def fetch_uniprot(accession: str) -> DBResult:
             'organism': entry.get('organism', {}).get('scientificName', ''),
             'sequence': entry.get('sequence', {}).get('value', ''),
             'length': entry.get('sequence', {}).get('length', 0),
-            'go_terms': [t.get('properties', [{}])[0].get('value', '')
+            'go_terms': [(t.get('properties') or [{}])[0].get('value', '')
                         for t in entry.get('uniProtKBCrossReferences', [])
                         if t.get('database') == 'GO'],
         }
@@ -607,12 +603,21 @@ def search_kegg(query: str, database: str = 'pathway', max_results: int = 10) ->
 
         records = []
         for line in text.strip().split('\n')[:max_results]:
-            if ':' in line:
-                kegg_id, desc = line.split(':', 1)
-                records.append({
-                    'id': kegg_id.strip(),
-                    'description': desc.strip(),
-                })
+            if not line.strip():
+                continue
+            # KEGG rows are "<db>:<entry>\t<description>" — the id contains
+            # its OWN colon, so split on the tab (not the first colon).
+            if '\t' in line:
+                kegg_id, desc = line.split('\t', 1)
+            else:
+                parts = line.split(None, 1)
+                if len(parts) != 2:
+                    continue
+                kegg_id, desc = parts
+            records.append({
+                'id': kegg_id.strip(),
+                'description': desc.strip(),
+            })
 
         out = DBResult(source='kegg', query=query, records=records)
         _cache.set('kegg', ck, out)

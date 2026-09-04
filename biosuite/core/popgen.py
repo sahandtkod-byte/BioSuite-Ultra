@@ -4,11 +4,10 @@ Population genetics analysis.
 Pure Python implementations of Hardy-Weinberg, FST, nucleotide diversity,
 Tajima's D, PCA, and linkage disequilibrium. All pip-installable dependencies.
 """
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass, field
+
+import numpy as np
 from scipy import stats as sp_stats
-from collections import Counter
 
 
 @dataclass
@@ -65,7 +64,7 @@ def hardy_weinberg_test(genotype_counts):
 
 
 def calculate_fst(population_genotype_matrices):
-    """Calculate pairwise FST between populations (Weir-Cockerham简化版).
+    """Calculate pairwise FST between populations (Nei's Gst estimator).
 
     Args:
         population_genotype_matrices: list of numpy arrays (n_samples x n_sites).
@@ -125,52 +124,59 @@ def nucleotide_diversity(genotype_matrix):
 
 
 def tajimas_d(genotype_matrix):
-    """Calculate Tajima's D from genotype matrix.
+    """Calculate Tajima's D from a diploid genotype matrix.
 
     Args:
-        genotype_matrix: numpy array (n_samples x n_sites).
+        genotype_matrix: numpy array (n_samples x n_sites), dosage 0/1/2.
+            n = 2 * n_samples chromosomes are used in the variance terms.
 
     Returns:
-        Tajima's D statistic.
+        Tajima's D statistic (Tajima 1989).
+
+    Note: the previous implementation divided theta_pi by the number of
+    chromosome pairs (a ~n^2 / 2 error) and used a variance formula with no
+    dependence on the number of segregating sites — D collapsed to a
+    near-constant strong negative.  This is the textbook estimator:
+        D = (theta_pi - S / a1) / sqrt(e1*S + e2*S*(S-1))
     """
-    n = genotype_matrix.shape[0]
+    n_samples = genotype_matrix.shape[0]
     n_sites = genotype_matrix.shape[1]
+    n = 2 * n_samples  # chromosome count for diploid dosages
 
-    if n < 2 or n_sites < 2:
+    if n < 4 or n_sites < 2:
         return 0.0
 
-    # Count segregating sites
-    seg_sites = 0
-    allele_counts = []
-    for j in range(n_sites):
-        col = genotype_matrix[:, j]
-        unique = np.unique(col)
-        if len(unique) > 1:
-            seg_sites += 1
-            alt_count = int(col.sum())
-            allele_counts.append((alt_count, n - alt_count))
+    gm = genotype_matrix.astype(float)
 
-    if seg_sites == 0:
+    # Segregating sites and theta_pi (sum of per-site mean pairwise
+    # chromosome differences, computed exactly from dosages).
+    seg = (gm.max(axis=0) != gm.min(axis=0))
+    S = int(seg.sum())
+    if S == 0:
         return 0.0
 
-    # Theta from number of segregating sites
+    # Per-site: mean |d_i - d_j| over chromosome pairs with diploid dosages
+    # equals 2*c_alt*c_ref / (n*(n-1)) where c_alt = sum of dosages.
+    c_alt_all = gm.sum(axis=0)
+    c_alt = c_alt_all[seg]
+    c_ref = n - c_alt
+    k_site = 2 * c_alt * c_ref / (n * (n - 1))
+    theta_pi = float(k_site.sum())
+
     a1 = sum(1.0 / i for i in range(1, n))
-    theta_w = seg_sites / a1 if a1 > 0 else 0
-
-    # Theta from average pairwise differences
-    pi_avg = nucleotide_diversity(genotype_matrix) * n_sites
-    theta_pi = pi_avg / (n * (n - 1) / 2) if n > 1 else 0
-
-    # Tajima's D
     a2 = sum(1.0 / i**2 for i in range(1, n))
-    var_d = (a1 * (n - 1) / (n * (n - 1))) * (
-        n * (n + 1) / (n - 1) / 3 - (n + 1) / a1 / (n - 1) + a2 / a1**2
-    )
+    b1 = (n + 1) / (3 * (n - 1))
+    b2 = 2 * (n**2 + n + 3) / (9 * n * (n - 1))
+    c1 = b1 - 1.0 / a1
+    c2 = b2 - (n + 2) / (a1 * n) + a2 / a1**2
+    e1 = c1 / a1
+    e2 = c2 / (a1**2 + a2)
 
+    var_d = e1 * S + e2 * S * (S - 1)
     if var_d <= 0:
         return 0.0
 
-    d = (theta_pi - theta_w) / np.sqrt(var_d)
+    d = (theta_pi - S / a1) / np.sqrt(var_d)
     return round(float(d), 4)
 
 
@@ -217,11 +223,11 @@ def pca_genotypes(genotype_matrix, n_components=2):
     """
     try:
         from sklearn.decomposition import PCA
-    except ImportError:
+    except ImportError as exc:
         raise ImportError(
             "scikit-learn is required for PCA. "
             "Install with: pip install scikit-learn"
-        )
+        ) from exc
     centered = genotype_matrix - genotype_matrix.mean(axis=0)
     pca = PCA(n_components=n_components)
     coords = pca.fit_transform(centered)
@@ -248,8 +254,6 @@ def full_analysis(genotype_matrix, population_labels=None):
 
     # HWE for first site
     genotypes = genotype_matrix[:, 0]
-    n_ref = (genotypes == 0).sum() * 2 + (genotypes == 1).sum()
-    n_alt = (genotypes == 2).sum() * 2 + (genotypes == 1).sum()
     report.hw_test = hardy_weinberg_test({
         'AA': int((genotypes == 0).sum()),
         'Aa': int((genotypes == 1).sum()),

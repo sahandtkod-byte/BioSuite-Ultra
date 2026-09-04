@@ -6,14 +6,14 @@ pure Python progressive alignment algorithm.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
-
 import os
 import subprocess
 import tempfile
-import numpy as np
-from dataclasses import dataclass, field
 from collections import Counter
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Tuple
+
+import numpy as np
 
 try:
     from Bio import AlignIO, SeqIO
@@ -87,15 +87,14 @@ def _is_nucleotide(seq: str) -> bool :
     return sum(1 for c in sample if c not in nuc) / max(len(sample), 1) < 0.1
 
 
-def _write_fasta(sequences: List[str], filepath: str) -> None:
-    """Write sequences to a temporary FASTA file for an external tool.
+def _write_fasta(sequences: list, filepath: str) -> None:
+    """Write sequences to a FASTA file for an external tool.
 
-    Args:
-        sequences: Iterable of sequence strings.
-        filepath: Destination file path.
+    Accepts plain strings OR (name, sequence) tuples — plain strings used
+    to be silently unpacked into ('A', 'C') char pairs.
     """
     with open(filepath, 'w') as f:
-        for name, seq in sequences:
+        for name, seq in _normalize_sequences(list(sequences)):
             f.write(f">{name}\n{seq}\n")
 
 
@@ -156,7 +155,7 @@ def _upgma_tree(dist_matrix: List[List[float]], n: int) -> Tuple[Any, ...]:
     parent = {}
     heights = {i: 0.0 for i in range(n)}
     next_id = n
-    mat = dist_matrix.copy()
+    mat = np.asarray(dist_matrix, dtype=float)   # docstring promises nested lists
 
     while len(clusters) - len(merged) > 1:
         min_val = float('inf')
@@ -270,8 +269,8 @@ def _merge_alignments(aligned_a: List[str], aligned_b: List[str]) -> List[str]:
     profile_b = _make_profile(aligned_b)
     la, lb = len(aligned_a[0]), len(aligned_b[0])
 
-    # DP for profile-profile alignment
-    gap_open, gap_ext = -8, -1
+    # DP for profile-profile alignment (gap costs folded into _profile_score_col)
+    gap_ext = -1
     dp = np.zeros((la + 1, lb + 1), dtype=np.int32)
     trace = np.zeros((la + 1, lb + 1), dtype=np.int8)
 
@@ -372,49 +371,33 @@ def _progressive_msa(sequences: list) -> list :
         return [(names[0], a), (names[1], b)]
 
     dist_mat = _pairwise_distance(seqs)
-    order = _build_guide_order(dist_mat, names)
 
-    # Initialize alignments (one sequence each)
+    # Greedy UPGMA-style merging: repeatedly merge the two closest
+    # active clusters until exactly one remains. A single pass over a
+    # traversal order can leave several clusters behind — their
+    # sequences then come out with DIFFERENT alignment lengths (bug).
     aligned = {i: [seqs[i]] for i in range(n)}
     aligned_names = {i: [names[i]] for i in range(n)}
+    active = set(range(n))
 
-    # Progressive merge following guide tree order
-    merged_already = set()
-    for idx in order:
-        if idx in merged_already:
-            continue
-        # Find closest unmerged neighbor
-        best_j = -1
+    while len(active) > 1:
+        best_pair = None
         best_dist = float('inf')
-        for j in range(n):
-            if j != idx and j not in merged_already:
-                if dist_mat[idx][j] < best_dist:
-                    best_dist = dist_mat[idx][j]
-                    best_j = j
-        if best_j < 0:
-            continue
+        roots = sorted(active)
+        for ai in roots:
+            for bi in roots:
+                if ai >= bi:
+                    continue
+                if dist_mat[ai][bi] < best_dist:
+                    best_dist = dist_mat[ai][bi]
+                    best_pair = (ai, bi)
+        i, j = best_pair
+        aligned[i] = _merge_alignments(aligned[i], aligned[j])
+        aligned_names[i] = aligned_names[i] + aligned_names[j]
+        active.discard(j)
 
-        merged_seqs = _merge_alignments(aligned[idx], aligned[best_j])
-        merged_n = aligned_names[idx] + aligned_names[best_j]
-
-        aligned[idx] = merged_seqs
-        aligned_names[idx] = merged_n
-        merged_already.add(best_j)
-
-    # Collect results from all unmerged clusters
-    result_seqs = []
-    collected_names = set()
-    for i in range(n):
-        if i not in merged_already and i in aligned:
-            # This cluster root contains all its merged sequences
-            cluster_seqs = aligned[i]
-            cluster_names = aligned_names[i]
-            for name, seq in zip(cluster_names, cluster_seqs):
-                if name not in collected_names:
-                    result_seqs.append((name, seq))
-                    collected_names.add(name)
-
-    return result_seqs
+    root = next(iter(active))
+    return list(zip(aligned_names[root], aligned[root]))
 
 
 # ── External Tool Wrappers ──────────────────────────────────────────────────
@@ -518,6 +501,22 @@ def _load_bio_alignment(filepath: str, method: str) -> MSA:
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
+def _normalize_sequences(sequences: list) -> List[Tuple[str, str]]:
+    """Normalize MSA input to a list of (name, sequence) tuples.
+
+    The public API advertises List[str] but the engines need named
+    records — plain strings used to be silently mis-parsed as tuples
+    (each sequence's first two characters became name and sequence!).
+    """
+    norm = []
+    for i, item in enumerate(sequences):
+        if isinstance(item, str):
+            norm.append((f"seq{i + 1}", item))
+        else:
+            norm.append((str(item[0]), str(item[1])))
+    return norm
+
+
 def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     """Align sequences automatically choosing the best available engine.
 
@@ -526,6 +525,8 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     """
     if not sequences or len(sequences) < 2:
         return MSA(method='none', message='Need at least 2 sequences.')
+
+    sequences = _normalize_sequences(sequences)
 
     tools = check_tools()
     if tools.get('clustal_omega'):
@@ -579,10 +580,13 @@ def compute_conservation(alignment: MSA) -> List[float]:
     Returns:
         list: Conservation fraction per column in [0, 1].
     """
+    if not alignment or not alignment.sequences:
+        return []
+    seqs = alignment.sequences_only
+    align_len = alignment.alignment_length or max((len(s) for s in seqs), default=0)
     scores = []
-    align_len = alignment.get_alignment_length()
     for i in range(align_len):
-        column = alignment[:, i]
+        column = [s[i] for s in seqs if i < len(s)]
         chars = [c for c in column if c != '-']
         if not chars:
             scores.append(0.0)
@@ -632,7 +636,9 @@ def alignment_statistics(msa_result: MSA) -> Dict[str, Any]:
     """
     if not msa_result:
         return {}
-    conservation = msa_result.conservation
+    # Engines often leave .conservation empty — compute it on demand
+    # so statistics are never silently reported as zeros.
+    conservation = msa_result.conservation or compute_conservation(msa_result)
     gap_count = sum(s.count('-') for s in msa_result.sequences_only)
     total = msa_result.num_sequences * msa_result.alignment_length
     return {

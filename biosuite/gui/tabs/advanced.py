@@ -2,10 +2,8 @@
 Advanced analysis tabs: Single-Cell, Protein Structure, CRISPR, Population Genetics, ML.
 """
 import os
-import customtkinter as ctk
-from tkinter import filedialog
 
-from ..themes import FONT_BODY, FONT_SMALL
+import customtkinter as ctk
 
 
 class AdvancedTabMixin:
@@ -48,7 +46,11 @@ class AdvancedTabMixin:
             self._msg_warning("No file", "Select a count matrix file.")
             return
         try:
-            from ...core.single_cell import load_count_matrix, run_full_pipeline, format_sc_report
+            from ...core.single_cell import (
+                format_sc_report,
+                load_count_matrix,
+                run_full_pipeline,
+            )
             adata, err = load_count_matrix(path)
             if err:
                 self._msg_error("Error", err)
@@ -92,7 +94,7 @@ class AdvancedTabMixin:
             self._msg_warning("No input", "Enter a PDB ID or file path.")
             return
         try:
-            from ...core.structure import full_analysis, format_structure_report
+            from ...core.structure import format_structure_report, full_analysis
             if os.path.exists(pdb_input):
                 info = full_analysis(filepath=pdb_input)
             else:
@@ -185,7 +187,7 @@ class AdvancedTabMixin:
             if not rows:
                 return
             matrix = np.array(rows)
-            from ...core.popgen import full_analysis, format_popgen_report
+            from ...core.popgen import format_popgen_report, full_analysis
             report = full_analysis(matrix)
             self.popgen_result.delete("1.0", "end")
             self.popgen_result.insert("end", format_popgen_report(report))
@@ -227,8 +229,8 @@ class AdvancedTabMixin:
         self.ml_result.pack(fill='both', expand=True)
 
     def _run_ml(self):
-        import pandas as pd
         import numpy as np
+        import pandas as pd
         path = self.ml_path.get().strip()
         if not path:
             self._msg_warning("No file", "Select a CSV data file.")
@@ -242,7 +244,7 @@ class AdvancedTabMixin:
                 return
             X = df.drop(columns=[label_col]).select_dtypes(include=[np.number]).values
             y = df[label_col].values
-            from ...core.bio_ml import train_random_forest, train_svm, format_ml_report
+            from ...core.bio_ml import format_ml_report, train_random_forest, train_svm
             if model_type == 'SVM':
                 result = train_svm(X, y)
             else:

@@ -4,8 +4,7 @@ ORF (Open Reading Frame) finder, restriction enzyme mapper, and primer design.
 Pure Python implementations for common sequence analysis tasks.
 """
 import re
-import numpy as np
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -48,45 +47,71 @@ def find_orfs(sequence, min_length=30, include_start=False):
     Args:
         sequence: DNA sequence string.
         min_length: Minimum protein length in amino acids.
-        include_start: If True, only ORFs starting with ATG.
+        include_start: If True, only ORFs starting with ATG.  If False,
+            report every stop-to-stop frame segment (``has_start_codon``
+            then reports whether the segment happens to begin with M).
+            NOTE: the old implementation IGNORED this parameter — ORFs
+            always required ATG regardless of the flag; pass
+            ``include_start=True`` to reproduce that behaviour.
+        Only the longest ORF per stop-to-stop segment is reported
+        (nested ATGs are not expanded).
 
     Returns:
-        List of ORF objects.
+        List of ORF objects, longest first.
     """
     seq = sequence.upper().replace('U', 'T')
     orfs = []
 
+    def _segment_orfs(frame_start, seg_start, seg_end, has_stop, frame):
+        """Translate seq[seg_start:seg_end] and emit ORFs if long enough.
+
+        Emits the full stop-to-stop segment plus (when different) the
+        longest nested ORF starting at an in-frame ATG — mirroring NCBI
+        ORFfinder's 'nested ORF' view.
+        """
+        protein = ''.join(
+            GENETIC_CODE.get(seq[j:j+3], 'X')
+            for j in range(seg_start, seg_end, 3)
+            if j + 3 <= len(seq)
+        )
+        while protein.startswith('X'):
+            seg_start += 3
+            protein = protein[1:]
+
+        if include_start is True or include_start == 'ATG':
+            m_pos = protein.find('M')
+            if m_pos < 0:
+                return
+            variants = {(m_pos, protein[m_pos:])}
+        else:
+            variants = {(0, protein)}
+            m_pos = protein.find('M')
+            if m_pos > 0:  # nested-ATG view (m_pos==0 is the segment itself)
+                variants.add((m_pos, protein[m_pos:]))
+
+        for offset, prot in sorted(variants):
+            if len(prot) < min_length or not prot:
+                continue
+            orfs.append(ORF(
+                frame=frame + 1,
+                start=seg_start + offset * 3,
+                end=seg_end + (3 if has_stop else 0),
+                length=len(prot),
+                protein=prot,
+                has_start_codon=prot.startswith('M'),
+                has_stop_codon=has_stop
+            ))
+
     for frame in range(3):
-        i = frame
-        while i <= len(seq) - 3:
-            codon = seq[i:i+3]
-            if codon == 'ATG':
-                start = i
-                protein = []
-                has_stop = False
-                j = i
-                while j <= len(seq) - 3:
-                    c = seq[j:j+3]
-                    aa = GENETIC_CODE.get(c, 'X')
-                    if aa == '*':
-                        has_stop = True
-                        break
-                    protein.append(aa)
-                    j += 3
-                protein_str = ''.join(protein)
-                if len(protein_str) >= min_length:
-                    orfs.append(ORF(
-                        frame=frame + 1,
-                        start=start,
-                        end=j if has_stop else len(seq),
-                        length=len(protein_str),
-                        protein=protein_str,
-                        has_start_codon=True,
-                        has_stop_codon=has_stop
-                    ))
-                i = j + 3 if has_stop else len(seq)
-            else:
-                i += 3
+        seg_start = frame
+        j = frame
+        while j <= len(seq) - 3:
+            aa = GENETIC_CODE.get(seq[j:j+3], 'X')
+            if aa == '*':
+                _segment_orfs(frame, seg_start, j, True, frame)
+                seg_start = j + 3
+            j += 3
+        _segment_orfs(frame, seg_start, j, False, frame)
 
     orfs.sort(key=lambda o: o.length, reverse=True)
     return orfs
@@ -119,17 +144,19 @@ def find_restriction_sites(sequence, enzymes=None):
                 position=match.start(),
                 strand='+'
             ))
-            # Check reverse complement
-            rc = _reverse_complement(pattern)
-            if rc != pattern:
-                for m2 in re.finditer(f'(?=({rc}))', seq):
-                    sites.append(RestrictionSite(
-                        enzyme=enzyme_name,
-                        sequence=rc,
-                        cut_position=len(pattern) - cut_pos,
-                        position=m2.start(),
-                        strand='-'
-                    ))
+        # Reverse-strand sites: scan rc ONCE per enzyme.  This block used to
+        # sit inside the '+' match loop, so every '+' hit re-added ALL '-'
+        # sites (non-palindromic enzymes were massively over-counted).
+        rc = _reverse_complement(pattern)
+        if rc != pattern:
+            for m2 in re.finditer(f'(?=({rc}))', seq):
+                sites.append(RestrictionSite(
+                    enzyme=enzyme_name,
+                    sequence=rc,
+                    cut_position=len(pattern) - cut_pos,
+                    position=m2.start(),
+                    strand='-'
+                ))
 
     sites.sort(key=lambda s: s.position)
     return sites
@@ -164,9 +191,15 @@ def design_primers(target_seq, amplicon_start=0, amplicon_end=None,
 
 
 def _find_primer(seq, start, end, length, min_tm, max_tm, gc_range, strand):
-    """Search for a valid primer in the given region."""
+    """Search for a valid primer in the given region.
+
+    Forward primers anchor near the amplicon START, reverse primers near
+    the amplicon END — the old scoring pulled BOTH towards the middle of
+    the region, producing colliding/overlapping primer pairs.
+    """
     best = None
     best_score = -1
+    target_pos = start if strand == '+' else max(start, end - length)
 
     for i in range(start, min(end - length + 1, len(seq) - length + 1)):
         if strand == '+':
@@ -182,8 +215,8 @@ def _find_primer(seq, start, end, length, min_tm, max_tm, gc_range, strand):
         if tm < min_tm or tm > max_tm:
             continue
 
-        # Score: prefer middle of region, stable GC, good Tm
-        pos_score = 1.0 - abs(i - (start + end) / 2) / ((end - start) / 2)
+        # Score: prefer the correct flank, stable GC, good Tm
+        pos_score = 1.0 - abs(i - target_pos) / max((end - start) / 2, 1)
         gc_score = 1.0 - abs(gc - 55) / 45
         tm_score = 1.0 - abs(tm - 60) / 10
         score = pos_score + gc_score + tm_score

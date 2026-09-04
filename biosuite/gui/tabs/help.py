@@ -3,7 +3,7 @@ Help & Guides tab — all help text for every module.
 """
 import customtkinter as ctk
 
-from ..themes import FONT_FAMILY, FONT_SMALL
+from ..themes import FONT_FAMILY
 
 
 class HelpTabMixin:

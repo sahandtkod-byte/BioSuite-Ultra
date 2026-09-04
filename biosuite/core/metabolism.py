@@ -4,10 +4,10 @@ Metabolic network analysis with dual-mode execution.
 Pure Python stoichiometric analysis as default, COBRApy as optional.
 """
 import os
-import numpy as np
-import pandas as pd
 import warnings
 from dataclasses import dataclass, field
+
+import numpy as np
 
 try:
     import cobra
@@ -48,7 +48,6 @@ def _parse_sbml_simple(filepath):
     reactions = []
     metabolites = []
     stoich = {}
-    objective = None
 
     try:
         import xml.etree.ElementTree as ET
@@ -89,24 +88,32 @@ def _parse_sbml_simple(filepath):
 
 def _builtin_fba(model_file=None, stoich_matrix=None, flux_bounds=(-1000, 1000)):
     if stoich_matrix is not None:
-        S = stoich_matrix
+        # accept plain Python lists too (used to AttributeError on .shape)
+        S = np.asarray(stoich_matrix, dtype=float)
+        if S.ndim != 2:
+            raise ValueError("stoich_matrix must be 2-dimensional")
         n_reactions = S.shape[1]
         n_metabolites = S.shape[0]
         obj = np.zeros(n_reactions)
-        obj[0] = 1
+        # FBA MAXIMISES the objective: linprog minimises c.x, so c = -1
+        # (the old +1 MINIMISED reaction 0's flux — usually to -1000 or 0).
+        obj[0] = -1
 
         try:
             from scipy.optimize import linprog
             result = linprog(obj, A_eq=S, b_eq=np.zeros(n_metabolites),
                            bounds=[flux_bounds] * n_reactions, method='highs')
             if result.success:
+                # negate back: we minimised -objective
+                obj_val = round(-result.fun, 4)
                 return FluxResult(
                     engine='builtin',
-                    objective_value=round(result.fun, 4),
+                    objective_value=obj_val,
                     fluxes={f'R{i}': round(v, 4) for i, v in enumerate(result.x)},
                     reaction_count=n_reactions,
                     metabolite_count=n_metabolites,
-                    message=f"FBA solved: objective={result.fun:.4f}"
+                    # report the *maximised* objective, not the negated LP value
+                    message=f"FBA solved: objective={obj_val:.4f}"
                 )
         except Exception:  # scipy.optimize can fail in many ways
             pass
@@ -202,7 +209,7 @@ def create_stoichiometric_matrix(reactions_dict, metabolites_list):
     met_idx = {m: i for i, m in enumerate(metabolites_list)}
     S = np.zeros((n_mets, n_rxns))
 
-    for j, (rid, rxn) in enumerate(reactions_dict.items()):
+    for j, (_rid, rxn) in enumerate(reactions_dict.items()):
         for met, coeff in rxn.get('substrates', []):
             if met in met_idx:
                 S[met_idx[met], j] = -abs(coeff)

@@ -1,33 +1,23 @@
 """Utility functions: config, session, safe input, file loading, theme, helpers."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
-
-import os
-import sys
 import json
+import os
 import subprocess
-import warnings
+import sys
 import threading
 import time
+from typing import Any, Dict, List, Optional, Tuple
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
-# ── Re-export validators ────────────────────────────────────────────────────
-from biosuite.core.validators import (
-    validate_sequence,
-    validate_file_extension,
-    validate_dataframe_columns,
-    validate_range,
-    retry_on_error,
-    safe_execute,
-    InputValidator,
-    default_validator,
-)
-
 from biosuite.core.log import get_logger
+
+# ── Re-export validators ────────────────────────────────────────────────────
+
 logger = get_logger(__name__)
 
 
@@ -283,10 +273,16 @@ def prompt_api_key(service: str, description: str = "") -> Optional[str]:
         return existing
     if config.get('quiet', False):
         return ''
+    import sys
+    if not sys.stdin.isatty():
+        # GUI / CI / piped stdin: an interactive input() would hang forever
+        # or die with EOFError — silently skip instead.
+        logger.info(f"\n  API key for {service} not set (non-interactive session).")
+        return ''
     logger.info(f"\n  API key required for: {service}")
     if description:
         logger.info(f"  {description}")
-    key = input(f"  Enter API key (or blank to skip): ").strip()
+    key = input("  Enter API key (or blank to skip): ").strip()
     if key:
         set_api_key(service, key)
         logger.info(f"  API key saved for {service}.")
@@ -482,7 +478,8 @@ def apply_glass_ax(ax: Any) -> None:
                               facecolor='none', edgecolor=ax.spines['top'].get_edgecolor(),
                               linewidth=0.8, alpha=0.3)
         ax.add_patch(rect)
-    except (AttributeError, TypeError, ValueError):
+    # KeyError: polar axes have no 'top'/'right' spines (circos plots).
+    except (AttributeError, TypeError, ValueError, KeyError):
         pass
 
 def ask_save_plot(default_name: str, save_format: str, dpi: int, pdf: Optional[str] = None, story: Optional[List[str]] = None) -> Optional[str]:
@@ -552,7 +549,7 @@ def report_volcano_stats(lfc: Any, pvals: Any, fc_thresh: float, p_thresh: float
     sig = (np.abs(lfc) >= fc_thresh) & (pvals < p_thresh)
     up = sig & (lfc > 0)
     down = sig & (lfc < 0)
-    logger.info(f"\nVolcano Statistics:")
+    logger.info("\nVolcano Statistics:")
     logger.info(f"   Up-regulated genes: {np.sum(up)}")
     logger.info(f"   Down-regulated genes: {np.sum(down)}")
     logger.info(f"   Total significant: {np.sum(sig)}")
@@ -560,7 +557,7 @@ def report_volcano_stats(lfc: Any, pvals: Any, fc_thresh: float, p_thresh: float
 
 def report_pca_stats(pca: Any) -> Dict[str, Any]:
     """Explained-variance ratios from a fitted PCA object."""
-    logger.info(f"\nPCA Statistics:")
+    logger.info("\nPCA Statistics:")
     for i, var in enumerate(pca.explained_variance_ratio_[:2]):
         logger.info(f"   PC{i+1} explains {var*100:.2f}% of variance")
     return {'var1': pca.explained_variance_ratio_[0], 'var2': pca.explained_variance_ratio_[1]}
@@ -572,7 +569,7 @@ def report_manhattan_stats(df: pd.DataFrame, threshold: float = 5e-8) -> Dict[st
     sig = df[df['p'] > -np.log10(threshold)]
     if not sig.empty:
         top = sig.loc[sig['p'].idxmax()]
-        logger.info(f"\nManhattan Statistics:")
+        logger.info("\nManhattan Statistics:")
         logger.info(f"   Significant SNPs: {len(sig)}")
         logger.info(f"   Top SNP: {top['chrom']}:{int(top['pos'])} with -log10(p)={top['p']:.2f}")
     else:
@@ -586,7 +583,6 @@ def add_ttest_to_boxplot(data: pd.DataFrame, group_col: str, value_col: str, ax:
         g1 = data[data[group_col]==groups[0]][value_col].dropna()
         g2 = data[data[group_col]==groups[1]][value_col].dropna()
         _, pval = sp_stats.ttest_ind(g1, g2)
-        y_max = data[value_col].max()
         ax.text(0.5, 1.02, f't-test p = {pval:.4f}', ha='center',
                 transform=ax.transAxes, fontsize=9)
     else:

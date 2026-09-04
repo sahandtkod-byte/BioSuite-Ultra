@@ -8,15 +8,28 @@ All tools are free and open source:
 - goatools: https://github.com/tanghaibao/goatools
 - gseapy: https://github.com/zqfang/GSEApy
 """
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass, field
 
+import numpy as np
+import pandas as pd
+
+from .log import get_logger
+
+logger = get_logger(__name__)
+
+
 try:
-    import goatools
+    # statsmodels >= 0.15 moved multipletests out of the legacy sandbox
+    # path; goatools (<= 1.6.x) still imports it from there, so provide
+    # the relocated symbol before goatools' multiple_testing module loads.
+    import statsmodels.sandbox.stats.multicomp as _sm_legacy
+    if not hasattr(_sm_legacy, 'multipletests'):
+        from statsmodels.stats.multitest import multipletests as _sm_new
+
+        _sm_legacy.multipletests = _sm_new
+
     from goatools.go_enrichment import GOEnrichmentStudy
     from goatools.obo_parser import GODag
-    from goatools.anno.idtogos_reader import IdToGosReader
     HAS_GOATOOLS = True
 except ImportError:
     HAS_GOATOOLS = False
@@ -145,23 +158,29 @@ def run_ora(
         # Background: all genes in associations
         background = set(associations.keys())
 
-        # Create GO enrichment study
+        # Create GO enrichment study.  Request BOTH corrections: the
+        # downstream filter reads r.p_fdr_bh, but a bonferroni-only run
+        # (the DEFAULT!) produces records that lack p_fdr_bh, so every
+        # default call used to die with AttributeError and surface as
+        # "ORA analysis error" with zero results.
         goeaobj = GOEnrichmentStudy(
             background,
             associations,
             obodag,
-            methods=[method],
+            methods=sorted({method, 'bonferroni', 'fdr_bh'}),
             cutoff=cutoff
         )
 
         goea_results = goeaobj.run_study(study_genes)
 
-        # Filter by ontology and significance
-        ontology_prefix = {'BP': 'GO:000', 'CC': 'GO:000', 'MF': 'GO:000'}
+        # Filter by significance and depth (depth ≥ 2 keeps it term-specific)
         results = []
 
         for r in goea_results:
-            if not r.p_fdr_bh < cutoff:
+            p_adj = getattr(r, 'p_fdr_bh', None)
+            if p_adj is None:
+                p_adj = getattr(r, 'p_bonferroni', None)
+            if p_adj is None or not p_adj < cutoff:
                 continue
             # Check ontology category from GO term prefix
             go_id = r.GO
@@ -174,8 +193,8 @@ def run_ora(
                 analysis_type='ORA',
                 term_name=r.name if hasattr(r, 'name') else '',
                 term_id=r.GO,
-                p_value=r.p_bonferroni if hasattr(r, 'p_bonferroni') else r.p_fdr_bh,
-                adjusted_p_value=r.p_fdr_bh,
+                p_value=getattr(r, 'p_bonferroni', p_adj),
+                adjusted_p_value=p_adj,
                 gene_count=r.study_count,
                 genes=list(r.study_items) if hasattr(r, 'study_items') else [],
                 category=ontology,
@@ -431,14 +450,17 @@ def format_enrichment_report(report, max_terms=30):
         lines.append("No significant enriched terms found.")
         return '\n'.join(lines)
 
-    lines.append(f"{'#':<4} {'Term':<45} {'FDR':>10} {'NES':>8} {'Genes':>6}")
-    lines.append("-" * 80)
+    lines.append(f"{'#':<4} {'GO ID':<12} {'Term':<38} {'FDR':>10} {'NES':>8} {'Genes':>6}")
+    lines.append("-" * 88)
 
     for i, r in enumerate(report.top_terms(max_terms)):
-        term_display = r.term_name[:42] if r.term_name else r.term_id[:42]
+        # The GO ID is the action item for citations/queries — the old
+        # report displayed only the human-readable name.
+        go_id = (r.term_id or '')[:12]
+        term_display = r.term_name[:35] if r.term_name else r.term_id[:35]
         nes_str = f"{r.enrichment_score:.2f}" if r.enrichment_score != 0 else "N/A"
         lines.append(
-            f"{i+1:<4} {term_display:<45} "
+            f"{i+1:<4} {go_id:<12} {term_display:<38} "
             f"{r.adjusted_p_value:>10.2e} "
             f"{nes_str:>8} "
             f"{r.gene_count:>6}"
@@ -466,7 +488,7 @@ def _download_go_obo():
             f.write(req.read())
         return obo_path
     except Exception as e:
-        print(f"Could not download GO ontology: {e}")
+        logger.info(f"Could not download GO ontology: {e}")
         return None
 
 
@@ -484,9 +506,8 @@ def _get_associations(organism):
         Dict mapping gene_id (str) -> set of GO term IDs (str), or
         empty dict if the download fails.
     """
-    import os
     import gzip
-    import urllib.request
+    import os
 
     cache_dir = os.path.join(os.path.expanduser('~'), '.biosuite')
     os.makedirs(cache_dir, exist_ok=True)
@@ -499,7 +520,7 @@ def _get_associations(organism):
     }
     taxid = _TAXID.get(organism.lower())
     if taxid is None:
-        print(f"Unknown organism '{organism}'. Supported: human, mouse, yeast.")
+        logger.error(f"Unknown organism '{organism}'. Supported: human, mouse, yeast.")
         return {}
 
     gene2go_path = os.path.join(cache_dir, 'gene2go.gz')
@@ -542,10 +563,10 @@ def _get_associations(organism):
                     associations[gene_id] = set()
                 associations[gene_id].add(go_term)
     except Exception as e:
-        print(f"Error parsing gene2go: {e}")
+        logger.error(f"Error parsing gene2go: {e}")
 
     if not associations:
-        print(f"No GO associations found for taxid {taxid}.")
+        logger.warning(f"No GO associations found for taxid {taxid}.")
 
     return associations
 
@@ -567,13 +588,13 @@ def _download_if_needed(filepath, url, max_age_days=30):
         if age_days < max_age_days:
             return  # cached and fresh
 
-    print(f"Downloading {url} ...")
+    logger.info(f"Downloading {url} ...")
     try:
         # urllib supports ftp:// and http://
         urllib.request.urlretrieve(url, filepath)
-        print(f"  -> saved to {filepath}")
+        logger.info(f"  -> saved to {filepath}")
     except Exception as e:
-        print(f"  Download failed: {e}")
+        logger.error(f"  Download failed: {e}")
 
 
 def _load_associations_file(filepath):
@@ -589,5 +610,5 @@ def _load_associations_file(filepath):
                         associations[gene] = set()
                     associations[gene].add(go_term)
     except Exception as e:
-        print(f"Error loading associations: {e}")
+        logger.error(f"Error loading associations: {e}")
     return associations

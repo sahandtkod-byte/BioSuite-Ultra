@@ -3,16 +3,13 @@ CRISPR guide RNA designer with dual-mode execution.
 
 Pure Python PAM-finding and scoring as default, CRISPOR API as optional.
 """
-import os
 import re
-import tempfile
-import numpy as np
 import warnings
 from dataclasses import dataclass, field
 
 try:
-    import urllib.request
     import json
+    import urllib.request
     HAS_URLLIB = True
 except ImportError:
     HAS_URLLIB = False
@@ -55,39 +52,52 @@ PAM_PATTERNS = {
 }
 
 
-def _find_pam_sites(sequence, pam_pattern='NGG', guide_length=20):
+def _find_pam_sites(sequence, pam_pattern='NGG', guide_length=20, direction='forward'):
     sites = []
     seq_upper = sequence.upper()
+    seq_len = len(seq_upper)
     regex = pam_pattern.replace('N', '[ACGT]').replace('R', '[AG]').replace('Y', '[CT]').replace('V', '[ACG]')
 
-    for match in re.finditer(f'(?=({regex}))', seq_upper):
-        pam_start = match.start()
-        pam_seq = match.group(1)
+    def _add_sites(search_seq, pam_offset, strand):
+        """Collect sites in ``search_seq``; report in gRNA (5'->3') orientation.
 
-        if pam_start >= guide_length:
-            guide = seq_upper[pam_start - guide_length:pam_start]
+        For 'forward'-directed PAMs (e.g. NGG) the protospacer is the
+        ``guide_length`` nt upstream of the PAM; for 'reverse'-directed PAMs
+        (e.g. Cas12a TTTV) it is the nt downstream of the PAM.
+        ``pam_offset`` maps a coordinate in ``search_seq`` to the start of the
+        protospacer region in the original forward sequence.
+        """
+        for match in re.finditer(f'(?=({regex}))', search_seq):
+            pam_start = match.start()
+            pam_seq = match.group(1)
+
+            if direction == 'forward':
+                g_start, g_end = pam_start - guide_length, pam_start
+            else:
+                g_start = pam_start + len(pam_seq)
+                g_end = g_start + guide_length
+
+            if g_start < 0 or g_end > len(search_seq):
+                continue
+            guide = search_seq[g_start:g_end]
             sites.append({
                 'guide': guide,
                 'pam': pam_seq,
-                'position': pam_start - guide_length,
-                'strand': '+'
+                'position': pam_offset(g_start, g_end),
+                'strand': strand,
             })
 
+    # '+': search the forward sequence; coordinates map directly.
+    _add_sites(seq_upper, lambda s, e: s, '+')
+
+    # '-': search the reverse complement so the PAM pattern keeps its meaning.
+    # The protospacer in rc space *is* the gRNA in 5'->3' orientation
+    # (no extra reverse-complementing — the sgRNA pairs to the PAM-bearing
+    # strand). Position = 0-based forward start of the protospacer region.
     rc_seq = _reverse_complement(seq_upper)
-    for match in re.finditer(f'(?=({regex}))', rc_seq):
-        pam_start = match.start()
-        pam_seq = match.group(1)
-        if pam_start >= guide_length:
-            guide_rc = rc_seq[pam_start - guide_length:pam_start]
-            guide = _reverse_complement(guide_rc)
-            orig_pos = len(seq_upper) - pam_start - len(pam_seq)
-            sites.append({
-                'guide': guide,
-                'pam': pam_seq,
-                'position': orig_pos,
-                'strand': '-'
-            })
+    _add_sites(rc_seq, lambda s, e: seq_len - e, '-')
 
+    sites.sort(key=lambda site: site['position'])
     return sites
 
 
@@ -110,8 +120,8 @@ def _score_guide(guide_seq):
 
 
 def _builtin_design_guides(sequence, pam_type='SpCas9', guide_length=20, max_guides=20):
-    pam_pattern, _ = PAM_PATTERNS.get(pam_type, ('NGG', 'forward'))
-    sites = _find_pam_sites(sequence, pam_pattern, guide_length)
+    pam_pattern, direction = PAM_PATTERNS.get(pam_type, ('NGG', 'forward'))
+    sites = _find_pam_sites(sequence, pam_pattern, guide_length, direction)
 
     guides = []
     for site in sites:
@@ -154,17 +164,27 @@ def design_guides(sequence, pam_type='SpCas9', guide_length=20, max_guides=20, t
     if not sequence:
         return CRISPRResult(engine='none', message="No sequence provided")
 
-    tools = check_crispr_tools()
-    if tool in ('crispor', 'auto') and tools.get('crispor_api'):
-        api_result = _crispor_api_search(sequence)
-        if api_result:
-            return CRISPRResult(engine='crispor', guides=[], message="CRISPOR API results")
-
-    warnings.warn(
-        "CRISPOR API not available. Using built-in PAM finder. "
-        "For off-target analysis, visit https://crispor.tefor.net/ manually.",
-        PerformanceWarning, stacklevel=2
-    )
+    # The CRISPOR integration only submits the sequence and cannot yet parse
+    # guide hits back — never let it shadow the built-in designer and return
+    # an empty guide list (it used to do exactly that on any online machine).
+    if tool == 'crispor':
+        tools = check_crispr_tools()
+        if tools.get('crispor_api'):
+            api_result = _crispor_api_search(sequence)
+            if api_result:
+                warnings.warn(
+                    "CRISPOR API accepted the sequence but result parsing is "
+                    "not implemented yet. Falling back to the built-in PAM "
+                    "finder. For off-target analysis, visit "
+                    "https://crispor.tefor.net/ manually.",
+                    PerformanceWarning, stacklevel=2
+                )
+        else:
+            warnings.warn(
+                "CRISPOR API not available. Using built-in PAM finder. "
+                "For off-target analysis, visit https://crispor.tefor.net/ manually.",
+                PerformanceWarning, stacklevel=2
+            )
     guides = _builtin_design_guides(sequence, pam_type, guide_length, max_guides)
     return CRISPRResult(
         engine='builtin',
