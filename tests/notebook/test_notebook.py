@@ -124,12 +124,25 @@ class TestQuickTranslate:
         result = quick_translate("ATGAAATTTTAA")
         assert result == "MKF*"
 
-    def test_protein_sequence_passthrough(self):
-        """Non-DNA input should produce X for unknown codons."""
+    def test_protein_sequence_is_rejected(self):
+        """A protein sequence is not translatable DNA and must be refused.
+
+        This previously "passed" with `assert len(result) >= 0`, a tautology,
+        while quick_translate silently returned a string of X's - i.e. a
+        protein handed in by mistake produced a plausible-looking result
+        instead of an error.
+        """
+        import pytest
+
         from biosuite.notebook import quick_translate
-        result = quick_translate("XYZXYZ")
-        # Should not raise, just produce X's
-        assert len(result) >= 0
+        with pytest.raises(ValueError, match="IUPAC"):
+            quick_translate("MKFLVQPWX")
+
+    def test_ambiguity_codes_still_translate_to_x(self):
+        """Legitimate IUPAC ambiguity codes remain acceptable input."""
+        from biosuite.notebook import quick_translate
+        assert quick_translate("ATGNNNTAA") == "MX*"
+
 
     def test_numpy_generated_sequence(self):
         """Translate a numpy-generated DNA sequence."""

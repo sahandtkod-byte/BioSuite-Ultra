@@ -1,51 +1,71 @@
 # BioSuite Ultra - Docker Compose
-# For running BioSuite with optional services
-
-version: '3.8'
+#
+# Secrets are NOT baked in. Copy .env.example to .env and fill it in, or export
+# the variables in your shell; the API server refuses to start otherwise.
+# The `?err` syntax makes a missing value a compose-time error instead of an
+# insecure default.
 
 services:
-  # Main BioSuite CLI
-  biosuite:
-    build: .
-    container_name: biosuite-cli
-    volumes:
-      - ./data:/data
-      - ./output:/output
-    command: python run.py
-    environment:
-      - BIOSUITE_QUIET=false
-
   # BioSuite REST API
   biosuite-api:
     build: .
     container_name: biosuite-api
     ports:
-      - "8000:8000"
+      # Published on loopback only. Change to "8000:8000" deliberately, behind
+      # a TLS-terminating reverse proxy, to expose it beyond this host.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/data:ro
+      - ./output:/output
+    environment:
+      BIOSUITE_API_KEY: ${BIOSUITE_API_KEY:?set BIOSUITE_API_KEY in .env}
+      BIOSUITE_JWT_SECRET: ${BIOSUITE_JWT_SECRET:?set BIOSUITE_JWT_SECRET in .env}
+      # Optional: leaving this empty keeps admin login disabled.
+      BIOSUITE_ADMIN_PASSWORD_HASH: ${BIOSUITE_ADMIN_PASSWORD_HASH:-}
+      BIOSUITE_CORS_ORIGINS: ${BIOSUITE_CORS_ORIGINS:-http://localhost:3000}
+      BIOSUITE_DATA_DIR: /data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+  # Interactive CLI (run on demand: `docker compose run --rm biosuite`)
+  biosuite:
+    build: .
+    container_name: biosuite-cli
+    profiles: ["cli"]
     volumes:
       - ./data:/data
       - ./output:/output
-    command: uvicorn biosuite.api.server:app --host 0.0.0.0 --port 8000
+    environment:
+      BIOSUITE_QUIET: "false"
+      BIOSUITE_DATA_DIR: /data
+    command: ["biosuite"]
+    stdin_open: true
+    tty: true
 
   # Jupyter Notebook with BioSuite
   jupyter:
     build: .
     container_name: biosuite-jupyter
+    profiles: ["notebook"]
     ports:
-      - "8888:8888"
+      - "127.0.0.1:8888:8888"
     volumes:
       - ./notebooks:/notebooks
       - ./data:/data
+    environment:
+      # Jupyter refuses to start without a token/password unless told to;
+      # supply one explicitly rather than running an open notebook server.
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:?set JUPYTER_TOKEN in .env}
     command: >
-      jupyter notebook
+      python -m jupyter notebook
       --ip=0.0.0.0
       --port=8888
       --no-browser
-      --allow-root
       --notebook-dir=/notebooks
-    environment:
-      - JUPYTER_ENABLE_LAB=yes
-
-volumes:
-  data:
-  output:
-  notebooks:
+    restart: unless-stopped

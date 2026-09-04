@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "5.0.0"
+version = "5.5.0"
 description = "BioSuite Ultra - Comprehensive open-source bioinformatics platform with 47 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis"
 readme = "README.md"
 license = {text = "MIT"}
@@ -29,18 +29,21 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
+# Upper bounds are pinned to the next major of each project: the code is
+# tested against the 1.x/2.x APIs and pandas 3 in particular changes copy
+# semantics and several DataFrame constructors used here.  Relax them
+# deliberately, with a test run, rather than by accident at install time.
 dependencies = [
-    "numpy>=1.24",
-    "pandas>=2.0",
-    "matplotlib>=3.7",
-    "seaborn>=0.12",
-    "scipy>=1.10",
-    "scikit-learn>=1.3",
-    "customtkinter>=5.2",
-    "tqdm>=4.65",
-    "biopython>=1.81",
-    "networkx>=3.0",
-    "plotly>=5.0",
+    "numpy>=1.24,<3",
+    "pandas>=2.0,<3",
+    "matplotlib>=3.7,<4",
+    "seaborn>=0.12,<1",
+    "scipy>=1.10,<2",
+    "scikit-learn>=1.3,<2",
+    "tqdm>=4.65,<5",
+    "biopython>=1.81,<2",
+    "networkx>=3.0,<4",
+    "plotly>=5.0,<7",
 ]
 
 [project.optional-dependencies]
@@ -53,10 +56,15 @@ bio = [
     "scikit-bio>=0.5",
     "biotite>=0.37",
     "ete3>=3.1",
-    "cobra>=3.0",
+    "cobra>=0.26",   # cobra is a 0.x series; ">=3.0" could never resolve
     "shap>=0.42",
     "umap-learn>=0.5",
     "statsmodels>=0.14",
+]
+gui = [
+    # The desktop GUI additionally needs the Tk bindings for your Python
+    # (python3-tk on Debian/Ubuntu), which cannot be installed from PyPI.
+    "customtkinter>=5.2,<6",
 ]
 cloning = [
     # Core deps (numpy, matplotlib, biopython) already in main dependencies
@@ -77,6 +85,7 @@ parallel = [
 ]
 full = [
     "biosuite-ultra[bio]",
+    "biosuite-ultra[gui]",
     "biosuite-ultra[api]",
     "biosuite-ultra[notebook]",
     "biosuite-ultra[parallel]",
@@ -84,8 +93,11 @@ full = [
 ]
 dev = [
     "pytest>=7.0",
+    "pytest-asyncio>=0.23",   # the API tests define async test functions
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
+    "httpx>=0.24",            # required by fastapi.testclient
+    "ruff>=0.4",
 ]
 
 [project.scripts]
@@ -105,6 +117,9 @@ include = ["biosuite*"]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --tb=short"
+# The API test modules declare `async def test_...`; without this they are
+# silently collected and skipped rather than executed.
+asyncio_mode = "auto"
 markers = [
     "slow: long-running analyses (deselect with -m 'not slow')",
     "integration: cross-module end-to-end flows",

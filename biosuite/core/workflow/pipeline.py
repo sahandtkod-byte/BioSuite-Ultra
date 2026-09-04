@@ -3,7 +3,9 @@ Pipeline builder — chain bioinformatics steps into automated workflows.
 Each step is a function + kwargs. Pipelines are serial by default,
 with optional parallel branches for independent steps.
 """
+import copy
 import inspect
+import threading
 import time
 import traceback
 from collections import OrderedDict
@@ -25,11 +27,20 @@ class PipelineStep:
         self.status = "pending"
 
     def run(self, context=None):
+        # Reset any state left over from a previous run of this step,
+        # otherwise a step that failed once keeps reporting that error even
+        # after a later successful run.
         self.status = "running"
+        self.result = None
+        self.error = None
+        self.traceback = None
         ctx = dict(context) if context else {}
         start = time.time()
         try:
-            merged_kwargs = {**self.kwargs, **ctx}
+            # Precedence: arguments declared on the step ALWAYS win over
+            # values picked up from the shared pipeline context.  The context
+            # only fills in what the caller did not specify.
+            merged_kwargs = {**ctx, **self.kwargs}
             # Drop context keys the function cannot accept: intermediate
             # results are added to the context under each step's name, so
             # a plain `def step2(x)` would die with "unexpected keyword
@@ -37,15 +48,28 @@ class PipelineStep:
             # and builtins keep the full context.)
             try:
                 sig = inspect.signature(self.func)
+            except (TypeError, ValueError):
+                # builtin / C function with no introspectable signature:
+                # pass everything and let the call itself decide.
+                sig = None
+            if sig is not None:
                 params = sig.parameters
                 accepts_var_kw = any(
                     p.kind == inspect.Parameter.VAR_KEYWORD
                     for p in params.values())
                 if not accepts_var_kw:
-                    merged_kwargs = {k: v for k, v in merged_kwargs.items()
-                                     if k in params}
-            except (TypeError, ValueError):
-                pass  # builtin / C function: keep behaviour
+                    # Positional arguments already supplied by the step must
+                    # not be duplicated by a same-named context entry.
+                    positional = [
+                        n for n, p in params.items()
+                        if p.kind in (inspect.Parameter.POSITIONAL_ONLY,
+                                      inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                    ][:len(self.args)]
+                    merged_kwargs = {
+                        k: v for k, v in merged_kwargs.items()
+                        if k in params and k not in positional
+                        and params[k].kind is not inspect.Parameter.POSITIONAL_ONLY
+                    }
             self.result = self.func(*self.args, **merged_kwargs)
             self.status = "done"
         except Exception as e:
@@ -71,11 +95,24 @@ class Pipeline:
     def __init__(self, name="pipeline"):
         self.name = name
         self.steps = []
+        self._initial_context = {}
         self.context = {}
+        self._lock = threading.Lock()
         self.results = OrderedDict()
         self._log = []
 
     def add_step(self, name, func, args=None, kwargs=None, description=""):
+        """Append a step.
+
+        Raises:
+            ValueError: if *name* duplicates an existing step, which would
+                make the two steps overwrite each other in ``results`` and in
+                the shared context.
+        """
+        if any(existing.name == name for existing in self.steps):
+            raise ValueError(
+                f"duplicate pipeline step name {name!r}; step names must be "
+                "unique because results and context entries are keyed by name")
         step = PipelineStep(name, func, args, kwargs, description)
         self.steps.append(step)
         return self
@@ -91,12 +128,30 @@ class Pipeline:
         return self
 
     def set_context(self, **kwargs):
+        """Set values available to every step of the *next* run."""
+        self._initial_context.update(kwargs)
         self.context.update(kwargs)
         return self
 
     def run(self, stop_on_error=True, max_workers=1):
+        """Execute the pipeline.
+
+        Each call starts from the context supplied via :meth:`set_context`
+        (or the constructor); results produced during a run are visible to
+        later steps but are discarded afterwards, so two runs of the same
+        pipeline object are independent.
+        """
         self._log = []
         self.results = OrderedDict()
+        # Work on a copy: intermediate results must not leak into the next
+        # run of the same pipeline object.
+        self.context = copy.deepcopy(self._initial_context)
+        for step in self.steps:
+            step.status = "pending"
+            step.result = None
+            step.error = None
+            step.traceback = None
+            step.elapsed = 0.0
         start = time.time()
 
         if max_workers > 1:
@@ -123,6 +178,14 @@ class Pipeline:
                     break
 
     def _run_parallel(self, max_workers, stop_on_error):
+        """Run all steps concurrently.
+
+        Note:
+            Every step is submitted with the context as it stood *before* the
+            run started, so ``max_workers > 1`` is only correct for mutually
+            independent steps.  Use the default sequential mode when a step
+            consumes an earlier step's output.
+        """
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
             for i, step in enumerate(self.steps):
@@ -132,9 +195,10 @@ class Pipeline:
             for future in as_completed(futures):
                 step = futures[future]
                 if step.status == "done":
-                    self.results[step.name] = step.result
-                    if step.result is not None:
-                        self.context[step.name] = step.result
+                    with self._lock:
+                        self.results[step.name] = step.result
+                        if step.result is not None:
+                            self.context[step.name] = step.result
                     self._log.append(f"  {step.name} done in {step.elapsed:.2f}s")
                 else:
                     self._log.append(f"  {step.name} FAILED: {step.error}")

@@ -66,15 +66,27 @@ def needleman_wunsch(
         Gaps are represented as '-' characters.
     """
     n, m = len(seq1), len(seq2)
-    dp = np.zeros((n + 1, m + 1), dtype=np.int32)
+    dp = np.zeros((n + 1, m + 1), dtype=np.int64)
     dp[:, 0] = np.arange(n + 1) * gap
     dp[0, :] = np.arange(m + 1) * gap
     match_scores = _match_array(seq1, seq2, match, mismatch)
+    cols = np.arange(m + 1, dtype=np.int64) * gap
     for i in range(1, n + 1):
-        diag = dp[i - 1, :m] + match_scores[i - 1]
-        up = dp[i - 1, 1:] + gap
-        left = dp[i, :m] + gap
-        dp[i, 1:] = np.maximum(diag, np.maximum(up, left))
+        # Candidates that depend only on the *previous* row.
+        best = np.empty(m + 1, dtype=np.int64)
+        best[0] = dp[i - 1, 0] + gap
+        best[1:] = np.maximum(
+            dp[i - 1, :m] + match_scores[i - 1],   # diagonal (match/mismatch)
+            dp[i - 1, 1:] + gap,                   # vertical (gap in seq2)
+        )
+        # The horizontal predecessor dp[i, j-1] + gap is an *intra-row*
+        # dependency and cannot be read from the previous row.  For a linear
+        # gap penalty the closed form of the recurrence
+        #     dp[i, j] = max(best[j], dp[i, j-1] + gap)
+        # is the max-plus prefix scan
+        #     dp[i, j] = j*gap + max_{k<=j} (best[k] - k*gap),
+        # which numpy evaluates exactly with a cumulative maximum.
+        dp[i, :] = cols + np.maximum.accumulate(best - cols)
     # Traceback
     align1, align2 = [], []
     i, j = n, m
@@ -122,20 +134,29 @@ def smith_waterman(
         The aligned sequences contain only the local region with positive score.
     """
     n, m = len(seq1), len(seq2)
-    dp = np.zeros((n + 1, m + 1), dtype=np.int32)
+    dp = np.zeros((n + 1, m + 1), dtype=np.int64)
     max_score = 0
     max_pos = (0, 0)
     match_scores = _match_array(seq1, seq2, match, mismatch)
+    cols = np.arange(m + 1, dtype=np.int64) * gap
     for i in range(1, n + 1):
-        diag = dp[i - 1, :m] + match_scores[i - 1]
-        up = dp[i - 1, 1:] + gap
-        left = dp[i, :m] + gap
-        row = np.maximum(0, np.maximum(diag, np.maximum(up, left)))
-        dp[i, 1:] = row
-        row_max = np.max(row)
+        best = np.zeros(m + 1, dtype=np.int64)
+        best[1:] = np.maximum(
+            0,
+            np.maximum(
+                dp[i - 1, :m] + match_scores[i - 1],   # diagonal
+                dp[i - 1, 1:] + gap,                   # vertical
+            ),
+        )
+        # Same max-plus prefix scan as in needleman_wunsch; the local
+        # zero-floor is preserved because every ``best`` entry is >= 0 and
+        # the k == j term of the scan is ``best[j]``.
+        row = cols + np.maximum.accumulate(best - cols)
+        dp[i, :] = row
+        row_max = np.max(row[1:]) if m else 0
         if row_max > max_score:
             max_score = int(row_max)
-            max_pos = (i, int(np.argmax(row)) + 1)
+            max_pos = (i, int(np.argmax(row[1:])) + 1)
     # Traceback from highest-scoring cell
     align1, align2 = [], []
     i, j = max_pos

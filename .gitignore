@@ -102,3 +102,8 @@ bio_suite_cache/
 coverage/
 # Runtime plot-story export (tests write to cwd)
 story.md
+
+# ── Local user state (never commit: may contain API keys) ───────────────────
+biosuite_config.json
+biosuite_session.json
+.env

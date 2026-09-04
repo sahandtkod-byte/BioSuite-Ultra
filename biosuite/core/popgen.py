@@ -23,21 +23,45 @@ class PopGenReport:
 
 
 def hardy_weinberg_test(genotype_counts):
-    """Test Hardy-Weinberg equilibrium for biallelic locus.
+    """Chi-square test of Hardy-Weinberg equilibrium at a biallelic locus.
 
     Args:
-        genotype_counts: dict with keys 'AA', 'Aa', 'aa' and integer counts.
+        genotype_counts: mapping with keys ``'AA'``, ``'Aa'``, ``'aa'`` and
+            non-negative integer counts.
 
     Returns:
-        Dict with chi2 statistic, p-value, and expected frequencies.
+        dict: ``chi2``, ``p_value`` (1 degree of freedom), the estimated allele
+        frequencies, the expected genotype counts, ``in_hwe`` (p > 0.05) and
+        ``chi2_approximation_valid``.
+
+    Raises:
+        TypeError: if a count is not a real number.
+        ValueError: if a count is negative or the population is empty.
+
+    Note:
+        The chi-square approximation requires every expected count to be at
+        least 5.  ``chi2_approximation_valid`` reports whether that holds; use
+        an exact test when it does not.
     """
-    n_AA = genotype_counts.get('AA', 0)
-    n_Aa = genotype_counts.get('Aa', 0)
-    n_aa = genotype_counts.get('aa', 0)
+    counts = {}
+    for key in ('AA', 'Aa', 'aa'):
+        value = genotype_counts.get(key, 0)
+        if isinstance(value, bool) or not isinstance(value, (int, float, np.integer, np.floating)):
+            raise TypeError(f"genotype count {key!r} must be a number, got {type(value).__name__}")
+        if value != value or value in (float('inf'), float('-inf')):
+            raise ValueError(f"genotype count {key!r} must be finite, got {value!r}")
+        if value < 0:
+            raise ValueError(f"genotype count {key!r} must be non-negative, got {value!r}")
+        counts[key] = float(value)
+
+    n_AA, n_Aa, n_aa = counts['AA'], counts['Aa'], counts['aa']
     n = n_AA + n_Aa + n_aa
 
     if n == 0:
-        return {'chi2': 0, 'p_value': 1.0, 'message': 'No data'}
+        # Returning chi2=0 / p=1.0 here reported "in Hardy-Weinberg
+        # equilibrium" for a population with no individuals.
+        raise ValueError("cannot test Hardy-Weinberg equilibrium on an empty "
+                         "population: all genotype counts are zero")
 
     p = (2 * n_AA + n_Aa) / (2 * n)
     q = 1 - p
@@ -49,9 +73,10 @@ def hardy_weinberg_test(genotype_counts):
     observed = np.array([n_AA, n_Aa, n_aa])
     expected = np.array([exp_AA, exp_Aa, exp_aa])
 
-    expected = np.maximum(expected, 1e-10)
-    chi2 = np.sum((observed - expected)**2 / expected)
-    p_value = 1 - sp_stats.chi2.cdf(chi2, df=1)
+    nonzero = expected > 0
+    chi2 = float(np.sum((observed[nonzero] - expected[nonzero])**2 / expected[nonzero]))
+    # Survival function keeps precision for small p; `1 - cdf` underflows to 0.
+    p_value = float(sp_stats.chi2.sf(chi2, df=1))
 
     return {
         'chi2': round(chi2, 4),
@@ -59,7 +84,8 @@ def hardy_weinberg_test(genotype_counts):
         'allele_freq_p': round(p, 4),
         'allele_freq_q': round(q, 4),
         'expected': {'AA': round(exp_AA, 1), 'Aa': round(exp_Aa, 1), 'aa': round(exp_aa, 1)},
-        'in_hwe': p_value > 0.05
+        'in_hwe': bool(p_value > 0.05),
+        'chi2_approximation_valid': bool(np.all(expected >= 5)),
     }
 
 

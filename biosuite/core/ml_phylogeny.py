@@ -58,19 +58,26 @@ def _newick_from_tree(tree):
     return buf.getvalue().strip()
 
 
-def _bootstrap_support(alignment, n_replicates=100):
+def _bootstrap_support(alignment, n_replicates=100, seed=None):
     """Bootstrap CLADE support frequencies (0..1 keyed by taxa tuples).
 
-    Two fixes vs. the old implementation: columns are sampled WITH
-    replacement (random.choices) — random.sample(n, n) is a permutation,
-    i.e. every 'replicate' saw every column exactly once and always
-    yielded the identical tree; and support is counted per internal
-    clade-split, not per whole-tree string.
+    Columns are resampled WITH replacement; support is counted per internal
+    clade split, not per whole-tree string.
+
+    Args:
+        alignment: Biopython alignment to resample.
+        n_replicates: number of bootstrap replicates.
+        seed: RNG seed.  Bootstrapping is stochastic, so support values differ
+            between runs unless a seed is given; pass one to make an analysis
+            reproducible.  ``None`` keeps the historical non-deterministic
+            behaviour.
     """
     if not HAS_BIO or alignment is None:
         return {}
     import random
     from collections import Counter
+
+    rng = random.Random(seed)
 
     from Bio.Align import MultipleSeqAlignment
     from Bio.Seq import Seq
@@ -90,7 +97,7 @@ def _bootstrap_support(alignment, n_replicates=100):
 
     clade_counts = Counter()
     for _rep in range(n_replicates):
-        cols = random.choices(range(align_len), k=align_len)
+        cols = rng.choices(range(align_len), k=align_len)
         boot_records = [
             SeqRecord(Seq(''.join(record.seq[c] for c in cols)), id=record.id, description="")
             for record in alignment
@@ -105,7 +112,7 @@ def _bootstrap_support(alignment, n_replicates=100):
             for split, count in clade_counts.items()}
 
 
-def _builtin_phylogeny(alignment_file, bootstrap=100):
+def _builtin_phylogeny(alignment_file, bootstrap=100, seed=None):
     if not HAS_BIO:
         return PhyloResult(engine='builtin', message="Biopython not installed")
 
@@ -122,7 +129,7 @@ def _builtin_phylogeny(alignment_file, bootstrap=100):
 
     support = {}
     if bootstrap > 0:
-        support = _bootstrap_support(alignment, n_replicates=bootstrap)
+        support = _bootstrap_support(alignment, n_replicates=bootstrap, seed=seed)
 
     return PhyloResult(
         engine='builtin',
@@ -171,7 +178,15 @@ def _iqtree_run(alignment_file, output_dir, model='GTR+G', bootstrap=100):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def build_tree(alignment_file, method='auto', model='auto', bootstrap=100):
+def build_tree(alignment_file, method='auto', model='auto', bootstrap=100,
+               seed=None):
+    """Build a phylogenetic tree.
+
+    Args:
+        seed: seed for the bootstrap resampling of the built-in engine; pass a
+            value for a reproducible analysis (external tools manage their own
+            RNG).
+    """
     if not os.path.exists(alignment_file):
         return PhyloResult(engine='none', message=f"File not found: {alignment_file}")
 
@@ -193,7 +208,7 @@ def build_tree(alignment_file, method='auto', model='auto', bootstrap=100):
         if result:
             return result
 
-    return _builtin_phylogeny(alignment_file, bootstrap)
+    return _builtin_phylogeny(alignment_file, bootstrap, seed=seed)
 
 
 def parse_newick(newick_str):

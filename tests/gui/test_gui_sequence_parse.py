@@ -5,7 +5,7 @@ every other line as sequence — so a FASTQ quality line beginning with
 A/C/G/T (perfectly legal Phred) was silently included in the DNA string,
 corrupting downstream analysis. These tests pin the fixed behavior.
 """
-from biosuite.gui.tabs.sequence_analysis import _parse_sequence_text
+from biosuite.gui.text_parsing import _parse_sequence_text
 
 
 class TestRawSequence:

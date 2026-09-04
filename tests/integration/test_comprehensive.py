@@ -438,14 +438,25 @@ class TestMSA:
         assert result.num_sequences == 3
 
     def test_auto_align_insufficient(self):
+        """A single sequence is a no-op, but must not be silently discarded.
+
+        Regression guard for BSU-011: auto_align used to return an empty MSA,
+        so the caller's input vanished with no way to distinguish "nothing to
+        align" from "alignment failed".
+        """
         from biosuite.core.msa import auto_align
         result = auto_align([("s1", "ATCG")])
-        assert result.num_sequences == 0
+        assert result.method == 'none'
+        assert 'at least 2' in result.message.lower()
+        assert result.sequences == [("s1", "ATCG")]
+        assert result.num_sequences == 1
 
     def test_auto_align_empty(self):
         from biosuite.core.msa import auto_align
         result = auto_align([])
+        assert result.method == 'none'
         assert result.num_sequences == 0
+        assert result.sequences == []
 
     def test_consensus_sequence(self):
         from biosuite.core.msa import auto_align, consensus_sequence
@@ -1132,12 +1143,26 @@ class TestDocking:
         atoms = _parse_pdb_atoms(tmp_pdb, chain='A')
         assert len(atoms) == 8
 
-    def test_compute_binding_energy(self):
+    def test_compute_binding_energy_favours_contact(self):
+        """A ligand atom in van-der-Waals contact scores favourably."""
+        from biosuite.core.docking import _compute_binding_energy
+        rec = [{'x': 0, 'y': 0, 'z': 0}, {'x': 8, 'y': 0, 'z': 0}]
+        lig = [{'x': 4, 'y': 0, 'z': 0}]
+        assert _compute_binding_energy(rec, lig) < 0
+
+    def test_compute_binding_energy_penalises_steric_clash(self):
+        """Regression guard for BSU-010.
+
+        The score used to be monotonically decreasing in distance, so the
+        best possible "pose" was the ligand superimposed on the protein.
+        Overlapping atoms must now be penalised, not rewarded.
+        """
         from biosuite.core.docking import _compute_binding_energy
         rec = [{'x': 0, 'y': 0, 'z': 0}, {'x': 1, 'y': 0, 'z': 0}]
-        lig = [{'x': 0.5, 'y': 0, 'z': 0}]
-        energy = _compute_binding_energy(rec, lig)
-        assert energy < 0
+        clashing = _compute_binding_energy(rec, [{'x': 0.5, 'y': 0, 'z': 0}])
+        contacting = _compute_binding_energy(rec, [{'x': 4.0, 'y': 0, 'z': 0}])
+        assert clashing > contacting
+        assert clashing > 0
 
     def test_compute_binding_energy_empty(self):
         from biosuite.core.docking import _compute_binding_energy
@@ -1484,9 +1509,17 @@ class TestCodonUsage:
         assert result['total_codons'] > 0
 
     def test_codon_usage_table_frame(self):
+        """frame=2 must skip exactly one base (offset written with a real base)."""
         from biosuite.core.codon_usage import codon_usage_table
-        result = codon_usage_table("XATGAAATTTGGGCCC", frame=2)
-        assert 'codon_usage' in result
+        result = codon_usage_table("GATGAAATTTGGGCCC", frame=2)
+        assert result['total_codons'] == 5
+        assert set(result['codon_usage']) == {'ATG', 'AAA', 'TTT', 'GGG', 'CCC'}
+
+    def test_codon_usage_table_rejects_non_nucleotides(self):
+        import pytest as _pytest
+        from biosuite.core.codon_usage import codon_usage_table
+        with _pytest.raises(ValueError):
+            codon_usage_table("XATGAAATTTGGGCCC", frame=2)
 
     def test_kmer_composition(self):
         from biosuite.core.codon_usage import kmer_composition

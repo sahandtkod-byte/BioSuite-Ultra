@@ -54,7 +54,10 @@ class MSA:
 
 # ── External Tool Detection ─────────────────────────────────────────────────
 
+from .log import get_logger
 from .utils import has_tool as _has_tool
+
+logger = get_logger(__name__)
 
 
 def check_tools() -> dict :
@@ -489,14 +492,24 @@ def _load_bio_alignment(filepath: str, method: str) -> MSA:
         return None
     try:
         alignment = AlignIO.read(filepath, 'fasta')
-        seqs = [(rec.id, str(rec.seq)) for rec in alignment]
-        conservation = compute_conservation(alignment)
-        return MSA(method=method, sequences=seqs, alignment_file=filepath,
-                   num_sequences=len(seqs),
-                   alignment_length=alignment.get_alignment_length(),
-                   conservation=conservation)
-    except Exception:  # BioPython AlignIO can raise various errors
+    except (ValueError, OSError) as exc:
+        # Unparseable or missing output from the external tool.
+        logger.warning("Could not read alignment produced by %s from %s: %s",
+                       method, filepath, exc)
         return None
+    seqs = [(rec.id, str(rec.seq)) for rec in alignment]
+    result = MSA(method=method, sequences=seqs, alignment_file=filepath,
+                 num_sequences=len(seqs),
+                 alignment_length=alignment.get_alignment_length(),
+                 engine=method)
+    # NOTE: compute_conservation() takes an MSA, not a Biopython
+    # MultipleSeqAlignment.  Passing the Biopython object raised
+    # AttributeError, which the previous blanket `except Exception` turned
+    # into `return None` — so *every* external-tool alignment was discarded
+    # and auto_align() silently fell back to the built-in engine while
+    # reporting the external tool as unavailable.
+    result.conservation = compute_conservation(result)
+    return result
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
@@ -524,7 +537,17 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     progressive aligner otherwise.
     """
     if not sequences or len(sequences) < 2:
-        return MSA(method='none', message='Need at least 2 sequences.')
+        # An alignment of fewer than two sequences is not defined.  Return an
+        # explicit no-op result that still carries the input (it used to be
+        # discarded silently) so callers can tell "nothing to align" apart
+        # from "alignment failed".
+        kept = _normalize_sequences(sequences) if sequences else []
+        return MSA(method='none',
+                   sequences=kept,
+                   num_sequences=len(kept),
+                   alignment_length=len(kept[0][1]) if kept else 0,
+                   conservation=[1.0] * len(kept[0][1]) if kept else [],
+                   message='Need at least 2 sequences.')
 
     sequences = _normalize_sequences(sequences)
 
@@ -551,14 +574,22 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     aligned_seqs = _progressive_msa(sequences)
     align_len = len(aligned_seqs[0][1]) if aligned_seqs else 0
 
-    return MSA(
+    result = MSA(
         method='builtin_progressive',
         sequences=aligned_seqs,
         num_sequences=len(aligned_seqs),
         alignment_length=align_len,
-        conservation=[],
         message="Using built-in progressive alignment engine"
     )
+    # Conservation used to be hard-coded to [] here, so every consumer
+    # (MSA viewer, plots, reports) displayed "no conservation" as if it were
+    # a computed result.
+    result.conservation = compute_conservation(result)
+    if len(result.conservation) != align_len:
+        raise RuntimeError(
+            f"conservation vector length {len(result.conservation)} does not "
+            f"match alignment length {align_len}")
+    return result
 
 
 def run_clustal_omega(sequences: List[str], **kwargs: Any) -> MSA:
