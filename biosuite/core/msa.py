@@ -403,6 +403,31 @@ def _progressive_msa(sequences: list) -> list :
     return list(zip(aligned_names[root], aligned[root]))
 
 
+
+def _restore_input_order(aligned: List[Tuple[str, str]],
+                         original: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """Return `aligned` rows in the order the caller supplied them.
+
+    Both the built-in progressive aligner and the external tools emit rows in
+    guide-tree order, so row i of the result was not sequence i of the input.
+    Any caller doing zip(names, alignment.sequences) therefore mislabelled
+    sequences, and the order also changed depending on whether MUSCLE or MAFFT
+    happened to be installed. Row order is part of the contract, so it is
+    restored here for every engine.
+    """
+    if not aligned:
+        return aligned
+    remaining = list(aligned)
+    ordered = []
+    for name, _ in original:
+        for k, (aname, _aseq) in enumerate(remaining):
+            if aname == name:
+                ordered.append(remaining.pop(k))
+                break
+    ordered.extend(remaining)   # anything unmatched keeps its relative order
+    return ordered if len(ordered) == len(aligned) else aligned
+
+
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
 def _run_clustal_omega(sequences: List[str]) -> MSA:
@@ -526,6 +551,12 @@ def _normalize_sequences(sequences: list) -> List[Tuple[str, str]]:
     records — plain strings used to be silently mis-parsed as tuples
     (each sequence's first two characters became name and sequence!).
     """
+    if isinstance(sequences, (str, bytes)):
+        # Iterating a bare str yields characters: passing a FASTA *path*
+        # produced a confident alignment of that path's letters.
+        raise TypeError(
+            "sequences must be a list of sequences (or (name, sequence) pairs), "
+            "not a single string. To align a FASTA file, read it first.")
     norm = []
     for i, item in enumerate(sequences):
         if isinstance(item, str):
@@ -560,23 +591,26 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     if tools.get('clustal_omega'):
         result = _run_clustal_omega(sequences)
         if result:
+            result.sequences = _restore_input_order(result.sequences, sequences)
             result.message = "Using Clustal Omega (external)"
             return result
 
     if tools.get('muscle'):
         result = _run_muscle(sequences)
         if result:
+            result.sequences = _restore_input_order(result.sequences, sequences)
             result.message = "Using MUSCLE (external)"
             return result
 
     if tools.get('mafft'):
         result = _run_mafft(sequences)
         if result:
+            result.sequences = _restore_input_order(result.sequences, sequences)
             result.message = "Using MAFFT (external)"
             return result
 
     # Pure Python fallback
-    aligned_seqs = _progressive_msa(sequences)
+    aligned_seqs = _restore_input_order(_progressive_msa(sequences), sequences)
     align_len = len(aligned_seqs[0][1]) if aligned_seqs else 0
 
     result = MSA(

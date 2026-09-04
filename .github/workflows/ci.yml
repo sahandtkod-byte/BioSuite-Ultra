@@ -98,7 +98,25 @@ jobs:
       # These are the tests that reproduce the fixed vulnerabilities. They are
       # a hard gate: no continue-on-error, no allowed skips.
       - name: Run the security regression tests
-        run: pytest tests/api/test_api_security_regression.py tests/api/test_api_auth_security.py -q
+        run: |
+          pytest -q \
+            tests/api/test_api_security_regression.py \
+            tests/api/test_api_auth_security.py \
+            tests/api/test_api_startup_security.py \
+            tests/cli/test_cli_safety.py \
+            tests/core/test_temp_file_safety.py
+
+      # The validation and precision suites guard scientific-correctness
+      # regressions that a security-only run would miss.
+      - name: Run the input-validation and precision regression tests
+        run: |
+          pytest -q \
+            tests/core/test_input_validation.py \
+            tests/core/test_popgen_precision.py \
+            tests/core/test_alignment_ordering.py \
+            tests/core/test_reproducibility.py \
+            tests/core/test_logging.py \
+            tests/test_documentation_accuracy.py
 
       - name: Assert the API refuses to start without configuration
         env:

@@ -59,13 +59,33 @@ class TestReverseComplementDna:
         seq = "GATTACA"
         assert self.rc(self.rc(seq)) == seq
 
-    def test_non_dna_characters_ignored(self):
-        """Characters not in the translation table are untouched (reversed only)."""
-        # 'X' is not in the translation table, so it stays 'X'
-        assert self.rc("AXT") == "AXT"  # X not complemented, just reversed
-        # Wait — actually str.maketrans only maps listed chars; others pass through.
-        # A->T, X->X, T->A => reversed => "AXT"
-        assert self.rc("AXT") == "AXT"
+    def test_non_dna_characters_are_rejected(self):
+        """Junk must be refused, not silently passed through.
+
+        This test previously asserted the defect as if it were the contract:
+        because the old implementation used str.maketrans, any character it
+        did not know was copied through unchanged, so rc("AXT") == "AXT" and
+        rc("XYZ123") == "321ZYX" - a confident, wrong answer for input that is
+        not DNA at all. Refusing invalid input is the correct behaviour.
+        """
+        with pytest.raises(ValueError):
+            self.rc("AXT")
+        with pytest.raises(ValueError):
+            self.rc("XYZ123")
+
+    def test_iupac_ambiguity_codes_are_complemented(self):
+        """The old table only knew ACGTN, so it left R/Y/S/W/K/M/B/D/H/V alone."""
+        assert self.rc("R") == "Y"      # A|G  <-> T|C
+        assert self.rc("Y") == "R"
+        assert self.rc("B") == "V"      # C|G|T <-> G|C|A
+        assert self.rc("V") == "B"
+        assert self.rc("N") == "N"
+
+    def test_agrees_with_the_sequence_module_implementation(self):
+        """There must be exactly one reverse-complement in the package."""
+        from biosuite.core.sequence import reverse_complement
+        for seq in ("ATCG", "atcg", "AtCgN", "AATT", "ACGTRYSWKM"):
+            assert self.rc(seq) == reverse_complement(seq)
 
 
 # ── RESTRICTION_ENZYMES dictionary ─────────────────────────────────────────

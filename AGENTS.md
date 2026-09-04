@@ -6,21 +6,21 @@ measured from the tree — keep them accurate if you change the code.
 
 - **47 analysis modules** in `biosuite/core/` (+ `biosuite/core/workflow/`)
 - **12 plotting modules** exposing **123 functions** (105 public) across **26 plot types**
-- **11 GUI tabs**, **117 CLI menu options**, **40 REST API endpoints**
+- **11 GUI tabs**, **99 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
 - **86 Python files / ~28.8K lines** in the package; ~43K lines including tests and examples
-- **1,444 tests** in **30 test files**
+- **2,500+ tests** in **128 test files**
 
 ## Architecture
 ```
 biosuite/
 ├── core/           # 44 domain modules + core/workflow/ (3 modules)
 ├── gui/            # customtkinter app: main_window.py, themes.py, dialogs.py, tabs/ (11)
-├── api/            # FastAPI app: __init__.py (40 endpoints), auth.py, security.py, server.py
-├── cli/            # menu.py — interactive CLI, 117 options
+├── api/            # FastAPI app: __init__.py (38 endpoints under /api/*), auth.py, security.py, server.py
+├── cli/            # menu.py — interactive CLI, 99 options
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 30 files, 1,444 tests
+tests/              # 128 files, 2,500+ tests
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx
@@ -51,15 +51,15 @@ updated together on a release. The API, CLI banner, `--version` flag and GUI lab
 ## Build & Test
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -q                 # full suite: 1444 tests
+pytest tests/ -q                 # full suite: 2,500+ tests
 pytest tests/test_sequence.py -v # single file
 pytest tests/ --cov=biosuite     # coverage
 ```
 The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY`.
 
 ## Current Status
-- Version: **4.2.5**
-- Tests: **1,444 collected — 1,421 passed, 23 skipped** (local, Python 3.11)
+- Version: **5.5.0**
+- Tests: **2,529 collected — 2,375 passed, 141 failed (all missing tkinter), 14 skipped** (local, Python 3.11)
 - Published on PyPI as `biosuite-ultra`
 - Zenodo DOI: 10.5281/zenodo.21256296
 

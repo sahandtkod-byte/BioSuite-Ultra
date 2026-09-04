@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Tests](https://img.shields.io/badge/Tests-1444%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-2356%20passing-brightgreen)
 ![Modules](https://img.shields.io/badge/Modules-47-orange)
 ![Lines](https://img.shields.io/badge/Lines-43K%2B-yellow)
 ![Version](https://img.shields.io/badge/Version-5.0.0-blueviolet)
@@ -12,7 +12,7 @@
 
 **The most comprehensive open-source bioinformatics platform.**
 
-BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules, 26 visualization types (123 functions), a cyberpunk GUI, a 117-option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external bioinformatics tools required. **100% free.**
+BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules, 26 visualization types (105 public plotting functions), a cyberpunk GUI, a 99-option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external bioinformatics tools required. **100% free.**
 
 ---
 
@@ -153,7 +153,7 @@ def analyze(input, ...):
 - 15 built-in help guides
 - Molecular cloning tab with plasmid viewer
 
-### CLI with 117 Options
+### CLI with 99 Options
 
 Professional CLI menu with organized sections for every analysis type.
 
@@ -295,10 +295,10 @@ BioSuite-Ultra/
 │   │   └── utils.py             # Shared utilities (169 enzymes)
 │   ├── plotting/                # 12 visualization modules
 │   ├── gui/                     # Cyberpunk GUI (11 tabs)
-│   ├── cli/                     # CLI menu (117 options)
-│   ├── api/                     # REST API (40 endpoints)
+│   ├── cli/                     # CLI menu (99 options)
+│   ├── api/                     # REST API (38 endpoints under /api/*)
 │   └── notebook/                # Jupyter integration
-├── tests/                       # 1,444 tests
+├── tests/                       # 2,500+ tests
 ├── examples/                    # 8 tutorials + 5 notebooks
 ├── docs/                        # Sphinx documentation
 ├── run.py                       # Entry point
