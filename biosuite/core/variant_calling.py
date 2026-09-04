@@ -5,7 +5,6 @@ Pure Python variant caller as default, FreeBayes as optional faster tool.
 """
 import os
 import subprocess
-import tempfile
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
@@ -40,7 +39,7 @@ class VariantReport:
     message: str = ""
 
 
-from .utils import has_tool as _has_tool
+from .utils import has_tool as _has_tool, secure_temp_path
 
 
 def check_variant_tools():
@@ -222,7 +221,7 @@ def call_variants(sam_bam_file, reference_file=None, output_vcf=None, min_depth=
 
     if tools['freebayes'] and reference_file and os.path.exists(reference_file):
         if output_vcf is None:
-            output_vcf = tempfile.mktemp(suffix='.vcf')
+            output_vcf = secure_temp_path(suffix='.vcf')
         if _freebayes_call(sam_bam_file, reference_file, output_vcf):
             return VariantReport(
                 tool='freebayes', engine='freebayes', output_vcf=output_vcf,
@@ -230,7 +229,7 @@ def call_variants(sam_bam_file, reference_file=None, output_vcf=None, min_depth=
             )
 
     if output_vcf is None:
-        output_vcf = tempfile.mktemp(suffix='.vcf')
+        output_vcf = secure_temp_path(suffix='.vcf')
     return _builtin_call_variants(sam_bam_file, output_vcf, min_depth)
 
 

@@ -337,8 +337,13 @@ def save_config(cfg: Dict[str, Any]) -> None:
             raise
         try:
             os.chmod(path, 0o600)      # the file may hold API keys
-        except OSError:
-            pass
+        except OSError as exc:
+            # Not fatal, but the user must know their key file is readable by
+            # others rather than be told the save succeeded outright.
+            logger.warning(
+                "Saved %s but could not restrict its permissions to 0600 (%s). "
+                "If it contains an API key, tighten the permissions manually.",
+                path, exc)
     except OSError as exc:
         logger.warning("Could not save configuration to %s: %s", path, exc)
         raise
@@ -360,8 +365,12 @@ def save_session(session_data: Dict[str, Any]) -> None:
         os.makedirs(user_config_dir(), exist_ok=True)
         with open(get_session_file(), 'w') as f:
             json.dump(session_data, f, indent=2)
-    except OSError:
-        pass
+    except OSError as exc:
+        # An explicit save that silently does nothing leaves the user believing
+        # their session was stored. Still does not raise, so it cannot block
+        # GUI shutdown.
+        logger.warning("Could not save the session to %s: %s",
+                       get_session_file(), exc)
 
 def autosave_session(session_data: Optional[Dict[str, Any]] = None) -> None:
     """Best-effort autosave that silently ignores write errors
@@ -657,8 +666,9 @@ def ask_save_plot(default_name: str, save_format: str, dpi: int, pdf: Optional[s
             logger.info(f"   Added to PDF: {default_name}")
             if story is not None:
                 story.append(f"![{default_name}]({default_name}.png)")
-        except Exception:
-            pass
+        except (OSError, ValueError, RuntimeError) as exc:
+            logger.warning("Could not add %s to the PDF report: %s",
+                           default_name, exc)
         return
     try:
         save = input("Save this plot? (y/n): ").strip().lower()
@@ -831,9 +841,15 @@ def reverse_complement_dna(seq: str) -> str:
 
     Returns:
         Reverse complemented sequence string.
+
+    This function used to carry its own translation table that handled only
+    ACGTN, so it silently disagreed with sequence.reverse_complement: it left
+    every IUPAC ambiguity code (R, Y, S, W, K, M, B, D, H, V) uncomplemented
+    and happily reversed non-DNA junk, returning '321ZYX' for 'XYZ123'.
+    It now delegates, so there is exactly one implementation.
     """
-    comp = str.maketrans('ACGTNacgtn', 'TGCANtgcan')
-    return seq.translate(comp)[::-1]
+    from .sequence import reverse_complement
+    return reverse_complement(seq)
 
 
 # ── Restriction Enzyme Database ────────────────────────────────────────────────
@@ -1033,3 +1049,33 @@ RESTRICTION_ENZYMES = {
 # need recognition sequences (e.g. cloning.py digestion simulation).
 RESTRICTION_ENZYMES_SITES = {name: site for name, (site, _) in RESTRICTION_ENZYMES.items()}
 
+
+def secure_temp_path(suffix: str = "", prefix: str = "biosuite_") -> str:
+    """Reserve a unique temporary path safely and return it.
+
+    tempfile.mktemp() only *predicts* a free name; between the prediction and
+    the open, anything on a shared /tmp can create that path - typically a
+    symlink to a file the process may write. mkstemp() creates the file
+    atomically with mode 0600 and hands back a descriptor, closing the race.
+
+    The path is returned already existing and empty, so callers must not treat
+    mere existence as proof a tool wrote output - use wrote_output().
+    """
+    fd, path = tempfile.mkstemp(suffix=suffix, prefix=prefix)
+    os.close(fd)
+    return path
+
+
+def wrote_output(path: str) -> bool:
+    """True if `path` exists and is non-empty.
+
+    Success checks written as os.path.exists(path) became tautologies once
+    secure_temp_path started reserving the path by creating it. This is also
+    strictly stronger than the original check: an external tool that exits 0
+    without writing anything is now caught rather than passed to a parser.
+    """
+    try:
+        return os.path.exists(path) and os.path.getsize(path) > 0
+    except (OSError, ValueError, TypeError):
+        # ValueError: embedded null byte; TypeError: non-path input.
+        return False

@@ -4,7 +4,8 @@ Protein structure prediction with dual-mode execution.
 Pure Python ESMFold via the esm library as default, AlphaFold DB API as optional.
 Both are free for academic use.
 """
-import tempfile
+
+from .utils import secure_temp_path
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -147,7 +148,7 @@ def _alphafold_fetch(uniprot_id, output_file=None):
 
 def predict_structure(sequence=None, uniprot_id=None, output_file=None):
     if output_file is None:
-        output_file = tempfile.mktemp(suffix='.pdb')
+        output_file = secure_temp_path(suffix='.pdb')
 
     last_result = None
     if uniprot_id:

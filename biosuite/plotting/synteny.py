@@ -248,8 +248,6 @@ def plot_synteny(genes1, genes2, genome1_name="Genome 1", genome2_name="Genome 2
 
     # Gene orders
     common = list(set(genes1) & set(genes2))
-    pos1 = {g: i for i, g in enumerate(genes1)}
-    pos2 = {g: i for i, g in enumerate(genes2)}
 
     # Color by shared genes
     cmap = plt.cm.Set3

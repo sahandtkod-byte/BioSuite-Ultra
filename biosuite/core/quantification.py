@@ -7,6 +7,8 @@ k-mer based pseudo-alignment quantifier.
 import os
 import subprocess
 import tempfile
+
+from .utils import secure_temp_path, wrote_output
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
@@ -273,8 +275,10 @@ def kallisto_quant(reads_r1, reads_r2=None, index_file=None,
                    sample_name='sample', threads=1):
     if index_file is None and transcriptome_fasta:
         index_file = kallisto_index(transcriptome_fasta,
-                                    tempfile.mktemp(suffix='.idx'), threads)
-    if index_file and os.path.exists(index_file):
+                                    secure_temp_path(suffix='.idx'), threads)
+    # wrote_output: secure_temp_path creates the path, so exists() alone would
+    # treat a failed index build as success and quantify against a 0-byte index.
+    if index_file and wrote_output(index_file):
         if output_dir is None:
             output_dir = tempfile.mkdtemp(prefix='kallisto_quant_')
         result = _kallisto_quant(reads_r1, reads_r2, index_file, output_dir,
@@ -320,7 +324,7 @@ def quantify_reads(reads_file, transcriptome_fasta, sample_name='sample', k=31):
                 return result
 
     if tools['kallisto']:
-        idx = kallisto_index(transcriptome_fasta, tempfile.mktemp(suffix='.idx'))
+        idx = kallisto_index(transcriptome_fasta, secure_temp_path(suffix='.idx'))
         if idx:
             out = tempfile.mkdtemp()
             result = _kallisto_quant(reads_file, None, idx, out, sample_name, 1)

@@ -87,7 +87,7 @@ def plot_upset(sets_dict, title="UpSet Plot", max_sets=10, figsize=(10, 7),
 
     # --- Top: bar chart of intersection sizes ---
     ax_bar = fig.add_subplot(gs[0])
-    bars = ax_bar.bar(range(n_rows), counts, color=bar_color, edgecolor='black',
+    ax_bar.bar(range(n_rows), counts, color=bar_color, edgecolor='black',
                       alpha=0.8, width=0.7)
     ax_bar.set_ylabel("Intersection size", fontsize=11)
     ax_bar.set_title(title, fontsize=13)

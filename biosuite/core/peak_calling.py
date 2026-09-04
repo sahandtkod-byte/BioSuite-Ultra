@@ -41,7 +41,7 @@ class PeakReport:
     message: str = ""
 
 
-from .utils import has_tool as _has_tool
+from .utils import has_tool as _has_tool, secure_temp_path
 
 
 def check_peak_tools():
@@ -361,7 +361,7 @@ def call_peaks(input_file, output_bed=None, genome='hs', tool='auto'):
                              message="Using MACS2 (external)")
 
     if output_bed is None:
-        output_bed = tempfile.mktemp(suffix='.bed')
+        output_bed = secure_temp_path(suffix='.bed')
     return _builtin_call_peaks(input_file, output_bed)
 
 

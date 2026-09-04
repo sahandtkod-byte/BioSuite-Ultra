@@ -6,6 +6,8 @@ Tajima's D, PCA, and linkage disequilibrium. All pip-installable dependencies.
 """
 from dataclasses import dataclass, field
 
+import math
+
 import numpy as np
 from scipy import stats as sp_stats
 
@@ -77,13 +79,27 @@ def hardy_weinberg_test(genotype_counts):
     chi2 = float(np.sum((observed[nonzero] - expected[nonzero])**2 / expected[nonzero]))
     # Survival function keeps precision for small p; `1 - cdf` underflows to 0.
     p_value = float(sp_stats.chi2.sf(chi2, df=1))
+    # Results are returned at full precision and rounded only for display (see
+    # format_popgen_report).  Rounding p_value to 6 dp here reported every p
+    # below 5e-7 as exactly 0.0 - never a valid p-value for a continuous
+    # distribution - which made -log10(p) infinite for Manhattan plots and FDR
+    # correction, and silently undid the switch to chi2.sf.
+    #
+    # log10_p_value stays finite where p_value itself underflows to 0.0.
+    # scipy's chi2.logsf also returns -inf above chi2 ~ 1400, so use the exact
+    # identity  sf_chi2(x; df=1) = 2 * sf_normal(sqrt(x)).  This is an
+    # identity, not an approximation; tests assert it against chi2.logsf
+    # wherever chi2.logsf is finite.
+    log10_p = ((math.log(2.0) + float(sp_stats.norm.logsf(math.sqrt(chi2))))
+               / math.log(10.0)) if chi2 > 0 else 0.0
 
     return {
-        'chi2': round(chi2, 4),
-        'p_value': round(p_value, 6),
-        'allele_freq_p': round(p, 4),
-        'allele_freq_q': round(q, 4),
-        'expected': {'AA': round(exp_AA, 1), 'Aa': round(exp_Aa, 1), 'aa': round(exp_aa, 1)},
+        'chi2': chi2,
+        'p_value': p_value,
+        'log10_p_value': log10_p,
+        'allele_freq_p': p,
+        'allele_freq_q': q,
+        'expected': {'AA': exp_AA, 'Aa': exp_Aa, 'aa': exp_aa},
         'in_hwe': bool(p_value > 0.05),
         'chi2_approximation_valid': bool(np.all(expected >= 5)),
     }
@@ -301,7 +317,10 @@ def format_popgen_report(report):
         f"Tajima's D: {report.tajima_d:.4f}",
     ]
     if report.hw_test:
-        lines.append(f"HWE (site 0): chi2={report.hw_test.get('chi2', 0):.2f}, p={report.hw_test.get('p_value', 1):.4f}")
+        _p = report.hw_test.get('p_value', 1)
+        # Format, do not round the stored value: a tiny p must not display as 0.
+        _p_txt = f"{_p:.4f}" if _p >= 1e-4 else f"{_p:.3e}"
+        lines.append(f"HWE (site 0): chi2={report.hw_test.get('chi2', 0):.2f}, p={_p_txt}")
         lines.append(f"  In HWE: {'Yes' if report.hw_test.get('in_hwe') else 'No'}")
     if report.ld:
         avg_ld = np.mean(list(report.ld.values()))

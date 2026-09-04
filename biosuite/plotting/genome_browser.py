@@ -254,7 +254,7 @@ def _draw_bed_track(ax, data, region, color):
     lanes = []
     sorted_regions = sorted(regions, key=lambda r: r[1])
     for r in sorted_regions:
-        chrom, start, end = r[0], r[1], r[2]
+        start, end = r[1], r[2]
         name = r[3] if len(r) > 3 else ""
         placed = False
         for lane_idx, lane_end in enumerate(lanes):

@@ -55,7 +55,7 @@ class MSA:
 # ── External Tool Detection ─────────────────────────────────────────────────
 
 from .log import get_logger
-from .utils import has_tool as _has_tool
+from .utils import has_tool as _has_tool, secure_temp_path, wrote_output
 
 logger = get_logger(__name__)
 
@@ -409,24 +409,27 @@ def _run_clustal_omega(sequences: List[str]) -> MSA:
     """Run Clustal Omega on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
-    out = tempfile.mktemp(suffix='.fasta')
+    out = secure_temp_path(suffix='.fasta')
     try:
         _write_fasta(sequences, inp)
         bio_type = 'DNA' if _is_nucleotide(sequences[0][1]) else 'PROTEIN'
         cmd = ['clustalo', '-i', inp, '-o', out, '-t', bio_type,
                '--threads', '1', '--iterations', '1', '--force']
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if r.returncode == 0 and os.path.exists(out):
+        # wrote_output, not os.path.exists: secure_temp_path reserves the
+        # path by creating it, so exists() is always true and an empty file
+        # would be handed to the alignment parser as a "successful" run.
+        if r.returncode == 0 and wrote_output(out):
             return _load_bio_alignment(out, 'clustal_omega')
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("Clustal Omega could not be run: %s", exc)
     finally:
         for p in [inp, out]:
             if os.path.exists(p):
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Could not remove temp file %s: %s", p, exc)
     return None
 
 
@@ -434,7 +437,7 @@ def _run_muscle(sequences: List[str]) -> MSA:
     """Run MUSCLE on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
-    out = tempfile.mktemp(suffix='.fasta')
+    out = secure_temp_path(suffix='.fasta')
     try:
         _write_fasta(sequences, inp)
         cmd = ['muscle', '-align', inp, '-output', out]
@@ -442,17 +445,17 @@ def _run_muscle(sequences: List[str]) -> MSA:
         if r.returncode != 0:
             cmd = ['muscle', '-in', inp, '-out', out]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if r.returncode == 0 and os.path.exists(out):
+        if r.returncode == 0 and wrote_output(out):
             return _load_bio_alignment(out, 'muscle')
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("MUSCLE could not be run: %s", exc)
     finally:
         for p in [inp, out]:
             if os.path.exists(p):
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Could not remove temp file %s: %s", p, exc)
     return None
 
 
@@ -460,24 +463,26 @@ def _run_mafft(sequences: List[str]) -> MSA:
     """Run MAFFT on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
-    out = tempfile.mktemp(suffix='.fasta')
+    out = secure_temp_path(suffix='.fasta')
     try:
         _write_fasta(sequences, inp)
         cmd = ['mafft', '--auto', '--thread', '1', inp]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if r.returncode == 0:
+        # MAFFT writes the alignment to stdout, so exit 0 with empty stdout
+        # is a failure; without this guard an empty file reached the parser.
+        if r.returncode == 0 and r.stdout.strip():
             with open(out, 'w') as f:
                 f.write(r.stdout)
             return _load_bio_alignment(out, 'mafft')
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("MAFFT could not be run: %s", exc)
     finally:
         for p in [inp, out]:
             if os.path.exists(p):
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Could not remove temp file %s: %s", p, exc)
     return None
 
 

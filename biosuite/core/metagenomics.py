@@ -6,7 +6,6 @@ Includes diversity metrics and abundance analysis.
 """
 import os
 import subprocess
-import tempfile
 import warnings
 from collections import Counter
 from dataclasses import dataclass, field
@@ -21,7 +20,7 @@ try:
 except ImportError:
     HAS_SCIPY = False
 
-from .utils import PerformanceWarning
+from .utils import PerformanceWarning, secure_temp_path
 
 
 @dataclass
@@ -111,7 +110,7 @@ def _builtin_classify(reads_file, k=16):
 # ── Kraken2 Wrapper ─────────────────────────────────────────────────────────
 
 def _kraken2_classify(reads_file, database=None, output_file=None):
-    cmd = ['kraken2', '--threads', '1', '--output', output_file or tempfile.mktemp()]
+    cmd = ['kraken2', '--threads', '1', '--output', output_file or secure_temp_path()]
     if database:
         cmd.extend(['--db', database])
     cmd.append(reads_file)

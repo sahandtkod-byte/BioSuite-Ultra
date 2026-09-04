@@ -283,7 +283,6 @@ def lj_cutoff_correction(sigma: np.ndarray, epsilon: np.ndarray,
     rough approximation).
     """
     # Use a simple pairwise average approximation
-    n_pairs = n * (n - 1) / 2
     avg_sigma = np.mean(sigma)
     avg_eps = np.mean(epsilon)
     sr = avg_sigma / cutoff
@@ -521,7 +520,7 @@ def minimize_energy(coords: np.ndarray, lj: LJParameters,
     energy, forces = compute_forces(coords, lj, bonds, angles, cutoff)
     energy_history.append(energy)
 
-    for step in range(max_steps):
+    for _step in range(max_steps):
         fmag = np.sqrt(np.sum(forces * forces))
         if fmag < convergence_tol:
             break
@@ -746,7 +745,7 @@ def write_pdb(coords: np.ndarray, output_file: str,
                     f"ALA A   1    {x:8.3f}{y:8.3f}{z:8.3f}"
                     f"  1.00  0.00           C  \n"
                 )
-        f.write(f"ENDMDL\n")
+        f.write("ENDMDL\n")
         f.write("END\n")
 
 

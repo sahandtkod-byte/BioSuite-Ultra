@@ -432,7 +432,6 @@ class BioSuiteApp(
         import tempfile
 
         from PIL import Image, ImageTk
-        T = self.T
         tmp = os.path.join(tempfile.gettempdir(), f"biosuite_{id(fig)}.png")
         fig.savefig(tmp, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
         photo_ref = [None]
@@ -921,7 +920,7 @@ class BioSuiteApp(
             import tempfile
             import webbrowser
 
-            import plotly.io as pio
+            import plotly.io as pio  # noqa: F401 - availability probe
 
             # Save to temporary HTML file
             html_path = os.path.join(tempfile.gettempdir(), f"biosuite_plot_{id(fig)}.html")

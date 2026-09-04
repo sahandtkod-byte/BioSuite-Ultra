@@ -71,7 +71,7 @@ class DatabasesTabMixin:
                 results = search_ncbi(query)
             self.db_result.delete("1.0", "end")
             self.db_result.insert("end", format_search_results(results))
-            self._set_status(f"Database search complete")
+            self._set_status("Database search complete")
         except Exception as e:
             self._msg_error("Error", str(e))
 
