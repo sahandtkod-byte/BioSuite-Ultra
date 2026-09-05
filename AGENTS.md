@@ -9,7 +9,7 @@ measured from the tree — keep them accurate if you change the code.
 - **11 GUI tabs**, **99 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
 - **~32.5K lines** of Python in `biosuite/`
-- **130 test files**; CI reports **2,491 passed, 14 skipped** on 3.10/3.11/3.12
+- **130 test files**; CI reports **2,493 passed, 14 skipped** on 3.10/3.11/3.12
 
 ## Architecture
 ```
@@ -51,7 +51,7 @@ updated together on a release. The API, CLI banner, `--version` flag and GUI lab
 ## Build & Test
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -q                 # full suite: 2,491 passed + 14 skipped in CI
+pytest tests/ -q                 # full suite: 2,493 passed + 14 skipped in CI
 pytest tests/test_sequence.py -v # single file
 pytest tests/ --cov=biosuite     # coverage
 ```
@@ -59,7 +59,7 @@ The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY
 
 ## Current Status
 - Version: **5.5.0**
-- Tests in CI: **2,491 passed, 14 skipped, 0 failed** on 3.10/3.11/3.12
+- Tests in CI: **2,493 passed, 14 skipped, 0 failed** on 3.10/3.11/3.12
 - Tests locally without tkinter: **2,352 passed, 141 failed, 14 skipped** — the 141 GUI tests
   cannot import tkinter in a headless checkout; they run and pass in the matrix
 - Published on PyPI as `biosuite-ultra`

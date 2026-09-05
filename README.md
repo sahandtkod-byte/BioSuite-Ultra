@@ -35,7 +35,7 @@ see [Scientific scope and limitations](#scientific-scope-and-limitations).
   pipelines are seedable and re-runnable.
 - **Graceful degradation, honestly labelled.** Optional accelerators are used when present;
   the pure-Python fallbacks state their approximations rather than hiding them.
-- **Tested and scanned on every change.** 2,491 tests run on Python 3.10, 3.11 and 3.12, with
+- **Tested and scanned on every change.** 2,493 tests run on Python 3.10, 3.11 and 3.12, with
   Ruff, a dedicated security-regression suite and CodeQL in the same pipeline.
 
 ---
@@ -306,9 +306,9 @@ security-regression suite, a package build and CodeQL analysis.
 
 | Check | Status at the latest verified run |
 |---|---|
-| Tests — Python 3.10 | 2491 passed, 14 skipped, 0 failed |
-| Tests — Python 3.11 | 2491 passed, 14 skipped, 0 failed |
-| Tests — Python 3.12 | 2491 passed, 14 skipped, 0 failed |
+| Tests — Python 3.10 | 2493 passed, 14 skipped, 0 failed |
+| Tests — Python 3.11 | 2493 passed, 14 skipped, 0 failed |
+| Tests — Python 3.12 | 2493 passed, 14 skipped, 0 failed |
 | Ruff (`E9,F,B` as a hard gate) | pass |
 | Security regression suite | pass |
 | Package build (`build` + `twine check`) | pass |
