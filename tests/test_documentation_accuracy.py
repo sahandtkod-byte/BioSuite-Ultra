@@ -202,3 +202,101 @@ def test_test_file_count_claim_is_not_wildly_wrong():
     # Word-boundary match: "130 test files" is correct and must not trip this.
     assert not re.search(r"(?<!\d)30 test files", text)
     assert not re.search(r"(?<!\d)30 files", text)
+
+
+# ── AGENTS.md / DEPLOY.md coverage ──────────────────────────────────────────
+# These two files were the last to carry stale figures: AGENTS.md advertised
+# "2,500+ tests" in its Build & Test block while the same file quoted the real
+# number two other times, and DEPLOY.md still announced "v4.1.0" with
+# "100+ restriction enzymes" under a "Current Version" heading.  Both are tied
+# below to authoritative values measured from the tree, not to literal numbers.
+
+def _test_file_count():
+    return len(list((REPO / "tests").rglob("test_*.py")))
+
+
+def _readme_ci_pass_counts():
+    """Pass counts from the README's per-interpreter CI results table."""
+    text = _read("README.md")
+    return {int(m.replace(",", ""))
+            for m in re.findall(r"Tests\s*[—-]\s*Python\s*[\d.]+\s*\|\s*([\d,]+)\s+passed",
+                                text)}
+
+
+def _agents_ci_pass_counts():
+    """Pass counts AGENTS.md states in a CI context (not the local figure)."""
+    counts = set()
+    for line in _read("AGENTS.md").splitlines():
+        if re.search(r"\bCI\b", line):
+            counts |= {int(m.replace(",", ""))
+                       for m in re.findall(r"([\d,]{3,})\s+passed", line)}
+    return counts
+
+
+def test_agents_md_quotes_the_authoritative_test_file_count():
+    text = _read("AGENTS.md")
+    actual = _test_file_count()
+    quoted = {int(m) for m in re.findall(r"(\d+)\s+(?:test\s+)?files\b", text)}
+    assert quoted, "AGENTS.md quotes no test-file count at all"
+    assert quoted == {actual}, (
+        f"AGENTS.md quotes test-file counts {sorted(quoted)}; measured {actual}")
+
+
+def test_agents_md_does_not_carry_the_stale_test_count_claims():
+    text = _read("AGENTS.md")
+    for stale in ("2,500+", "2500+", "2,529", "2,375"):
+        assert stale not in text, f"AGENTS.md still claims '{stale}' tests"
+
+
+def test_agents_md_and_readme_agree_on_the_ci_pass_count():
+    """Tie the two documents together so they cannot drift apart again.
+
+    AGENTS.md may additionally quote the local figure, which differs because
+    the GUI tests cannot run without tkinter; what it must not do is quote a
+    *different* CI figure from the one in the README.
+    """
+    readme = _readme_ci_pass_counts()
+    agents = _agents_ci_pass_counts()
+    assert readme, "README's CI results table quotes no pass count"
+    assert agents, "AGENTS.md quotes no CI pass count"
+    assert len(readme) == 1, f"README quotes conflicting pass counts: {readme}"
+    assert agents == readme, (
+        f"AGENTS.md CI pass counts {sorted(agents)} disagree with the README "
+        f"table {sorted(readme)}")
+
+
+def _deploy_current_version_section():
+    text = _read("DEPLOY.md")
+    match = re.search(r"^## Current Version$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    assert match, "DEPLOY.md has no '## Current Version' section"
+    return match.group(1)
+
+
+def test_deploy_md_current_version_matches_the_package():
+    import biosuite
+    section = _deploy_current_version_section()
+    assert f"v{biosuite.__version__}" in section, (
+        f"DEPLOY.md 'Current Version' does not state v{biosuite.__version__}")
+
+
+def test_deploy_md_has_no_stale_current_version_claim():
+    section = _deploy_current_version_section()
+    stale = re.findall(r"v4\.\d+\.\d+", section)
+    assert not stale, f"DEPLOY.md 'Current Version' still claims {stale}"
+
+
+def test_deploy_md_quotes_the_authoritative_enzyme_count():
+    from biosuite.core.utils import RESTRICTION_ENZYMES
+    text = _read("DEPLOY.md")
+    assert f"{len(RESTRICTION_ENZYMES)} restriction enzymes" in text, (
+        f"DEPLOY.md does not quote the measured enzyme count "
+        f"({len(RESTRICTION_ENZYMES)})")
+    assert not re.search(r"\d+\+ restriction enzymes", text), (
+        "DEPLOY.md still uses an open-ended '<n>+ restriction enzymes' claim")
+
+
+def test_deploy_md_python_requirement_matches_pyproject():
+    pyproject = _read("pyproject.toml")
+    minimum = re.search(r'requires-python\s*=\s*">=([\d.]+)"', pyproject).group(1)
+    assert f"{minimum}+" in _read("DEPLOY.md"), (
+        f"DEPLOY.md does not state the packaged minimum Python ({minimum}+)")

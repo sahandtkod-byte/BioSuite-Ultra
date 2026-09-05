@@ -18,9 +18,9 @@ version = "X.Y.Z"
 ```
 
 Version rules:
-- Patch (bugfix): 4.1.0 → 4.1.1
-- Minor (new features): 4.1.0 → 4.2.0
-- Major (breaking changes): 4.1.0 → 5.0.0
+- Patch (bugfix): 5.5.0 → 5.5.1
+- Minor (new features): 5.5.0 → 5.6.0
+- Major (breaking changes): 5.5.0 → 6.0.0
 
 ### Step 2: Clean old build files
 ```powershell
@@ -95,12 +95,16 @@ pip install "biosuite-ultra[full]"      # all optional features
 | `twine: command not found` | Run `pip install twine` |
 
 ## Current Version
-**v4.1.0** — July 7, 2026
+**v5.5.0** — see [CHANGELOG.md](CHANGELOG.md) for the full entry.
+
+Note that 5.5.0 is the version in this source tree; the latest version published to PyPI is
+5.0.3.
 
 ### What's New
-- Parallel processing module
-- 100+ restriction enzymes
-- Better Bayesian phylogeny
-- Improved MD simulation
-- 30+ bug fixes
-- New documentation (CHANGELOG.md, CONTRIBUTING.md)
+- Scientific correctness fixes to pairwise alignment, ChIP-seq peak calling and coverage,
+  docking, multiple sequence alignment and differential expression
+- Security hardening: no default credentials, confined file access, restricted CORS,
+  authenticated documentation endpoints
+- 169 restriction enzymes for molecular cloning
+- Reproducible workflows with provenance tracking
+- CI on Python 3.10, 3.11 and 3.12 with Ruff, a security regression suite and CodeQL

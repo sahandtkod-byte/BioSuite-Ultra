@@ -9,7 +9,7 @@ measured from the tree — keep them accurate if you change the code.
 - **11 GUI tabs**, **99 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
 - **~32.5K lines** of Python in `biosuite/`
-- **2,491 tests collected** in **130 test files** (CI: 2,477 passed, 14 skipped on 3.10/3.11/3.12)
+- **130 test files**; CI reports **2,477 passed, 14 skipped** on 3.10/3.11/3.12
 
 ## Architecture
 ```
@@ -20,7 +20,7 @@ biosuite/
 ├── cli/            # menu.py — interactive CLI, 99 options
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 130 files, 2,491 tests collected
+tests/              # 130 files
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx
@@ -51,7 +51,7 @@ updated together on a release. The API, CLI banner, `--version` flag and GUI lab
 ## Build & Test
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -q                 # full suite: 2,500+ tests
+pytest tests/ -q                 # full suite: 2,477 passed + 14 skipped in CI
 pytest tests/test_sequence.py -v # single file
 pytest tests/ --cov=biosuite     # coverage
 ```
@@ -59,7 +59,9 @@ The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY
 
 ## Current Status
 - Version: **5.5.0**
-- Tests: **2,529 collected — 2,375 passed, 141 failed (all missing tkinter), 14 skipped** (local, Python 3.11)
+- Tests in CI: **2,477 passed, 14 skipped, 0 failed** on 3.10/3.11/3.12
+- Tests locally without tkinter: **2,343 passed, 141 failed, 14 skipped** — the 141 GUI tests
+  cannot import tkinter in a headless checkout; they run and pass in the matrix
 - Published on PyPI as `biosuite-ultra`
 - Zenodo DOI: 10.5281/zenodo.21256296
 
