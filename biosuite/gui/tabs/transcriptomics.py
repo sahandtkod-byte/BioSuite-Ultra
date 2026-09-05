@@ -2,10 +2,9 @@
 Transcriptomics tabs: Expression, Trimming, RNA-seq Quantification.
 """
 import os
-import customtkinter as ctk
 from tkinter import filedialog
 
-from ..themes import FONT_BODY, FONT_SMALL
+import customtkinter as ctk
 
 
 class TranscriptomicsTabMixin:
@@ -43,9 +42,10 @@ class TranscriptomicsTabMixin:
             entry.insert(0, path)
 
     def _run_expr(self):
-        import numpy as np
         import matplotlib.pyplot as plt
-        from ...core.expression import read_counts_matrix, differential_expression
+        import numpy as np
+
+        from ...core.expression import differential_expression, read_counts_matrix
         path = self.expr_path.get().strip()
         if not path:
             self._msg_warning("No file", "Select a count matrix first.")
@@ -125,7 +125,7 @@ class TranscriptomicsTabMixin:
             self._msg_warning("No file", "Select a FASTQ file.")
             return
         try:
-            from ...core.trimming import trim_fastq, format_trim_report
+            from ...core.trimming import format_trim_report, trim_fastq
             qual = int(self.trim_qual.get().strip() or "20")
             minlen = int(self.trim_minlen.get().strip() or "36")
             out = os.path.splitext(path)[0] + '_trimmed.fastq'
@@ -175,7 +175,7 @@ class TranscriptomicsTabMixin:
             self._msg_warning("Missing input", "Select both reads and transcriptome files.")
             return
         try:
-            from ...core.quantification import quantify_reads, format_quant_report
+            from ...core.quantification import format_quant_report, quantify_reads
             result = quantify_reads(reads, trans)
             self.quant_result.delete("1.0", "end")
             self.quant_result.insert("end", format_quant_report(result))

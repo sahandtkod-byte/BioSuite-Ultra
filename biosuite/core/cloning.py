@@ -2,27 +2,24 @@
 Molecular Cloning Toolkit — restriction digestion, ligation, PCR, and
 virtual gel electrophoresis.
 
-Pure matplotlib / numpy. No paid dependencies.
+Implemented with matplotlib and numpy only.
 """
 
 from __future__ import annotations
 
 import math
-import random
 from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Restriction enzyme database (imported from shared utils)
 # ---------------------------------------------------------------------------
 # We need BOTH the sites and the cut positions for accurate digestion.
 from biosuite.core.utils import RESTRICTION_ENZYMES
-
 
 # ---------------------------------------------------------------------------
 # DNA validation helper
@@ -350,7 +347,7 @@ def simulate_ligation(fragments: List[str],
     if insert_sequence and vector_sequence:
         try:
             ins = _validate_dna(insert_sequence, "insert")
-            vec = _validate_dna(vector_sequence, "vector")
+            _validate_dna(vector_sequence, "vector")   # validate, value unused
             # Check if the insert (or its RC) is present in the product
             verified = (ins in product) or (_reverse_complement(ins) in product)
             if not verified:
@@ -698,10 +695,23 @@ def plot_virtual_gel(fragment_sizes: List[int],
         ladder = [10000, 8000, 6000, 5000, 4000, 3000, 2000, 1500, 1000, 700, 500, 200]
 
     # Handle fragment_sizes as list of lists for multi-lane support
+    # Also accept digest-style fragment dicts ({'size', 'sequence', ...})
+    # so callers can pass simulate_digestion() output directly.
+    def _norm_frags(frags):
+        out = []
+        for f in frags:
+            if isinstance(f, dict):
+                size = f.get('size')
+                if isinstance(size, (int, float)):
+                    out.append(size)
+            else:
+                out.append(f)
+        return out
+
     if fragment_sizes and isinstance(fragment_sizes[0], (list, tuple)):
-        all_samples = [list(s) for s in fragment_sizes]
+        all_samples = [_norm_frags(list(s)) for s in fragment_sizes]
     else:
-        all_samples = [list(fragment_sizes)]
+        all_samples = [_norm_frags(list(fragment_sizes))]
 
     n_samples = len(all_samples)
     total_lanes = 1 + n_samples  # ladder + samples
@@ -798,7 +808,9 @@ def plot_virtual_gel(fragment_sizes: List[int],
     ]
 
     for lane_idx, sample_frags in enumerate(all_samples):
-        lane_x = gel_left + lane_width * (lane_idx + 0.5)
+        # Offset by +1.5: lane 0 belongs to the ladder — sample lanes
+        # start after it (previously they overlapped the ladder lane).
+        lane_x = gel_left + lane_width * (lane_idx + 1.5)
 
         # Determine color
         if sample_colors and lane_idx < len(sample_colors):
@@ -957,7 +969,7 @@ def format_pcr_report(result: dict) -> str:
         "=" * 60,
         "  PCR AMPLIFICATION REPORT",
         "=" * 60,
-        f"  Template length: N/A (see product size)",
+        "  Template length: N/A (see product size)",
         f"  Product size: {result['size']:,} bp",
         f"  Cycles: {result['cycles']}",
         f"  Estimated efficiency: {result.get('efficiency', 0) * 100:.0f}%",

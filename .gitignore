@@ -57,6 +57,8 @@ desktop.ini
 # ── Secrets / credentials — never commit ───────────────────────────────────
 .env
 .env.*
+# the template carries no secrets and must be tracked:
+!.env.example
 .pypirc
 *.pem
 *.key
@@ -85,10 +87,8 @@ logs/
 !docs/**/*.png
 !docs/**/*.svg
 
-# ── Agent/tooling scratch space ────────────────────────────────────────────
-.hermes/
+# ── Local tooling scratch directories ──────────────────────────────────────
 _tmp_repo/
-.claude/
 
 # ── Notebook checkpoints ───────────────────────────────────────────────────
 .ipynb_checkpoints/
@@ -96,3 +96,14 @@ _tmp_repo/
 # ── Docs build output ──────────────────────────────────────────────────────
 docs/_build/
 docs/_autosummary/
+*.patch
+bio_suite_cache/
+.coverage
+coverage/
+# Runtime plot-story export (tests write to cwd)
+story.md
+
+# ── Local user state (never commit: may contain API keys) ───────────────────
+biosuite_config.json
+biosuite_session.json
+.env

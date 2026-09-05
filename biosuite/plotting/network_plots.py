@@ -2,10 +2,9 @@
 Network visualization for PPI, gene regulatory, and metabolic networks.
 Uses networkx for graph construction and matplotlib for rendering.
 """
-import numpy as np
+
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch
-from collections import defaultdict
+import numpy as np
 
 try:
     import networkx as nx
@@ -90,7 +89,7 @@ def plot_network(G, title="Network", node_color='#00ff88', edge_color='gray',
                            node_color=node_colors, cmap=plt.cm.viridis, alpha=0.85)
 
     edge_styles = []
-    for u, v, data in G.edges(data=True):
+    for _u, _v, data in G.edges(data=True):
         if data.get('effect') == 'activation':
             edge_styles.append(('green', '-', 1.5))
         elif data.get('effect') == 'repression':

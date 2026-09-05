@@ -6,13 +6,12 @@ Works out of the box — no external tools required.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
 import os
 import subprocess
-import tempfile
-import numpy as np
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
+import numpy as np
 
 ADAPTERS = {
     'illumina_nextera': 'CTGTCTCTTATACACATCT',
@@ -57,9 +56,50 @@ def check_trimming_tools() -> Dict[str, bool]:
 
 # ── Pure Python Trimmer ─────────────────────────────────────────────────────
 
+def _resolve_adapters(adapter: str, adapter_name: Optional[str]) -> list:
+    """Build the adapter candidate list.
+
+    'auto' tries every known adapter sequence (exact substring match — a
+    heuristic; cutadapt does proper error-tolerant alignment when present).
+    """
+    if adapter_name and adapter_name in ADAPTERS:
+        return [ADAPTERS[adapter_name]]
+    if adapter != 'auto' and adapter not in ('', None):
+        return [adapter] if adapter in ADAPTERS.values() else [ADAPTERS.get(adapter, adapter)]
+    return list(ADAPTERS.values())  # 'auto': try them all
+
+
+def _find_adapter(seq: str, adapters: list) -> int:
+    """Return the position of the earliest adapter hit in *seq*, or -1."""
+    best = -1
+    for ad in adapters:
+        pos = seq.find(ad)
+        if 0 <= pos and (best < 0 or pos < best):
+            best = pos
+    return best
+
+
+def _trim_one(seq: str, qual: str, adapters: list, quality_threshold: int):
+    """Adapter + 3' quality trim of one record; returns (seq, qual)."""
+    if adapters:
+        pos = _find_adapter(seq, adapters)
+        if pos >= 0:
+            seq, qual = seq[:pos], qual[:pos]
+    trim_pos = len(qual)
+    while trim_pos > 0 and ord(qual[trim_pos - 1]) - 33 < quality_threshold:
+        trim_pos -= 1
+    return seq[:trim_pos], qual[:trim_pos]
+
+
 def _pure_python_trim(input_file: str, output_file: str, quality_threshold: int = 20,
-                      min_length: int = 36, adapter_seq: Optional[str] = None) -> TrimReport:
-    """Trim FASTQ reads using pure Python — no external tools needed."""
+                      min_length: int = 36, adapters: Optional[list] = None,
+                      adapter_seq: Optional[str] = None) -> TrimReport:
+    """Trim FASTQ reads using pure Python — no external tools needed.
+
+    Accepts ``adapters`` (list) or the legacy ``adapter_seq`` (single str).
+    """
+    if adapters is None and adapter_seq:
+        adapters = [adapter_seq]
     total = 0
     trimmed = 0
     removed = 0
@@ -84,27 +124,21 @@ def _pure_python_trim(input_file: str, output_file: str, quality_threshold: int 
             total += 1
 
             # Adapter trimming
-            if adapter_seq:
-                pos = seq.find(adapter_seq)
+            if adapters:
+                pos = _find_adapter(seq, adapters)
                 if pos >= 0:
-                    seq = seq[:pos]
-                    qual = qual[:pos]
                     adapter_hits += 1
 
+            old_len = len(seq)
             qual_scores = [ord(c) - 33 for c in qual]
             qual_before_sum += sum(qual_scores)
             base_count += len(qual_scores)
 
-            # Quality trimming from 3' end
-            trim_pos = len(qual_scores)
-            while trim_pos > 0 and qual_scores[trim_pos - 1] < quality_threshold:
-                trim_pos -= 1
+            seq, qual = _trim_one(seq, qual, adapters, quality_threshold)
 
-            if trim_pos < len(seq):
+            if len(seq) < old_len:
                 trimmed += 1
 
-            seq = seq[:trim_pos]
-            qual = qual[:trim_pos]
             qual_after_scores = [ord(c) - 33 for c in qual]
             qual_after_sum += sum(qual_after_scores)
             after_base_count += len(qual_after_scores)
@@ -184,23 +218,21 @@ def trim_fastq(input_file: str, output_file: Optional[str] = None, quality_thres
         base = os.path.splitext(input_file)[0]
         output_file = f"{base}_trimmed.fastq"
 
-    # Resolve adapter
-    adapter_seq = None
-    if adapter_name and adapter_name in ADAPTERS:
-        adapter_seq = ADAPTERS[adapter_name]
-    elif adapter != 'auto':
-        adapter_seq = adapter
+    adapters = _resolve_adapters(adapter, adapter_name)
+    # 'auto' for cutadapt means "no -a flag" (cutadapt cannot guess);
+    # the built-in engine instead tries every known adapter sequence.
+    cutadapt_adapter = adapters[0] if (adapter_name or adapter != 'auto') and adapters else None
 
     # Try Cutadapt first
     if check_trimming_tools()['cutadapt']:
         result = _cutadapt_trim(input_file, output_file, quality_threshold,
-                               min_length, adapter_seq)
+                               min_length, cutadapt_adapter)
         if result is not None:
             return result
 
     # Pure Python fallback
     return _pure_python_trim(input_file, output_file, quality_threshold,
-                            min_length, adapter_seq)
+                            min_length, adapters)
 
 
 def trim_pair_end(input_r1: str, input_r2: str, output_r1: Optional[str] = None, output_r2: Optional[str] = None,
@@ -227,16 +259,60 @@ def trim_pair_end(input_r1: str, input_r2: str, output_r1: Optional[str] = None,
         except (OSError, subprocess.SubprocessError):
             pass
 
-    # Fallback: trim each file independently
-    r1 = trim_fastq(input_r1, output_r1, quality_threshold, min_length, adapter)
-    r2 = trim_fastq(input_r2, output_r2, quality_threshold, min_length, adapter)
-    r1.input_file = f"{input_r1} + {input_r2}"
-    r1.output_file = f"{output_r1} + {output_r2}"
-    r1.total_reads += r2.total_reads
-    r1.reads_trimmed += r2.reads_trimmed
-    r1.reads_removed += r2.reads_removed
-    r1.message = "Using built-in trimmer (paired-end processed independently)"
-    return r1
+    # Fallback: lockstep pure-Python trim that keeps mates synchronized —
+    # dropping one mate of a pair would corrupt EVERY downstream tool
+    # (the previous implementation trimmed the files independently and
+    # silently desynchronized them).
+    return _pure_python_trim_pair(input_r1, input_r2, output_r1, output_r2,
+                                  quality_threshold, min_length, adapter)
+
+
+def _pure_python_trim_pair(input_r1: str, input_r2: str, output_r1: str, output_r2: str,
+                           quality_threshold: int = 20, min_length: int = 36,
+                           adapter: str = 'auto') -> TrimReport:
+    """Lockstep paired-end trim: a pair is written only if BOTH mates pass."""
+    adapters = _resolve_adapters(adapter, None)
+    total = kept = trimmed = adapter_hits = 0
+
+    with open(input_r1) as f1, open(input_r2) as f2, \
+            open(output_r1, 'w') as o1, open(output_r2, 'w') as o2:
+        while True:
+            rec1 = [f1.readline() for _ in range(4)]
+            rec2 = [f2.readline() for _ in range(4)]
+            if not rec1[0] or not rec2[0]:
+                break
+            seqs = [rec1[1].rstrip('\n'), rec2[1].strip('\n')]
+            quals = [rec1[3].rstrip('\n'), rec2[3].rstrip('\n')]
+            if not all(seqs) or not all(quals):
+                break
+            total += 1
+            old_lens = [len(seqs[0]), len(seqs[1])]
+
+            for i in range(2):
+                if adapters and _find_adapter(seqs[i], adapters) >= 0:
+                    adapter_hits += 1
+                seqs[i], quals[i] = _trim_one(seqs[i], quals[i], adapters, quality_threshold)
+                if len(seqs[i]) < old_lens[i]:
+                    trimmed += 1
+
+            if min(len(seqs[0]), len(seqs[1])) < min_length:
+                continue  # discard the WHOLE pair — mates stay in lockstep
+            kept += 1
+            o1.write(f"{rec1[0]}{seqs[0]}\n{rec1[2]}{quals[0]}\n")
+            o2.write(f"{rec2[0]}{seqs[1]}\n{rec2[2]}{quals[1]}\n")
+
+    report = TrimReport(
+        input_file=f"{input_r1} + {input_r2}",
+        output_file=f"{output_r1} + {output_r2}",
+        total_reads=total * 2,
+        reads_trimmed=trimmed,
+        reads_removed=(total - kept) * 2,
+        adapter_trimmed=adapter_hits,
+        engine="builtin",
+        message=(f"Built-in lockstep paired trimmer: {kept}/{total} pairs kept "
+                 f"(whole pairs dropped to preserve mate sync)"),
+    )
+    return report
 
 
 def analyze_fastq_quality(filepath: str, max_reads: int = 100000) -> Dict[str, Any]:

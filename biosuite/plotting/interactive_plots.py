@@ -6,14 +6,11 @@ import numpy as np
 
 try:
     import plotly.graph_objects as go
-    import plotly.express as px
-    from plotly.subplots import make_subplots
     HAS_PLOTLY = True
 except ImportError:
     HAS_PLOTLY = False
 
 import matplotlib.pyplot as plt
-import pandas as pd
 
 
 def interactive_scatter(x, y, labels=None, color_col=None, title="Scatter Plot",
@@ -145,7 +142,7 @@ def interactive_volcano(lfc, pvals, gene_names=None, fc_thresh=1.0, p_thresh=0.0
             x=np.array(lfc)[~sig], y=neg_log10[~sig],
             mode='markers', name='Not significant',
             marker=dict(size=5, color='gray', opacity=0.5),
-            text=[f"Not sig" for _ in range(sum(~sig))], hoverinfo='text'
+            text=["Not sig"] * int(np.sum(~sig)), hoverinfo='text'
         ))
         # Significant
         labels = []
@@ -264,7 +261,6 @@ def export_interactive_report(plots_dict, output_path="report.html"):
         print("Plotly not installed. Cannot generate interactive report.")
         return
 
-    from plotly.subplots import make_subplots
     import plotly.io as pio
 
     html_parts = [
@@ -400,7 +396,6 @@ def interactive_manhattan(chromosomes, positions, neg_log10_pvals,
         unique_chroms = list(dict.fromkeys(chromosomes))
         for i, chrom in enumerate(unique_chroms):
             mask = [c == chrom for c in chromosomes]
-            color = colors_hex[i % 2] if 'colors_hex' in dir() else '#00ff88'
             ax.scatter(np.array(positions)[mask], np.array(neg_log10_pvals)[mask],
                        s=4, alpha=0.6, color=['#00ff88', '#00cc66'][i % 2])
         ax.set_xlabel("Position")
@@ -461,7 +456,7 @@ def interactive_qq(pvalues, title="Q-Q Plot", output_html=None, figsize=(7, 7)):
     sorted_p = np.sort(np.array(pvalues))
     n = len(sorted_p)
     expected = sp_stats.norm.ppf(np.arange(1, n + 1) / (n + 1))
-    observed = sp_stats.norm.ppf(sorted_p)
+    observed = sp_stats.norm.ppf(np.clip(sorted_p, 1e-16, 1 - 1e-16))
 
     if HAS_PLOTLY:
         fig = go.Figure()
@@ -509,7 +504,7 @@ def interactive_violin(data_dict, title="Violin Plot", y_label="Value",
         return fig
     else:
         fig, ax = plt.subplots(figsize=figsize)
-        parts = ax.violinplot(list(data_dict.values()), showmeans=True, showmedians=True)
+        ax.violinplot(list(data_dict.values()), showmeans=True, showmedians=True)
         ax.set_xticks(range(1, len(data_dict) + 1))
         ax.set_xticklabels(data_dict.keys())
         ax.set_ylabel(y_label)
@@ -524,18 +519,18 @@ def interactive_dotplot(categories, genes, values, sizes=None,
     """Interactive dot plot for single-cell marker genes."""
     if HAS_PLOTLY:
         fig = go.Figure()
+        _sizes = list(sizes) if sizes is not None else [10] * len(genes)
         fig.add_trace(go.Scatter(
             x=categories, y=genes, mode='markers',
             marker=dict(
-                size=sizes if sizes is not None else [10] * len(genes),
+                size=_sizes,
                 color=values,
                 colorscale='Viridis',
                 showscale=True,
                 colorbar=dict(title="Expression")
             ),
             text=[f"{cat}: {gene}<br>Expr: {v:.2f}<br>%: {s:.0f}%"
-                  for cat, gene, v, s in zip(categories, genes, values,
-                                              sizes if sizes else [10]*len(genes))],
+                  for cat, gene, v, s in zip(categories, genes, values, _sizes)],
             hoverinfo='text'
         ))
         fig.update_layout(title=title, template='plotly_dark')
@@ -544,7 +539,7 @@ def interactive_dotplot(categories, genes, values, sizes=None,
         return fig
     else:
         fig, ax = plt.subplots(figsize=(max(8, len(categories)), max(6, len(genes) * 0.4)))
-        sizes_arr = np.array(sizes) if sizes else np.ones(len(genes)) * 50
+        sizes_arr = np.array(sizes) if sizes is not None else np.ones(len(genes)) * 50
         colors_arr = np.array(values)
         scatter = ax.scatter(
             [categories.index(c) if isinstance(c, str) else c for c in categories],

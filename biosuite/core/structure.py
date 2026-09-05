@@ -5,13 +5,12 @@ Parses PDB files, computes structural properties, and provides
 3D visualization. All pure Python via Biopython.
 """
 import os
-import numpy as np
 from dataclasses import dataclass, field
 
+import numpy as np
+
 try:
-    from Bio import PDB
-    from Bio.PDB import PDBParser, DSSP, SASA, NeighborSearch, PPBuilder
-    from Bio.PDB.Polypeptide import PPBuilder
+    from Bio.PDB import DSSP, SASA, NeighborSearch, PDBParser, PPBuilder
     HAS_BIO = True
 except ImportError:
     HAS_BIO = False
@@ -81,18 +80,26 @@ def get_structure_info(structure, pdb_id="unknown"):
     return info
 
 
-def compute_secondary_structure(structure):
+def compute_secondary_structure(structure, filepath=None):
     if not HAS_BIO:
         return {}
     try:
         model = structure[0]
         tools = check_structure_tools()
-        if tools.get('dssp'):
-            dssp = DSSP(model, structure.full_id[0] if hasattr(structure, 'full_id') else 'protein')
-            ss = {}
-            for key, val in dssp:
-                res_name = f"{val[1]}{key[1][1]}"
-                ss[res_name] = val[2]
+        # DSSP needs the original PDB filename: the old code passed the
+        # structure id (not a path), so it always raised and silently fell
+        # back to the phi/psi heuristic even with mkdssp installed.
+        if tools.get('dssp') and filepath and os.path.exists(filepath):
+            dssp = DSSP(model, filepath)
+            ss = {'H': 0, 'E': 0, 'C': 0}
+            for _key, val in dssp:
+                cls = val[2]
+                if cls in ('H', 'G', 'I'):
+                    ss['H'] += 1
+                elif cls in ('E', 'B'):
+                    ss['E'] += 1
+                else:
+                    ss['C'] += 1
             return ss
     except Exception:
         pass
@@ -194,7 +201,7 @@ def full_analysis(pdb_id=None, filepath=None):
         return StructureInfo(name=pdb_id or 'unknown', message=err)
 
     info = get_structure_info(structure, pdb_id or 'loaded')
-    info.secondary_structure = compute_secondary_structure(structure)
+    info.secondary_structure = compute_secondary_structure(structure, filepath=filepath)
     info.ramachandran = compute_ramachandran(structure)
     info.surface_area = compute_sasa(structure)
 
@@ -221,7 +228,6 @@ def format_structure_report(info):
                         f"{ss.get('C',0)/total*100:.0f}% coil" if total > 0 else "")
     if info.ramachandran and 'phi' in info.ramachandran:
         phi = info.ramachandran['phi']
-        psi = info.ramachandran['psi']
         if phi:
             lines.append(f"Ramachandran: {len(phi)} angles (phi: {np.mean(phi):.1f}±{np.std(phi):.1f}°)")
     if info.message:

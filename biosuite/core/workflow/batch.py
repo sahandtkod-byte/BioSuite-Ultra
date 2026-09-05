@@ -2,10 +2,11 @@
 Batch processor — run the same analysis on hundreds of samples in parallel.
 Tracks progress, collects results, handles failures gracefully.
 """
+import threading
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class BatchJob:
@@ -22,7 +23,12 @@ class BatchJob:
         self.status = "pending"
 
     def run(self):
+        # Clear state from any earlier run so a retried job does not keep
+        # reporting the previous failure.
         self.status = "running"
+        self.result = None
+        self.error = None
+        self.traceback = None
         start = time.time()
         try:
             self.result = self.func(self.sample_id, *self.args, **self.kwargs)
@@ -53,8 +59,20 @@ class BatchProcessor:
         self._log = []
         self._progress = 0
         self._total = 0
+        self._lock = threading.Lock()
 
     def add_job(self, sample_id, func, args=None, kwargs=None):
+        """Queue one sample.
+
+        Raises:
+            ValueError: if *sample_id* is already queued.  Results are keyed by
+                sample id, so duplicates used to silently collapse three jobs
+                into two results.
+        """
+        if any(job.sample_id == sample_id for job in self.jobs):
+            raise ValueError(
+                f"duplicate sample id {sample_id!r}; batch results are keyed by "
+                "sample id, so ids must be unique")
         self.jobs.append(BatchJob(sample_id, func, args, kwargs))
         return self
 
@@ -69,6 +87,12 @@ class BatchProcessor:
         self._progress = 0
         self._total = len(self.jobs)
         start = time.time()
+        for job in self.jobs:
+            job.status = "pending"
+            job.result = None
+            job.error = None
+            job.traceback = None
+            job.elapsed = 0.0
 
         if max_workers <= 1:
             self._run_sequential(progress_callback)
@@ -97,10 +121,12 @@ class BatchProcessor:
             futures = {executor.submit(job.run): job for job in self.jobs}
             for future in as_completed(futures):
                 job = futures[future]
-                self.results[job.sample_id] = job.result
-                self._progress += 1
+                with self._lock:
+                    self.results[job.sample_id] = job.result
+                    self._progress += 1
+                    progress = self._progress
                 if progress_callback:
-                    progress_callback(self._progress, self._total, job.sample_id)
+                    progress_callback(progress, self._total, job.sample_id)
                 if job.status == "failed":
                     self._log.append(f"  {job.sample_id} FAILED: {job.error}")
                 else:

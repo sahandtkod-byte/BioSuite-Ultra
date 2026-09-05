@@ -2,10 +2,9 @@
 Survival Analysis tab: Kaplan-Meier curves, log-rank test, Cox PH.
 """
 import os
-import customtkinter as ctk
 from tkinter import filedialog
 
-from ..themes import FONT_FAMILY, FONT_SMALL
+import customtkinter as ctk
 
 
 class SurvivalTabMixin:
@@ -53,7 +52,7 @@ class SurvivalTabMixin:
             self._msg_warning("Input Required", "Please load a CSV file with time and event columns.")
             return
         try:
-            from ...core.survival import kaplan_meier, log_rank_test, format_survival_report
+            from ...core.survival import format_survival_report, kaplan_meier
             df = pd.read_csv(path)
             if 'time' not in df.columns or 'event' not in df.columns:
                 self._msg_error("Error", "CSV must have 'time' and 'event' columns.")
@@ -69,7 +68,8 @@ class SurvivalTabMixin:
     def _surv_demo(self):
         try:
             import numpy as np
-            from ...core.survival import kaplan_meier, format_survival_report
+
+            from ...core.survival import format_survival_report, kaplan_meier
             np.random.seed(42)
             times = np.random.exponential(30, 50)
             events = np.random.binomial(1, 0.6, 50)

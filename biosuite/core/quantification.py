@@ -7,10 +7,13 @@ k-mer based pseudo-alignment quantifier.
 import os
 import subprocess
 import tempfile
+
+from .utils import secure_temp_path, wrote_output
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from collections import defaultdict, Counter
-from dataclasses import dataclass
 
 
 @dataclass
@@ -38,21 +41,33 @@ class QuantResult:
 
 
 def check_quantification_tools():
-    tools = {'salmon': False, 'kallisto': False}
-    for t in tools:
+    # `salmon version` is not a valid subcommand — salmon only understands
+    # -v/--version, and the wrong flag made salmon report unavailable even
+    # when installed.  Probe PATH first, then a --version smoke test.
+    from .utils import has_tool as _has_tool
+    tools = {}
+    for t in ('salmon', 'kallisto'):
+        if not _has_tool(t):
+            tools[t] = False
+            continue
         try:
-            r = subprocess.run([t, 'version'], capture_output=True, text=True, timeout=10)
+            r = subprocess.run([t, '--version'], capture_output=True, text=True, timeout=10)
             tools[t] = r.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+            tools[t] = False
     return tools
 
 
 # ── Pure Python K-mer Quantifier ────────────────────────────────────────────
 
 def _build_transcript_index(transcripts, k=31):
-    """Build k-mer to transcript mapping from transcript sequences."""
-    index = defaultdict(list)
+    """Build k-mer -> set(transcript) mapping from transcript sequences.
+
+    A k-mer that occurs multiple times inside ONE transcript must not
+    multiply that transcript's votes (the old list-based index counted
+    every occurrence, inflating repetitive transcripts).
+    """
+    index = defaultdict(set)
     lengths = {}
     for name, seq in transcripts:
         seq_upper = seq.upper()
@@ -60,8 +75,8 @@ def _build_transcript_index(transcripts, k=31):
         for i in range(len(seq_upper) - k + 1):
             kmer = seq_upper[i:i + k]
             if 'N' not in kmer:
-                index[kmer].append(name)
-    return index, lengths
+                index[kmer].add(name)
+    return {kmer: sorted(ids) for kmer, ids in index.items()}, lengths
 
 
 def _pseudo_align_read(read_seq, index, k=31, min_hits=2):
@@ -85,7 +100,17 @@ def _pseudo_align_read(read_seq, index, k=31, min_hits=2):
 
 def _builtin_quantify(reads_file, transcripts, k=31, sample_name='sample'):
     """Pure Python k-mer based quantification."""
+    too_short = [name for name, seq in transcripts if len(seq) < k]
+    if too_short:
+        import warnings
+        warnings.warn(
+            f"{len(too_short)} transcript(s) shorter than k={k} cannot be "
+            f"quantified by the built-in k-mer engine (TPM forced to 0): "
+            f"{', '.join(too_short[:3])}{'...' if len(too_short) > 3 else ''}",
+            stacklevel=2,
+        )
     index, lengths = _build_transcript_index(transcripts, k=k)
+    alt_indices = {}  # k-> index cache for reads shorter than the global k
     counts = Counter()
     total_reads = 0
     mapped_reads = 0
@@ -102,7 +127,20 @@ def _builtin_quantify(reads_file, transcripts, k=31, sample_name='sample'):
             if not seq:
                 break
             total_reads += 1
-            transcript, hits = _pseudo_align_read(seq, index, k=k)
+            # Reads shorter than k previously matched NOTHING.  Clip k for
+            # that read and use a lazily-built index at the shorter k.
+            k_read = min(k, len(seq))
+            if k_read < 8:
+                continue
+            if k_read == k:
+                use_index = index
+            else:
+                if k_read not in alt_indices:
+                    alt_indices[k_read], _ = _build_transcript_index(transcripts, k=k_read)
+                use_index = alt_indices[k_read]
+            n_kmers = len(seq) - k_read + 1
+            transcript, hits = _pseudo_align_read(
+                seq, use_index, k=k_read, min_hits=min(2, n_kmers))
             if transcript:
                 counts[transcript] += 1
                 mapped_reads += 1
@@ -237,8 +275,10 @@ def kallisto_quant(reads_r1, reads_r2=None, index_file=None,
                    sample_name='sample', threads=1):
     if index_file is None and transcriptome_fasta:
         index_file = kallisto_index(transcriptome_fasta,
-                                    tempfile.mktemp(suffix='.idx'), threads)
-    if index_file and os.path.exists(index_file):
+                                    secure_temp_path(suffix='.idx'), threads)
+    # wrote_output: secure_temp_path creates the path, so exists() alone would
+    # treat a failed index build as success and quantify against a 0-byte index.
+    if index_file and wrote_output(index_file):
         if output_dir is None:
             output_dir = tempfile.mkdtemp(prefix='kallisto_quant_')
         result = _kallisto_quant(reads_r1, reads_r2, index_file, output_dir,
@@ -284,7 +324,7 @@ def quantify_reads(reads_file, transcriptome_fasta, sample_name='sample', k=31):
                 return result
 
     if tools['kallisto']:
-        idx = kallisto_index(transcriptome_fasta, tempfile.mktemp(suffix='.idx'))
+        idx = kallisto_index(transcriptome_fasta, secure_temp_path(suffix='.idx'))
         if idx:
             out = tempfile.mkdtemp()
             result = _kallisto_quant(reads_file, None, idx, out, sample_name, 1)

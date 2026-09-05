@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Example BioSuite user configuration.",
+    "Copy to the user config directory and edit; do NOT commit a filled-in copy.",
+    "Linux/macOS: ${XDG_CONFIG_HOME:-~/.config}/biosuite/biosuite_config.json",
+    "Windows:     %APPDATA%\\BioSuite\\biosuite_config.json",
+    "Override with the BIOSUITE_CONFIG_DIR environment variable.",
+    "API server secrets are NOT read from this file - see .env.example."
+  ],
+  "theme": "dark-green",
+  "default_dpi": 180,
+  "save_format": "png",
+  "interactive": false,
+  "downsample_threshold": 5000,
+  "quiet": false,
+  "api_keys": {
+    "ncbi_email": "",
+    "ncbi_api_key": "",
+    "uniprot_email": "",
+    "kegg_email": "",
+    "alphafold_email": ""
+  }
+}

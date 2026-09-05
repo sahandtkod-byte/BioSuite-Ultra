@@ -1,8 +1,15 @@
 """Mathematical functions: Sine, Cosine, Linear, Quadratic, Cubic, Exponential, Logistic."""
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-from ..core.utils import config, session, autosave_session, safe_float_input, apply_glass_ax, ask_save_plot
+import seaborn as sns
+
+from ..core.utils import (
+    apply_glass_ax,
+    ask_save_plot,
+    config,
+    safe_float_input,
+)
+
 
 def sine_plot(pdf=None):
     print("\n--- Sine: y = A * sin(B*x + C) ---")

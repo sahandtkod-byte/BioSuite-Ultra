@@ -9,10 +9,15 @@ All functions are pure-Python where possible; optional heavy deps
 (pysam, scipy) are guarded with HAS_* flags.
 """
 import os
-import re
 from collections import defaultdict
+
 import numpy as np
 import pandas as pd
+
+from .log import get_logger
+
+logger = get_logger(__name__)
+
 
 try:
     import pysam
@@ -23,16 +28,16 @@ except ImportError:
 def read_bam_header(bam_path):
     """Return header dictionary from BAM file."""
     if not HAS_PYSAM:
-        print("pysam not installed. pip install pysam")
+        logger.warning("pysam not installed. pip install pysam")
         return None
     if not os.path.exists(bam_path):
-        print(f"BAM file not found: {bam_path}")
+        logger.error(f"BAM file not found: {bam_path}")
         return None
     try:
         with pysam.AlignmentFile(bam_path, "rb") as bam:
             return bam.header
     except Exception as e:
-        print(f"Error reading BAM: {e}")
+        logger.error(f"Error reading BAM: {e}")
         return None
 
 
@@ -49,7 +54,7 @@ def read_vcf(vcf_path, max_variants=None, chunk_size=10000):
         DataFrame with variant data, or None on error.
     """
     if not os.path.exists(vcf_path):
-        print(f"VCF file not found: {vcf_path}")
+        logger.error(f"VCF file not found: {vcf_path}")
         return None
     columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO']
     try:
@@ -67,16 +72,16 @@ def read_vcf(vcf_path, max_variants=None, chunk_size=10000):
                         break
                     # Warn for large files
                     if count == 100000:
-                        print(f"Warning: VCF has 100K+ variants. Consider using max_variants parameter.")
+                        logger.warning("Warning: VCF has 100K+ variants. Consider using max_variants parameter.")
         if not data:
-            print("No variant data found in VCF file.")
+            logger.warning("No variant data found in VCF file.")
             return None
         df = pd.DataFrame(data, columns=columns)
         df['POS'] = df['POS'].astype(int)
         df['QUAL'] = pd.to_numeric(df['QUAL'], errors='coerce')
         return df
     except Exception as e:
-        print(f"Error reading VCF: {e}")
+        logger.error(f"Error reading VCF: {e}")
         return None
 
 def manhattan_from_vcf(vcf_df, pvalue_col='QUAL', threshold=5e-8):
@@ -108,7 +113,7 @@ def read_sam(sam_path):
         error or missing file.
     """
     if not os.path.exists(sam_path):
-        print(f"SAM file not found: {sam_path}")
+        logger.error(f"SAM file not found: {sam_path}")
         return None
     try:
         reads = []
@@ -140,22 +145,21 @@ def read_sam(sam_path):
                 reads.append(record)
         return reads
     except Exception as e:
-        print(f"Error reading SAM: {e}")
+        logger.error(f"Error reading SAM: {e}")
         return None
 
 
 def parse_sam_header(sam_path):
-    """Parse header lines from a SAM file.
+    """Parse header lines from a SAM file into a line-classified dict.
 
-    Args:
-        sam_path: Path to SAM file.
-
-    Returns:
-        Dict with keys '@HD', '@SQ' (list of dicts), '@RG' (list),
-        '@PG' (list), and 'raw' (list of header strings).
+    Returns a dict with keys '@HD' (dict of TAG:val), '@SQ'/'@RG'/'@PG'
+    (lists of dicts) and 'raw' (list or raw header lines).  Use
+    ``ngs.classify_sam_header`` if you need the raw lines grouped by tag —
+    the historical tuple-of-tuples return here broke every grouping query.
     """
+    
     if not os.path.exists(sam_path):
-        print(f"SAM file not found: {sam_path}")
+        logger.error(f"SAM file not found: {sam_path}")
         return None
     header = {'@HD': {}, '@SQ': [], '@RG': [], '@PG': [], 'raw': []}
     try:
@@ -191,7 +195,7 @@ def parse_sam_header(sam_path):
                     header['@PG'].append(pg)
         return header
     except Exception as e:
-        print(f"Error parsing SAM header: {e}")
+        logger.error(f"Error parsing SAM header: {e}")
         return None
 
 
@@ -249,10 +253,10 @@ def compute_coverage(bam_path, region=None, window_size=None):
         ``window_size`` is set).  Returns ``None`` on error.
     """
     if not HAS_PYSAM:
-        print("pysam required for coverage. pip install pysam")
+        logger.warning("pysam required for coverage. pip install pysam")
         return None
     if not os.path.exists(bam_path):
-        print(f"BAM file not found: {bam_path}")
+        logger.error(f"BAM file not found: {bam_path}")
         return None
     try:
         with pysam.AlignmentFile(bam_path, "rb") as bam:
@@ -278,7 +282,7 @@ def compute_coverage(bam_path, region=None, window_size=None):
                         results[ref_name] = cov
                 return results
     except Exception as e:
-        print(f"Coverage error: {e}")
+        logger.error(f"Coverage error: {e}")
         return None
 
 
@@ -369,10 +373,10 @@ def intersect_bed_vcf(bed_path, vcf_path, report='count'):
         ``None`` on error.
     """
     if not os.path.exists(bed_path):
-        print(f"BED file not found: {bed_path}")
+        logger.error(f"BED file not found: {bed_path}")
         return None
     if not os.path.exists(vcf_path):
-        print(f"VCF file not found: {vcf_path}")
+        logger.error(f"VCF file not found: {vcf_path}")
         return None
 
     bed = _parse_bed(bed_path)
@@ -422,13 +426,13 @@ def coverage_from_bed(bam_path, bed_path):
         total_bases], or ``None`` on error.
     """
     if not HAS_PYSAM:
-        print("pysam required for coverage_from_bed. pip install pysam")
+        logger.warning("pysam required for coverage_from_bed. pip install pysam")
         return None
     if not os.path.exists(bam_path):
-        print(f"BAM file not found: {bam_path}")
+        logger.error(f"BAM file not found: {bam_path}")
         return None
     if not os.path.exists(bed_path):
-        print(f"BED file not found: {bed_path}")
+        logger.error(f"BED file not found: {bed_path}")
         return None
 
     bed = _parse_bed(bed_path)
@@ -450,7 +454,7 @@ def coverage_from_bed(bam_path, bed_path):
                     'total_bases': end - start
                 })
     except Exception as e:
-        print(f"Error computing coverage: {e}")
+        logger.error(f"Error computing coverage: {e}")
         return None
     return pd.DataFrame(rows)
 
@@ -473,7 +477,7 @@ def vcf_summary(vcf_path):
         'qual_gt_20_count'.
     """
     if not os.path.exists(vcf_path):
-        print(f"VCF file not found: {vcf_path}")
+        logger.error(f"VCF file not found: {vcf_path}")
         return None
 
     ti_count = 0
@@ -544,7 +548,7 @@ def vcf_summary(vcf_path):
             'qual_gt_20_count': int(np.sum(quals_arr > 20)),
         }
     except Exception as e:
-        print(f"VCF summary error: {e}")
+        logger.error(f"VCF summary error: {e}")
         return None
 
 
@@ -562,7 +566,7 @@ def compute_ts_tv_ratio(vcf_path):
         Dict with 'transitions', 'transversions', 'ratio', or ``None``.
     """
     if not os.path.exists(vcf_path):
-        print(f"VCF file not found: {vcf_path}")
+        logger.error(f"VCF file not found: {vcf_path}")
         return None
 
     _purines = set('AG')
@@ -594,5 +598,5 @@ def compute_ts_tv_ratio(vcf_path):
             'ratio': round(ratio, 4)
         }
     except Exception as e:
-        print(f"Ts/Tv ratio error: {e}")
+        logger.error(f"Ts/Tv ratio error: {e}")
         return None

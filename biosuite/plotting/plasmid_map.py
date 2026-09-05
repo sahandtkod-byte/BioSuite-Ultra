@@ -1,23 +1,21 @@
 """
-Plasmid Map Viewer — SnapGene-killer circular plasmid visualization.
+Plasmid Map Viewer — circular plasmid visualization.
 
-Pure matplotlib/numpy. No paid dependencies.
+Implemented with matplotlib and numpy only.
 """
 
 from __future__ import annotations
 
 import math
 import random
-import string
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
-import matplotlib
+import matplotlib.patches as mpatches
+
 # matplotlib.use("Agg")  # Removed: caller manages backend
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Default colour palette
@@ -146,21 +144,15 @@ def draw_plasmid(plasmid_map: PlasmidMap, figsize: Tuple[int, int] = (10, 10),
         ax.fill_between(angles_body, inner_r, outer_r, color=feat.color,
                         alpha=0.75, zorder=3)
 
-        # Direction arrow
+        # Direction arrow — annotated in POLAR DATA coords (theta, r);
+        # the old Cartesian (r·cos, r·sin) landed at random polar spots.
         arrow_angle = end_angle if feat.strand == 1 else start_angle
-        tip_x = r_backbone * math.cos(arrow_angle)
-        tip_y = r_backbone * math.sin(arrow_angle)
-        perp = arrow_angle + math.pi / 2
-        offset = 0.08 if feat.strand == 1 else -0.08
-        base_x = r_backbone * math.cos(arrow_angle - offset)
-        base_y = r_backbone * math.sin(arrow_angle - offset)
-        aw = 0.06
-        for sign in (+1, -1):
-            ax.annotate("", xy=(tip_x, tip_y),
-                        xytext=(base_x + sign * aw * math.cos(perp),
-                                base_y + sign * aw * math.sin(perp)),
-                        arrowprops=dict(arrowstyle="->", color=feat.color, lw=2),
-                        zorder=5)
+        back_angle = arrow_angle - (0.08 if feat.strand == 1 else -0.08)
+        ax.annotate("", xy=(arrow_angle, r_backbone),
+                    xytext=(back_angle, r_backbone),
+                    arrowprops=dict(arrowstyle="-|>", color=feat.color,
+                                    lw=2, mutation_scale=16),
+                    zorder=5)
 
         # Label outside
         label_r = r_backbone + 0.28
@@ -239,21 +231,14 @@ def draw_plasmid_with_annotations(plasmid_map: PlasmidMap,
         ax.fill_between(angles_body, inner_r, outer_r, color=feat.color,
                         alpha=0.8, zorder=3)
 
-        # Arrow
+        # Arrow — see draw_plasmid: polar DATA coords, not Cartesian.
         arrow_angle = end_angle if feat.strand == 1 else start_angle
-        tip_x = r_backbone * math.cos(arrow_angle)
-        tip_y = r_backbone * math.sin(arrow_angle)
-        perp = arrow_angle + math.pi / 2
-        offset = 0.08 if feat.strand == 1 else -0.08
-        base_x = r_backbone * math.cos(arrow_angle - offset)
-        base_y = r_backbone * math.sin(arrow_angle - offset)
-        aw = 0.06
-        for sign in (+1, -1):
-            ax.annotate("", xy=(tip_x, tip_y),
-                        xytext=(base_x + sign * aw * math.cos(perp),
-                                base_y + sign * aw * math.sin(perp)),
-                        arrowprops=dict(arrowstyle="->", color=feat.color, lw=2),
-                        zorder=5)
+        back_angle = arrow_angle - (0.08 if feat.strand == 1 else -0.08)
+        ax.annotate("", xy=(arrow_angle, r_backbone),
+                    xytext=(back_angle, r_backbone),
+                    arrowprops=dict(arrowstyle="-|>", color=feat.color,
+                                    lw=2, mutation_scale=16),
+                    zorder=5)
 
         # Label with position
         label_r = r_backbone + 0.32

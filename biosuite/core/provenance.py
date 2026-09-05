@@ -3,14 +3,52 @@ Provenance tracking for reproducible bioinformatics analyses.
 
 Records every analysis step with parameters, timestamps, and results.
 Exports as JSON, HTML timeline, or SQLite for sharing and auditing.
+
+Thread safety
+-------------
+A tracker is routinely shared by worker threads (``core.parallel``,
+``workflow.batch``, and FastAPI's synchronous endpoint threadpool), so the
+SQLite connection is opened with ``check_same_thread=False`` and every
+statement is serialised through an instance lock.  Without this, recording from
+any thread other than the creating one raised ``sqlite3.ProgrammingError`` and
+the step was silently lost.
 """
-import os
+import html as _html
 import json
 import sqlite3
+import threading
 import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from dataclasses import dataclass, field, asdict
 from functools import wraps
+
+
+def _json_default(obj):
+    """Best-effort JSON coercion for scientific parameter values.
+
+    numpy arrays/scalars, sets and dataclasses are common step parameters and
+    used to raise ``TypeError: Object of type ndarray is not JSON
+    serializable`` from inside :meth:`ProvenanceTracker.record`, aborting the
+    analysis that was merely being *recorded*.
+    """
+    for attr in ("tolist", "item"):
+        method = getattr(obj, attr, None)
+        if callable(method):
+            try:
+                return method()
+            except Exception:  # pragma: no cover - defensive
+                break
+    if isinstance(obj, (set, frozenset, tuple)):
+        return list(obj)
+    return f"<{type(obj).__name__}>"
+
+
+def dumps_params(params) -> str:
+    """Serialise step parameters, never raising on exotic scientific objects."""
+    try:
+        return json.dumps(params, default=_json_default)
+    except (TypeError, ValueError):
+        return json.dumps({k: str(v) for k, v in dict(params).items()})
 
 
 @dataclass
@@ -49,17 +87,18 @@ class ProvenanceTracker:
         self.session_id = session_id or f"session_{int(time.time())}"
         self.db_path = db_path
         self.step_counter = 0
+        self._lock = threading.RLock()
 
-        if db_path:
-            self.conn = sqlite3.connect(db_path)
-        else:
-            self.conn = sqlite3.connect(":memory:")
+        # check_same_thread=False + the instance lock make the tracker usable
+        # from worker threads; serialisation is our responsibility.
+        self.conn = sqlite3.connect(db_path or ":memory:", check_same_thread=False)
 
         self._create_tables()
 
     def _create_tables(self):
         """Create provenance tables."""
-        self.conn.execute("""
+        with self._lock:
+            self.conn.execute("""
             CREATE TABLE IF NOT EXISTS steps (
                 step_id INTEGER,
                 session_id TEXT,
@@ -74,8 +113,8 @@ class ProvenanceTracker:
                 error_message TEXT,
                 PRIMARY KEY (session_id, step_id)
             )
-        """)
-        self.conn.commit()
+            """)
+            self.conn.commit()
 
     def record(self, module, function, params=None, result_summary="",
                execution_time_ms=0, engine="builtin", status="success",
@@ -92,9 +131,11 @@ class ProvenanceTracker:
             status: 'success', 'error', or 'skipped'.
             error_message: error details if status is 'error'.
         """
-        self.step_counter += 1
+        with self._lock:
+            self.step_counter += 1
+            step_id = self.step_counter
         step = AnalysisStep(
-            step_id=self.step_counter,
+            step_id=step_id,
             session_id=self.session_id,
             timestamp=datetime.now().isoformat(),
             module=module,
@@ -107,23 +148,26 @@ class ProvenanceTracker:
             error_message=error_message,
         )
 
-        self.conn.execute(
-            "INSERT INTO steps VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (step.step_id, step.session_id, step.timestamp, step.module,
-             step.function, json.dumps(step.params), step.result_summary,
-             step.execution_time_ms, step.engine, step.status, step.error_message)
-        )
-        self.conn.commit()
+        with self._lock:
+            self.conn.execute(
+                "INSERT INTO steps VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (step.step_id, step.session_id, step.timestamp, step.module,
+                 step.function, dumps_params(step.params), step.result_summary,
+                 step.execution_time_ms, step.engine, step.status, step.error_message)
+            )
+            self.conn.commit()
         return step
 
     def get_steps(self):
         """Retrieve all steps for this session."""
-        cursor = self.conn.execute(
-            "SELECT * FROM steps WHERE session_id=? ORDER BY step_id",
-            (self.session_id,)
-        )
+        with self._lock:
+            cursor = self.conn.execute(
+                "SELECT * FROM steps WHERE session_id=? ORDER BY step_id",
+                (self.session_id,)
+            )
+            rows = cursor.fetchall()
         steps = []
-        for row in cursor.fetchall():
+        for row in rows:
             steps.append(AnalysisStep(
                 step_id=row[0], session_id=row[1], timestamp=row[2],
                 module=row[3], function=row[4],
@@ -188,7 +232,7 @@ code {{ background: #0d170d; padding: 2px 6px; border-radius: 3px; font-family: 
 <body>
 <h1>BioSuite Provenance Report</h1>
 <div class="summary">
-    <span><strong>Session:</strong> {self.session_id}</span>
+    <span><strong>Session:</strong> {_html.escape(self.session_id)}</span>
     <span><strong>Steps:</strong> {len(steps)}</span>
     <span><strong>Total time:</strong> {total_time}ms</span>
     <span><strong>Success:</strong> {n_success}</span>
@@ -199,7 +243,9 @@ code {{ background: #0d170d; padding: 2px 6px; border-radius: 3px; font-family: 
         for step in steps:
             status_class = "status-ok" if step.status == "success" else "status-error"
             status_icon = "✓" if step.status == "success" else "✗"
-            params_str = json.dumps(step.params, indent=None) if step.params else "{}"
+            params_str = _html.escape(
+                json.dumps(step.params, indent=None, default=_json_default)
+                if step.params else "{}")
 
             html += f"""
 <div class="step">
@@ -207,12 +253,12 @@ code {{ background: #0d170d; padding: 2px 6px; border-radius: 3px; font-family: 
         <span class="step-id">#{step.step_id} <span class="{status_class}">{status_icon}</span></span>
         <span class="step-time">{step.timestamp} ({step.execution_time_ms}ms)</span>
     </div>
-    <div class="step-func">{step.module}.{step.function} <span class="engine">{step.engine}</span></div>
+    <div class="step-func">{_html.escape(step.module)}.{_html.escape(step.function)} <span class="engine">{_html.escape(step.engine)}</span></div>
     <div class="step-params">Params: <code>{params_str}</code></div>
-    <div class="step-result">Result: {step.result_summary}</div>
+    <div class="step-result">Result: {_html.escape(step.result_summary)}</div>
 """
             if step.error_message:
-                html += f'    <div class="step-error">Error: {step.error_message}</div>\n'
+                html += f'    <div class="step-error">Error: {_html.escape(step.error_message)}</div>\n'
             html += "</div>\n"
 
         html += """
@@ -236,7 +282,7 @@ Then call each function with the parameters shown above.
         steps = self.get_steps()
         total_time = sum(s.execution_time_ms for s in steps)
         lines = [
-            f"=== Provenance Summary ===",
+            "=== Provenance Summary ===",
             f"Session: {self.session_id}",
             f"Total steps: {len(steps)}",
             f"Total execution time: {total_time}ms",
@@ -255,7 +301,8 @@ Then call each function with the parameters shown above.
 
     def close(self):
         """Close the database connection."""
-        self.conn.close()
+        with self._lock:
+            self.conn.close()
 
 
 # ── Decorator for automatic recording ────────────────────────────────────────

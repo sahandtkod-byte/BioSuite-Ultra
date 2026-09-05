@@ -5,13 +5,12 @@ Provides a complete scRNA-seq pipeline: QC, normalization, dimensionality
 reduction, clustering, marker detection, and visualization.
 Requires: scanpy, anndata (pip installable).
 """
-import numpy as np
-import pandas as pd
+import os
 from dataclasses import dataclass, field
 
 try:
+    import anndata as ad  # noqa: F401 — availability probe (see HAS_SCANPY)
     import scanpy as sc
-    import anndata as ad
     HAS_SCANPY = True
 except ImportError:
     HAS_SCANPY = False
@@ -45,8 +44,13 @@ def load_count_matrix(filepath, file_format='auto'):
             adata = sc.read_csv(filepath).T
         elif filepath.endswith('.tsv') or filepath.endswith('.txt'):
             adata = sc.read_csv(filepath, sep='\t').T
-        else:
+        elif os.path.isdir(filepath):
+            # 10x export = DIRECTORY with matrix.mtx + genes.tsv + barcodes.tsv.
+            # Passing a plain file here used to misroute to read_10x_mtx.
             adata = sc.read_10x_mtx(filepath)
+        else:
+            return None, ("Unrecognized input: expected .h5ad/.h5/.csv/.tsv/.txt file "
+                          "or a 10x directory")
         return adata, None
     except Exception as e:
         return None, str(e)

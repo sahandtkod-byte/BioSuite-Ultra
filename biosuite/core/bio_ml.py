@@ -4,19 +4,28 @@ Machine Learning for Biology.
 Random Forest, SVM, cross-validation, ROC curves, and SHAP interpretability.
 All pip-installable via scikit-learn and shap.
 """
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass, field
+
+import numpy as np
 
 try:
     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-    from sklearn.svm import SVC, SVR
-    from sklearn.model_selection import cross_val_score, StratifiedKFold
-    from sklearn.preprocessing import StandardScaler, LabelEncoder
-    from sklearn.metrics import (accuracy_score, roc_auc_score, roc_curve,
-                                 confusion_matrix, classification_report,
-                                 mean_squared_error, r2_score)
-    from sklearn.decomposition import PCA
+    from sklearn.metrics import (
+        accuracy_score,
+        classification_report,
+        confusion_matrix,
+        mean_squared_error,
+        r2_score,
+        roc_auc_score,
+        roc_curve,
+    )
+    from sklearn.model_selection import (
+        StratifiedKFold,
+        cross_val_score,
+        train_test_split,
+    )
+    from sklearn.preprocessing import LabelEncoder, StandardScaler
+    from sklearn.svm import SVC
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
@@ -73,19 +82,34 @@ def train_random_forest(X, y, n_estimators=100, test_size=0.2, random_state=42):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
-    model.fit(X_scaled, y_encoded)
+    # Honest holdout split (test_size was accepted but silently ignored,
+    # so the reported accuracy/AUC were resubstitution metrics on the data
+    # the forest had memorised).  Falls back to in-sample fit when the
+    # dataset is too small or a class has a single member for stratification.
+    try:
+        counts = np.bincount(y_encoded)
+        stratify = y_encoded if counts.min() >= 2 else None
+        X_fit, X_eval, y_fit, y_eval = train_test_split(
+            X_scaled, y_encoded, test_size=test_size,
+            random_state=random_state, stratify=stratify)
+    except ValueError:
+        X_fit, X_eval, y_fit, y_eval = X_scaled, X_scaled, y_encoded, y_encoded
 
-    # Cross-validation
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+    model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
+    model.fit(X_fit, y_fit)
+
+    # Cross-validation (on the full matrix — CV is self-splitting)
+    n_splits = int(min(5, max(2, np.bincount(y_encoded).min())))
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     cv_scores = cross_val_score(model, X_scaled, y_encoded, cv=cv, scoring='accuracy')
 
-    # Predictions
-    y_pred = model.predict(X_scaled)
-    y_prob = model.predict_proba(X_scaled) if len(le.classes_) > 1 else None
+    # Held-out predictions
+    y_pred = model.predict(X_eval)
+    y_prob = model.predict_proba(X_eval) if len(le.classes_) > 1 else None
 
-    acc = accuracy_score(y_encoded, y_pred)
-    auc = roc_auc_score(y_encoded, y_prob[:, 1]) if y_prob is not None and y_prob.shape[1] == 2 else 0.0
+    acc = accuracy_score(y_eval, y_pred)
+    auc = (roc_auc_score(y_eval, y_prob[:, 1])
+           if y_prob is not None and y_prob.shape[1] == 2 else 0.0)
 
     # Feature importances
     importances = dict(enumerate(model.feature_importances_))
@@ -108,10 +132,13 @@ def train_random_forest(X, y, n_estimators=100, test_size=0.2, random_state=42):
         cv_scores=[round(float(s), 4) for s in cv_scores],
         feature_importances=top_features,
         shap_values=shap_vals,
-        confusion_mat=confusion_matrix(y_encoded, y_pred),
-        classification_rep=classification_report(y_encoded, y_pred, target_names=le.classes_),
+        confusion_mat=confusion_matrix(y_eval, y_pred),
+        classification_rep=classification_report(
+            y_eval, y_pred, target_names=[str(c) for c in le.classes_],
+            zero_division=0),
         predictions=y_pred,
-        message=f"Random Forest: accuracy={acc:.3f}, CV={cv_scores.mean():.3f}±{cv_scores.std():.3f}"
+        message=(f"Random Forest: holdout accuracy={acc:.3f}, "
+                 f"CV={cv_scores.mean():.3f}±{cv_scores.std():.3f}")
     )
 
 
@@ -140,17 +167,28 @@ def train_svm(X, y, kernel='rbf', test_size=0.2, random_state=42):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    model = SVC(kernel=kernel, probability=True, random_state=random_state)
-    model.fit(X_scaled, y_encoded)
+    try:
+        counts = np.bincount(y_encoded)
+        stratify = y_encoded if counts.min() >= 2 else None
+        X_fit, X_eval, y_fit, y_eval = train_test_split(
+            X_scaled, y_encoded, test_size=test_size,
+            random_state=random_state, stratify=stratify)
+    except ValueError:
+        X_fit, X_eval, y_fit, y_eval = X_scaled, X_scaled, y_encoded, y_encoded
 
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+    model = SVC(kernel=kernel, probability=True, random_state=random_state)
+    model.fit(X_fit, y_fit)
+
+    n_splits = int(min(5, max(2, np.bincount(y_encoded).min())))
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     cv_scores = cross_val_score(model, X_scaled, y_encoded, cv=cv, scoring='accuracy')
 
-    y_pred = model.predict(X_scaled)
-    y_prob = model.predict_proba(X_scaled) if len(le.classes_) > 1 else None
+    y_pred = model.predict(X_eval)
+    y_prob = model.predict_proba(X_eval) if len(le.classes_) > 1 else None
 
-    acc = accuracy_score(y_encoded, y_pred)
-    auc = roc_auc_score(y_encoded, y_prob[:, 1]) if y_prob is not None and y_prob.shape[1] == 2 else 0.0
+    acc = accuracy_score(y_eval, y_pred)
+    auc = (roc_auc_score(y_eval, y_prob[:, 1])
+           if y_prob is not None and y_prob.shape[1] == 2 else 0.0)
 
     return MLResult(
         model_type='svm',
@@ -158,9 +196,10 @@ def train_svm(X, y, kernel='rbf', test_size=0.2, random_state=42):
         accuracy=round(float(acc), 4),
         auc=round(float(auc), 4),
         cv_scores=[round(float(s), 4) for s in cv_scores],
-        confusion_mat=confusion_matrix(y_encoded, y_pred),
+        confusion_mat=confusion_matrix(y_eval, y_pred),
         predictions=y_pred,
-        message=f"SVM ({kernel}): accuracy={acc:.3f}, CV={cv_scores.mean():.3f}±{cv_scores.std():.3f}"
+        message=(f"SVM ({kernel}): holdout accuracy={acc:.3f}, "
+                 f"CV={cv_scores.mean():.3f}±{cv_scores.std():.3f}")
     )
 
 
@@ -185,12 +224,18 @@ def train_random_forest_regressor(X, y, n_estimators=100, random_state=42):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    model = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
-    model.fit(X_scaled, y)
+    try:
+        X_fit, X_eval, y_fit, y_eval = train_test_split(
+            X_scaled, y, test_size=0.2, random_state=random_state)
+    except ValueError:
+        X_fit, X_eval, y_fit, y_eval = X_scaled, X_scaled, y, y
 
-    y_pred = model.predict(X_scaled)
-    r2 = r2_score(y, y_pred)
-    rmse = np.sqrt(mean_squared_error(y, y_pred))
+    model = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state)
+    model.fit(X_fit, y_fit)
+
+    y_pred = model.predict(X_eval)
+    r2 = r2_score(y_eval, y_pred)
+    rmse = float(np.sqrt(mean_squared_error(y_eval, y_pred)))
 
     importances = dict(enumerate(model.feature_importances_))
     top_features = dict(sorted(importances.items(), key=lambda x: x[1], reverse=True)[:20])
@@ -201,7 +246,7 @@ def train_random_forest_regressor(X, y, n_estimators=100, random_state=42):
         accuracy=round(float(r2), 4),
         feature_importances=top_features,
         predictions=y_pred,
-        message=f"RF Regressor: R²={r2:.3f}, RMSE={rmse:.3f}"
+        message=f"RF Regressor: holdout R²={r2:.3f}, RMSE={rmse:.3f}"
     )
 
 

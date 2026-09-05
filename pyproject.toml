@@ -4,43 +4,45 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "5.0.0"
-description = "BioSuite Ultra - Comprehensive open-source bioinformatics platform with 47 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis"
+version = "5.5.0"
+description = "Integrated pure-Python bioinformatics platform: 47 analysis modules for sequence, genomics, transcriptomics and population genetics, 105 plotting functions, molecular cloning with 169 restriction enzymes, and a library/CLI/GUI/REST-API interface set"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     {name = "Sahand Touri"},
 ]
 keywords = [
-    "bioinformatics", "genomics", "proteomics", "transcriptomics",
-    "sequence-analysis", "ngs", "machine-learning", "molecular-cloning",
-    "plasmid-maps", "virtual-gel", "restriction-enzymes", "parallel-processing",
+    "bioinformatics", "computational-biology", "genomics", "proteomics",
+    "transcriptomics", "sequence-analysis", "ngs", "phylogenetics",
+    "population-genetics", "molecular-cloning", "restriction-enzymes",
+    "crispr", "single-cell", "machine-learning", "scientific-computing",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
+# Upper bounds are pinned to the next major of each project: the code is
+# tested against the 1.x/2.x APIs and pandas 3 in particular changes copy
+# semantics and several DataFrame constructors used here.  Relax them
+# deliberately, with a test run, rather than by accident at install time.
 dependencies = [
-    "numpy>=1.24",
-    "pandas>=2.0",
-    "matplotlib>=3.7",
-    "seaborn>=0.12",
-    "scipy>=1.10",
-    "scikit-learn>=1.3",
-    "customtkinter>=5.2",
-    "tqdm>=4.65",
-    "biopython>=1.81",
-    "networkx>=3.0",
-    "plotly>=5.0",
+    "numpy>=1.24,<3",
+    "pandas>=2.0,<3",
+    "matplotlib>=3.7,<4",
+    "seaborn>=0.12,<1",
+    "scipy>=1.10,<2",
+    "scikit-learn>=1.3,<2",
+    "tqdm>=4.65,<5",
+    "biopython>=1.81,<2",
+    "networkx>=3.0,<4",
+    "plotly>=5.0,<7",
 ]
 
 [project.optional-dependencies]
@@ -53,10 +55,15 @@ bio = [
     "scikit-bio>=0.5",
     "biotite>=0.37",
     "ete3>=3.1",
-    "cobra>=3.0",
+    "cobra>=0.26",   # cobra is a 0.x series; ">=3.0" could never resolve
     "shap>=0.42",
     "umap-learn>=0.5",
     "statsmodels>=0.14",
+]
+gui = [
+    # The desktop GUI additionally needs the Tk bindings for your Python
+    # (python3-tk on Debian/Ubuntu), which cannot be installed from PyPI.
+    "customtkinter>=5.2,<6",
 ]
 cloning = [
     # Core deps (numpy, matplotlib, biopython) already in main dependencies
@@ -77,6 +84,7 @@ parallel = [
 ]
 full = [
     "biosuite-ultra[bio]",
+    "biosuite-ultra[gui]",
     "biosuite-ultra[api]",
     "biosuite-ultra[notebook]",
     "biosuite-ultra[parallel]",
@@ -84,8 +92,11 @@ full = [
 ]
 dev = [
     "pytest>=7.0",
+    "pytest-asyncio>=0.23",   # the API tests define async test functions
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
+    "httpx>=0.24",            # required by fastapi.testclient
+    "ruff>=0.4",
 ]
 
 [project.scripts]
@@ -103,4 +114,65 @@ include = ["biosuite*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-v --tb=short"
+# The API test modules declare `async def test_...`; without this they are
+# silently collected and skipped rather than executed.
+asyncio_mode = "auto"
+markers = [
+    "slow: long-running analyses (deselect with -m 'not slow')",
+    "integration: cross-module end-to-end flows",
+]
+
+# ─── Coverage configuration ───────────────────────────────────────────────
+[tool.coverage.run]
+source = ["biosuite"]
+branch = true
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "def __str__",
+    "def __repr__",
+]
+
+# ─── Lint configuration (ruff) ────────────────────────────────────────────
+# CI runs two ruff passes:
+#   1. hard gate:  ruff check --select E9,F821  (syntax errors, undefined names)
+#   2. advisory:   full rule set (non-blocking while debt is being paid down)
+[tool.ruff]
+target-version = "py39"
+line-length = 110
+extend-exclude = ["examples", "docs", ".git"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "C4",       # comprehensions
+    "B",        # bugbear
+]
+ignore = [
+    "E501",     # long lines handled by formatter, not blocker
+    "B008",     # function call in default arg — used deliberately for DI
+    "UP006",    # keep typing.Dict/List look consistent across the codebase
+    "UP045",
+    "UP035",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E402", "F401"]
+"benchmarks/*" = ["C4"]
+"*/__init__.py" = ["F401"]   # re-export convenience surfaces

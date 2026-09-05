@@ -21,13 +21,16 @@ Usage:
     pm.discover()
     pm.list_plugins()
 """
-import os
-import sys
-import json
 import importlib
+import json
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
+
+from .log import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -98,13 +101,13 @@ class BioSuitePlugin(ABC):
         """Return list of required pip packages. Override if needed."""
         return []
 
-    def on_load(self):
+    def on_load(self):  # noqa: B027 - optional hook, deliberately not abstract
         """Called after plugin is loaded. Override for initialization."""
-        pass
+        return None
 
-    def on_unload(self):
+    def on_unload(self):  # noqa: B027 - optional hook, deliberately not abstract
         """Called before plugin is unloaded. Override for cleanup."""
-        pass
+        return None
 
 
 class PluginManager:
@@ -156,7 +159,7 @@ class PluginManager:
                         self.plugins[info.name] = info
                         discovered.append(info.name)
                 except Exception as e:
-                    print(f"Warning: Failed to load plugin {ep.name}: {e}")
+                    logger.error(f"Warning: Failed to load plugin {ep.name}: {e}")
         except ImportError:
             pass
 
@@ -186,7 +189,7 @@ class PluginManager:
                                 self.plugins[info.name] = info
                                 discovered.append(info.name)
                     except Exception as e:
-                        print(f"Warning: Failed to load local plugin {item}: {e}")
+                        logger.warning(f"Failed to load local plugin {item}: {e}")
 
         return discovered
 
@@ -301,7 +304,7 @@ class PluginManager:
         """
         self.app = app
         # Re-register loaded plugins with new app
-        for name, plugin in self.loaded.items():
+        for _name, plugin in self.loaded.items():
             plugin.register(app)
 
     def save_config(self):
@@ -415,6 +418,7 @@ pip install .
 
 ```python
 from biosuite.core.plugin import PluginManager
+
 pm = PluginManager()
 pm.discover()
 pm.load_plugin("{plugin_name}")
@@ -425,10 +429,10 @@ pm.load_plugin("{plugin_name}")
             f.write(readme_content)
 
         print(f"Created plugin template at: {plugin_dir}")
-        print(f"\nNext steps:")
+        print("\nNext steps:")
         print(f"  1. Edit {plugin_dir}/__init__.py with your analysis code")
         print(f"  2. Test: pip install -e {plugin_dir}")
-        print(f"  3. Publish: python -m twine dist/*")
+        print("  3. Publish: python -m twine dist/*")
 
 
 # ── Example Plugins (built-in) ──────────────────────────────────────────────

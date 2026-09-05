@@ -6,21 +6,21 @@ Includes diversity metrics and abundance analysis.
 """
 import os
 import subprocess
-import tempfile
-import numpy as np
-import pandas as pd
 import warnings
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass, field
 
+import numpy as np
+import pandas as pd
+
 try:
-    from scipy.spatial.distance import pdist, squareform
-    from scipy.cluster.hierarchy import linkage, dendrogram
+    from scipy.cluster.hierarchy import dendrogram, linkage  # noqa: F401
+    from scipy.spatial.distance import pdist, squareform  # noqa: F401
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
 
-from .utils import PerformanceWarning
+from .utils import PerformanceWarning, secure_temp_path
 
 
 @dataclass
@@ -58,7 +58,7 @@ KNOWN_TAXA = {
 
 def _builtin_classify(reads_file, k=16):
     classifications = []
-    taxon_counts = Counter()
+    taxon_counts = Counter()  # READS per taxon (not k-mer hits)
 
     with open(reads_file) as f:
         while True:
@@ -71,16 +71,20 @@ def _builtin_classify(reads_file, k=16):
             if not seq:
                 break
 
-            best_taxon = "Unknown"
-            best_hits = 0
+            # Per-read votes: the old code compared against the GLOBAL
+            # running k-mer counts, so as the dataset grew every read
+            # collapsed onto the historical majority taxon.
+            read_votes = Counter()
             for i in range(len(seq) - k + 1):
                 kmer = seq[i:i + k]
-                for ref_kmer, taxon in KNOWN_TAXA.items():
-                    if kmer == ref_kmer:
-                        taxon_counts[taxon] += 1
-                        if taxon_counts[taxon] > best_hits:
-                            best_hits = taxon_counts[taxon]
-                            best_taxon = taxon
+                taxon = KNOWN_TAXA.get(kmer)
+                if taxon:
+                    read_votes[taxon] += 1
+
+            best_taxon = "Unknown"
+            if read_votes:
+                best_taxon = read_votes.most_common(1)[0][0]
+                taxon_counts[best_taxon] += 1
 
             classifications.append({
                 'read_id': header.strip().lstrip('@').split()[0],
@@ -88,8 +92,8 @@ def _builtin_classify(reads_file, k=16):
             })
 
     total = len(classifications)
-    abundance = {t: c / total * 100 for t, c in taxon_counts.items()} if total > 0 else {}
-
+    # Abundance = share of READS (k-mer hits produced arbitrary percentages
+    # that could sum to far more than 100%).
     df = pd.DataFrame([
         {'taxon': t, 'count': c, 'relative_abundance': c / total * 100}
         for t, c in taxon_counts.most_common()
@@ -106,7 +110,7 @@ def _builtin_classify(reads_file, k=16):
 # ── Kraken2 Wrapper ─────────────────────────────────────────────────────────
 
 def _kraken2_classify(reads_file, database=None, output_file=None):
-    cmd = ['kraken2', '--threads', '1', '--output', output_file or tempfile.mktemp()]
+    cmd = ['kraken2', '--threads', '1', '--output', output_file or secure_temp_path()]
     if database:
         cmd.extend(['--db', database])
     cmd.append(reads_file)
@@ -198,18 +202,27 @@ def compute_alpha_diversity(abundance_table):
 
 
 def compute_beta_diversity(sample_tables):
+    """Pairwise Bray-Curtis distances between samples.
+
+    Counts are aligned on the UNION of taxon names — zipping raw position
+    vectors (the old code) compared mismatched taxa whenever the samples
+    had different taxon sets or order, corrupting every distance.
+    """
     n = len(sample_tables)
+    taxa = sorted({taxon for t in sample_tables for taxon in t['taxon'].values})
+    taxon_index = {t: i for i, t in enumerate(taxa)}
+
+    aligned = []
+    for t in sample_tables:
+        vec = np.zeros(len(taxa))
+        for taxon, count in zip(t['taxon'].values, t['count'].values):
+            vec[taxon_index[taxon]] += count
+        aligned.append(vec)
+
     dist_matrix = np.zeros((n, n))
     for i in range(n):
         for j in range(i + 1, n):
-            counts_i = sample_tables[i]['count'].values
-            counts_j = sample_tables[j]['count'].values
-            max_len = max(len(counts_i), len(counts_j))
-            c_i = np.zeros(max_len)
-            c_j = np.zeros(max_len)
-            c_i[:len(counts_i)] = counts_i
-            c_j[:len(counts_j)] = counts_j
-            d = bray_curtis_distance(c_i, c_j)
+            d = bray_curtis_distance(aligned[i], aligned[j])
             dist_matrix[i][j] = dist_matrix[j][i] = d
     return dist_matrix
 
@@ -242,7 +255,6 @@ def analyze_diversity(abundance_tables):
         alpha['sample'] = f"Sample_{i+1}"
         results.append(alpha)
 
-    alpha_df = pd.DataFrame(results)
     beta = compute_beta_diversity(abundance_tables) if len(abundance_tables) > 1 else None
 
     return DiversityResult(

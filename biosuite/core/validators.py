@@ -6,12 +6,16 @@ This module provides:
 - InputValidator class for bioinformatics file formats (FASTA, FASTQ, VCF)
 """
 
-import os
-import re
-import time
 import functools
+import os
+import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple
+
+from .log import get_logger
+
+logger = get_logger(__name__)
+
 
 
 # ── Input Validation Decorators ─────────────────────────────────────────────
@@ -275,7 +279,7 @@ def safe_execute(func: Callable, *args, _default=None, _log_errors: bool = True,
 
         result, err = safe_execute(complex_analysis, data)
         if err:
-            print(f"Analysis failed: {err}")
+            logger.error(f"Analysis failed: {err}")
     """
     try:
         return (func(*args, **kwargs), None)
@@ -299,7 +303,7 @@ class InputValidator:
         validator = InputValidator()
         errors = validator.validate_fasta('>seq1\\nATCGATCG')
         if errors:
-            print(f"Validation errors: {errors}")
+            logger.error(f"Validation errors: {errors}")
     """
 
     VALID_DNA = set('ATCGN')

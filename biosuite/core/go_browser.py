@@ -5,15 +5,15 @@ perform GO enrichment analysis. Pure Python with optional goatools.
 import os
 from collections import defaultdict
 
+GODag = None
 try:
-    import goatools
-    from goatools.obo_parser import GODag
+    from goatools.obo_parser import GODag  # noqa: F811
     HAS_GOATOOLS = True
 except ImportError:
     HAS_GOATOOLS = False
 
 try:
-    import networkx as nx
+    import networkx as nx  # noqa: F401  (kept for downstream import compat)
     HAS_NX = True
 except ImportError:
     HAS_NX = False
@@ -90,9 +90,13 @@ class GOBrowser:
         for go_id, item in dag.items():
             ns = item.namespace.split("_")[0].upper() if hasattr(item, 'namespace') else "BP"
             parents = [p for p in item.parents] if hasattr(item, 'parents') else []
+            # Guard: root terms have NO parents — parents[0] raised
+            # IndexError and killed any OBO load touching a root term.
+            if parents and hasattr(parents[0], 'id'):
+                parents = [p.id for p in parents]
             self.terms[go_id] = GOTerm(
                 go_id=go_id, name=item.name, namespace=ns,
-                parents=[p.id for p in parents] if hasattr(parents[0], 'id') else parents,
+                parents=list(parents),
                 definition=getattr(item, 'def', '')
             )
         for go_id, term in self.terms.items():
@@ -173,7 +177,6 @@ def go_enrichment(gene_list, go_terms_map, background_size=None):
         list of dicts with go_term, p_value, enrichment, genes.
     """
     from scipy.stats import fisher_exact
-    import numpy as np
 
     gene_set = set(gene_list)
     n_total = background_size or len(gene_set) * 10

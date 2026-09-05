@@ -7,8 +7,6 @@ MrBayes available as optional external engine.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
 import copy
 import math
 import os
@@ -17,7 +15,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from io import StringIO
-from typing import List, Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
@@ -102,8 +100,19 @@ class TreeSampler:
     Convergence — burn-in removal, thinning, dual-chain PSRF.
     """
 
-    def __init__(self, alignment: Any) -> None:
-        """Initialize result container with default empty collections."""
+    def __init__(self, alignment: Any, seed: int = None) -> None:
+        """Initialize the sampler.
+
+        Args:
+            alignment: Biopython alignment to sample trees for.
+            seed: RNG seed.  MCMC is stochastic, so results differ between
+                runs unless a seed is supplied; pass one for a reproducible
+                analysis.  A single generator instance is used for the whole
+                sampler so that successive chains draw from different parts of
+                the stream and remain genuinely independent (identically
+                seeded chains would make the PSRF diagnostic meaningless).
+        """
+        self._rng = random.Random(seed)
         self.alignment = alignment
         self.n_taxa = len(alignment)
         self.n_sites = alignment.get_alignment_length()
@@ -134,39 +143,37 @@ class TreeSampler:
             if idx >= 0:
                 s = int(self.seq_matrix[idx, site])
                 if s >= 0:
-                    v = [0.0] * NUM_STATES
+                    v = np.zeros(NUM_STATES)
                     v[s] = 1.0
                     return v
             # Ambiguous / gap — all states equally likely
-            return [1.0] * NUM_STATES
+            return np.ones(NUM_STATES)
 
-        # Internal node: combine children
-        v = [1.0] * NUM_STATES
+        # Internal node: combine children (P @ cv with cached matrices —
+        # the old pure-Python double loop made MCMC unusably slow for
+        # anything beyond toy alignments).
+        v = np.ones(NUM_STATES)
         for child in clade.clades:
             cv = self._pruning(child, site)
             bl = max(child.branch_length or 0.001, 1e-10)
-
-            # Matrix–vector product: transition probs × child likelihood
-            nv = [0.0] * NUM_STATES
-            for parent_state in range(NUM_STATES):
-                for child_state in range(NUM_STATES):
-                    nv[parent_state] += (
-                        self.model.prob(parent_state == child_state, bl)
-                        * cv[child_state]
-                    )
-            # Multiply across children (conditionally independent)
-            for s in range(NUM_STATES):
-                v[s] *= nv[s]
+            key = round(bl, 10)
+            P = self._p_cache.get(key)
+            if P is None:
+                P = np.array(self.model.matrix(bl))
+                self._p_cache[key] = P
+            v *= P @ cv
         return v
 
     def log_likelihood(self, tree: Any) -> float:
         """Log-likelihood of the full alignment given the tree."""
         ll = 0.0
+        self._p_cache: 'dict' = {}  # transition matrices per branch length
         for site in range(self.n_sites):
             rv = self._pruning(tree.root, site)
-            # Stationary frequencies π = (0.25, 0.25, 0.25, 0.25)
-            sl = 0.25 * sum(rv)
+            # Stationary frequencies pi = (0.25, 0.25, 0.25, 0.25)
+            sl = 0.25 * float(rv.sum())
             ll += math.log(sl) if sl > 1e-300 else -1e10
+        del self._p_cache
         return ll
 
     # ── Prior ──────────────────────────────────────────────────────────
@@ -205,7 +212,7 @@ class TreeSampler:
                 clade.branch_length = 0.05
             if perturb > 0:
                 clade.branch_length = max(
-                    clade.branch_length * math.exp(random.gauss(0, perturb)),
+                    clade.branch_length * math.exp(self._rng.gauss(0, perturb)),
                     1e-4,
                 )
 
@@ -219,20 +226,25 @@ class TreeSampler:
 
     # ── Proposals ─────────────────────────────────────────────────────
 
-    def _propose_bl(self, tree: Any) -> Any:
-        """Scale a random branch length by exp(N(0, 0.2))."""
+    def _propose_bl(self, tree: Any) -> Tuple[Any, float]:
+        """Scale a random branch length by exp(N(0, 0.2)).
+
+        Returns ``(tree, log_hastings_ratio)``.  A log-normal multiplier is
+        NOT a symmetric proposal — q(b'|b)/q(b|b') = b/b' — so the caller
+        must add ``log(b'/b)`` to the acceptance log-ratio (this used to be
+        silently treated as symmetric, biasing the posterior).
+        """
         t = copy.deepcopy(tree)
         branches = [
             c for c in t.find_clades(order='level')
             if c is not t.root and c.branch_length is not None
         ]
         if not branches:
-            return t
-        target = random.choice(branches)
-        target.branch_length = max(
-            target.branch_length * math.exp(random.gauss(0, 0.2)), 1e-6
-        )
-        return t
+            return t, 0.0
+        target = self._rng.choice(branches)
+        old = target.branch_length
+        target.branch_length = max(old * math.exp(self._rng.gauss(0, 0.2)), 1e-6)
+        return t, math.log(target.branch_length / old)
 
     @staticmethod
     def _find_parent(tree: Any, child: Any) -> Any:
@@ -242,12 +254,12 @@ class TreeSampler:
                 return c
         return None
 
-    def _propose_nni(self, tree: Any) -> Any:
-        """
-        Nearest-Neighbour Interchange (NNI) on a random internal edge.
+    def _propose_nni(self, tree: Any) -> Tuple[Any, float]:
+        """Nearest-Neighbour Interchange (NNI) on a random internal edge.
 
         Swaps one child of the selected internal node with its sibling
-        under the grandparent.
+        under the grandparent.  NNI is a symmetric move on tree space, so
+        the Hastings term returned is 0.0.
         """
         t = copy.deepcopy(tree)
         edges = []
@@ -260,17 +272,17 @@ class TreeSampler:
                         and len(parent.clades) == 2):
                     edges.append((parent, clade))
         if not edges:
-            return t
+            return t, 0.0
 
-        parent, child = random.choice(edges)
+        parent, child = self._rng.choice(edges)
         ci = parent.clades.index(child)
         si = 1 - ci
         sibling = parent.clades[si]
-        gi = random.randint(0, len(child.clades) - 1)
+        gi = self._rng.randint(0, len(child.clades) - 1)
         grandchild = child.clades[gi]
         child.clades[gi] = sibling
         parent.clades[si] = grandchild
-        return t
+        return t, 0.0
 
     # ── MCMC driver ──────────────────────────────────────────────────
 
@@ -314,16 +326,16 @@ class TreeSampler:
 
         for g in range(n_gen):
             # Choose proposal
-            if random.random() < bl_rate:
-                nt = self._propose_bl(tree)
+            if self._rng.random() < bl_rate:
+                nt, log_h = self._propose_bl(tree)
             else:
-                nt = self._propose_nni(tree)
+                nt, log_h = self._propose_nni(tree)
 
             nl = self.log_likelihood(nt)
             np_ = nl + self.log_prior(nt)
 
-            # Metropolis-Hastings (symmetric proposals → log ratio only)
-            if math.log(max(random.random(), 1e-300)) < np_ - cur_post:
+            # Metropolis-Hastings with the proposal-density correction
+            if math.log(max(self._rng.random(), 1e-300)) < np_ - cur_post + log_h:
                 tree, cur_ll, cur_post = nt, nl, np_
                 accepts += 1
 
@@ -396,7 +408,8 @@ def _compute_psrf(chain_means: Any, chain_vars: Any, n_per_chain: float) -> floa
 
 # ── Built-in Bayesian (JC69 MCMC) ─────────────────────────────────────────
 
-def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_freq: int = 10) -> BayesianResult:
+def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_freq: int = 10,
+                      seed: int = None) -> BayesianResult:
     """
     Run a pure-Python Bayesian MCMC phylogenetic analysis.
 
@@ -425,7 +438,7 @@ def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_fre
     n_keep = max(n_generations // sample_freq, 10)
     thin = max(1, int(n_gen * 0.8) // n_keep)
 
-    sampler = TreeSampler(alignment)
+    sampler = TreeSampler(alignment, seed=seed)
 
     # ── Run 2 independent chains for PSRF ──────────────────────────────
     chain_data = []
@@ -455,7 +468,6 @@ def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_fre
     mean_ll = float(np.mean(post_ll)) if post_ll else 0.0
 
     # PSRF on second half of each chain's log-likelihood
-    half_lens = [len(cd[1]) // 2 for cd in chain_data]
     ll_halves = [
         cd[1][len(cd[1]) // 2:] for cd in chain_data
     ]
@@ -515,7 +527,7 @@ quit
         f.write(mb_script)
 
     try:
-        r = subprocess.run(
+        subprocess.run(
             ['mb', script_file], capture_output=True, text=True,
             cwd=output_dir, timeout=7200,
         )
@@ -556,8 +568,14 @@ def check_bayesian_tools() -> dict :
     return {'mrbayes': _has_tool('mb')}
 
 
-def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'auto') -> BayesianResult:
-    """Run Bayesian phylogeny; falls back to NJ when MrBayes missing."""
+def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'auto',
+                 seed: int = None) -> BayesianResult:
+    """Run Bayesian phylogeny; built-in JC69 MCMC when MrBayes is absent.
+
+    Args:
+        seed: seed for the built-in MCMC sampler.  MCMC is stochastic; supply a
+            seed to make a run reproducible (MrBayes manages its own RNG).
+    """
     if not os.path.exists(alignment_file):
         return BayesianResult(
             engine='none', message=f"File not found: {alignment_file}"
@@ -569,7 +587,7 @@ def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'au
         if result:
             return result
 
-    return _builtin_bayesian(alignment_file, n_generations)
+    return _builtin_bayesian(alignment_file, n_generations, seed=seed)
 
 
 def format_bayesian_report(result: BayesianResult) -> str:

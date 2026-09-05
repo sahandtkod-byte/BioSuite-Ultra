@@ -3,9 +3,10 @@ Metabolomics analysis: peak detection, feature alignment, statistics.
 
 Pure Python implementations using numpy/pandas/scipy.
 """
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
 from scipy import signal as sp_signal
 from scipy import stats as sp_stats
 
@@ -47,22 +48,28 @@ def detect_peaks(intensity_array, sampling_rate=1.0, min_snr=3.0,
     if prominence is None:
         prominence = np.std(intensity_array) * 1.5
 
+    # min_snr must gate the signal-to-NOISE ratio, not the absolute
+    # height: the old height=min_snr rejected every peak below 3.0
+    # intensity units and passed saturated noise at any scale.
+    noise_level = np.median(np.abs(np.diff(intensity_array)))
     peaks, properties = sp_signal.find_peaks(
         intensity_array,
         prominence=prominence,
         width=min_peak_width,
-        height=min_snr
+        height=min_snr * max(noise_level, 1e-10)
     )
 
     features = []
-    noise_level = np.median(np.abs(np.diff(intensity_array)))
     for i, peak_idx in enumerate(peaks):
         snr_val = intensity_array[peak_idx] / max(noise_level, 1e-10)
+        # triangle approximation of the area; the old code stored the
+        # raw peak WIDTH in a field CALLED peak_area.
+        width_pts = float(properties.get('widths', [1])[i] if 'widths' in properties else 1)
         features.append(MetaboliteFeature(
             mz=0.0,
             rt=float(peak_idx) / sampling_rate,
             intensity=float(intensity_array[peak_idx]),
-            peak_area=float(properties.get('widths', [1])[i] if 'widths' in properties else 1),
+            peak_area=round(width_pts * float(intensity_array[peak_idx]) / 2, 3),
             snr=round(float(snr_val), 1)
         ))
 
@@ -171,11 +178,11 @@ def pca_feature_matrix(feature_matrix, n_components=2):
     """
     try:
         from sklearn.decomposition import PCA
-    except ImportError:
+    except ImportError as exc:
         raise ImportError(
             "scikit-learn is required for PCA. "
             "Install with: pip install scikit-learn"
-        )
+        ) from exc
     centered = feature_matrix - feature_matrix.mean(axis=0)
     pca = PCA(n_components=n_components)
     coords = pca.fit_transform(centered)

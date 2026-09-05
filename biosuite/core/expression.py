@@ -11,6 +11,11 @@ import numpy as np
 import pandas as pd
 from scipy import stats as sp_stats
 
+from .log import get_logger
+
+logger = get_logger(__name__)
+
+
 
 def read_counts_matrix(filepath: str) -> pd.DataFrame | None:
     """Read a gene count matrix (featureCounts/HTSeq output).
@@ -30,7 +35,7 @@ def read_counts_matrix(filepath: str) -> pd.DataFrame | None:
         df.columns = ['gene'] + [f'Sample_{i}' for i in range(1, df.shape[1])]
         return df
     except Exception as e:
-        print(f"Error reading counts matrix: {e}")
+        logger.error(f"Error reading counts matrix: {e}")
         return None
 
 
@@ -130,6 +135,24 @@ def _benjamini_hochberg(pvalues: np.ndarray) -> np.ndarray:
     return result
 
 
+def _gene_labels(counts_df: pd.DataFrame) -> np.ndarray:
+    """Best available gene identifiers for a count matrix.
+
+    Order of preference: an explicit ``gene`` column, then the DataFrame index
+    when it carries labels, then row positions.
+
+    Gene names held in the index used to be discarded and replaced with row
+    numbers, so a caller who filtered or reordered their matrix could not map
+    the result rows back to genes.
+    """
+    if 'gene' in counts_df.columns:
+        return np.asarray(counts_df['gene'].values)
+    index = counts_df.index
+    if not isinstance(index, pd.RangeIndex):
+        return np.asarray(index.tolist(), dtype=object)
+    return np.arange(len(counts_df))
+
+
 def _welch_ttest_rows(vals1: np.ndarray, vals2: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Perform Welch's t-test row-by-row on two 2D arrays.
 
@@ -162,8 +185,14 @@ def _welch_ttest_rows(vals1: np.ndarray, vals2: np.ndarray) -> tuple[np.ndarray,
         df = np.clip(df, 1.0, None)
 
     p_vals = 2 * sp_stats.t.sf(np.abs(t_stat), df)
-    # Set p=1.0 where SE is zero or NaN (no valid test possible)
-    p_vals = np.where(finite_se, p_vals, 1.0)
+    # Degenerate cases: the standard error is zero or non-finite, so no t-test
+    # exists.  Returning p = 1.0 unconditionally used to assert "no evidence of
+    # a difference" even for genes that jump 10 -> 500 with zero within-group
+    # variance, which is a positive claim the data cannot support.  Report an
+    # honest NaN when the group means differ (undefined test) and 1.0 only when
+    # the groups are genuinely identical.
+    identical = np.isclose(mean1, mean2, rtol=0, atol=0)
+    p_vals = np.where(finite_se, p_vals, np.where(identical, 1.0, np.nan))
 
     return t_stat, p_vals
 
@@ -388,6 +417,11 @@ def calculate_fold_change(
     numeric_cols = counts_df.select_dtypes(include=[np.number]).columns.tolist()
     if len(numeric_cols) == 0:
         raise ValueError("No numeric columns found.")
+    if len(conditions) != len(numeric_cols):
+        raise ValueError(
+            f"conditions has {len(conditions)} labels but the counts matrix has "
+            f"{len(numeric_cols)} numeric columns ({numeric_cols}); they must match "
+            "one-to-one.")
 
     group1 = [i for i, c in enumerate(conditions) if c == conditions[0]]
     group2 = [i for i, c in enumerate(conditions) if c != conditions[0]]
@@ -425,7 +459,7 @@ def calculate_fold_change(
     # Flag significant genes (|log2FC| > 1)
     significant = np.abs(log2fc) > 1.0
 
-    genes = counts_df['gene'].values if 'gene' in counts_df.columns else range(len(counts_df))
+    genes = _gene_labels(counts_df)
     return pd.DataFrame({
         'gene': genes,
         'log2FC': log2fc,
@@ -505,7 +539,7 @@ def calculate_effect_size(
     else:
         raise ValueError(f"Unknown method: {method}. Use 'cohens_d' or 'rank_biserial'.")
 
-    genes = counts_df['gene'].values if 'gene' in counts_df.columns else range(n_genes)
+    genes = _gene_labels(counts_df)
     return pd.DataFrame({
         'gene': genes,
         'effect_size': effect_sizes,
@@ -541,13 +575,23 @@ def differential_expression(
         DataFrame with columns: gene, log2FC, pvalue, padj (adjusted p-value).
 
     Raises:
-        ValueError: If conditions doesn't have exactly 2 groups or no numeric data.
+        ValueError: If conditions doesn't have exactly 2 groups, if the number
+            of labels does not match the number of numeric columns, or if there
+            is no numeric data.
     """
     if len(set(conditions)) != 2:
         raise ValueError("Only two groups supported for differential expression.")
     numeric_cols = counts_df.select_dtypes(include=[np.number]).columns.tolist()
     if len(numeric_cols) == 0:
         raise ValueError("No numeric columns found in counts matrix.")
+    if len(conditions) != len(numeric_cols):
+        # Zipping labels against columns without this check silently analysed a
+        # subset of the samples (too few labels) or raised IndexError deep in
+        # pandas (too many), both of which produced misleading statistics.
+        raise ValueError(
+            f"conditions has {len(conditions)} labels but the counts matrix has "
+            f"{len(numeric_cols)} numeric columns ({numeric_cols}); they must match "
+            "one-to-one.")
 
     group1 = [i for i, c in enumerate(conditions) if c == conditions[0]]
     group2 = [i for i, c in enumerate(conditions) if c != conditions[0]]
@@ -573,7 +617,7 @@ def differential_expression(
     else:
         padj = pvals.copy()
 
-    genes = counts_df['gene'].values if 'gene' in counts_df.columns else range(len(counts_df))
+    genes = _gene_labels(counts_df)
     return pd.DataFrame({
         'gene': genes,
         'log2FC': log2fc,

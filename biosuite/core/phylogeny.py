@@ -1,10 +1,13 @@
 """
 Distance matrix, UPGMA tree construction, and basic tree drawing.
 """
-import numpy as np
-from scipy.cluster.hierarchy import linkage, dendrogram
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
+
 from ..core.utils import apply_glass_ax
+
 
 def p_distance(seq1, seq2):
     """Proportion of differing sites (ignoring gaps)."""
@@ -44,8 +47,17 @@ def upgma_tree(distance_mat, labels):
     """
     Build UPGMA tree using SciPy's linkage (method='average').
     Returns linkage matrix and dendrogram dictionary.
+
+    The full square distance matrix is converted to scipy's condensed
+    form explicitly — passing the square matrix directly emits a
+    ClusterWarning and relies on implicit conversion behavior.
     """
-    linkage_mat = linkage(distance_mat, method='average', optimal_ordering=True)
+    mat = np.asarray(distance_mat, dtype=float)
+    if mat.ndim == 2 and mat.shape[0] == mat.shape[1]:
+        condensed = squareform(mat, checks=False)
+    else:
+        condensed = mat  # already condensed
+    linkage_mat = linkage(condensed, method='average', optimal_ordering=True)
     return linkage_mat
 
 def plot_phylogenetic_tree(linkage_mat, labels, title="Phylogenetic Tree"):

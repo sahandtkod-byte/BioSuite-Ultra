@@ -1,37 +1,59 @@
 # BioSuite Ultra - Dockerfile
-# Multi-stage build for smaller final image
+#
+# Multi-stage build. The runtime image contains no build toolchain, runs as an
+# unprivileged user and serves the API on loopback inside the container (the
+# published port is what makes it reachable), so a misconfigured container is
+# not silently exposed to the network with default credentials.
 
-# Stage 1: Builder
-FROM python:3.11-slim as builder
+# ── Stage 1: build a wheel ──────────────────────────────────────────────────
+FROM python:3.11-slim AS builder
 
-WORKDIR /app
+WORKDIR /src
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+COPY pyproject.toml README.md ./
+COPY biosuite ./biosuite
 
-# Stage 2: Runtime
-FROM python:3.11-slim as runtime
+RUN pip install --no-cache-dir build \
+    && python -m build --wheel --outdir /dist
+
+# ── Stage 2: runtime ────────────────────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+# Unprivileged runtime account. Running the API as root meant any RCE in a
+# dependency was immediately root inside the container.
+RUN useradd --create-home --uid 10001 biosuite
 
 WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /dist/*.whl /tmp/
+RUN pip install --no-cache-dir /tmp/*.whl "biosuite-ultra[api]" \
+    && rm -f /tmp/*.whl
 
-# Copy application code
-COPY . .
+# Writable locations for user config and mounted data.
+ENV BIOSUITE_CONFIG_DIR=/home/biosuite/.config/biosuite \
+    BIOSUITE_DATA_DIR=/data \
+    BIOSUITE_API_HOST=0.0.0.0 \
+    BIOSUITE_API_PORT=8000 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Install BioSuite
-RUN pip install --no-cache-dir -e .
+RUN mkdir -p /data /output "$BIOSUITE_CONFIG_DIR" \
+    && chown -R biosuite:biosuite /data /output /home/biosuite
 
-# Expose port for future REST API
+USER biosuite
+
 EXPOSE 8000
 
-# Default command: run CLI
-CMD ["python", "run.py"]
+# The server refuses to start unless BIOSUITE_API_KEY and BIOSUITE_JWT_SECRET
+# are supplied, so no image ever ships with working default credentials.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import os,urllib.request; \
+req=urllib.request.Request('http://127.0.0.1:8000/health', \
+headers={'X-API-Key': os.environ.get('BIOSUITE_API_KEY','')}); \
+urllib.request.urlopen(req, timeout=4)"
+
+CMD ["python", "-m", "biosuite.api.server"]

@@ -3,9 +3,9 @@ Epigenomics analysis: methylation, ATAC-seq, chromatin states.
 
 Pure Python implementations using numpy/pandas/scipy.
 """
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass, field
+
+import numpy as np
 from scipy import stats as sp_stats
 
 
@@ -83,10 +83,10 @@ def calculate_methylation_levels(sites, min_coverage=5):
 
     report = EpigenomicsReport(
         total_sites=len(filtered),
-        avg_methylation=np.mean(levels),
-        cpg_methylation=np.mean(contexts.get('CpG', [0])),
-        chg_methylation=np.mean(contexts.get('CHG', [0])),
-        chh_methylation=np.mean(contexts.get('CHH', [0])),
+        avg_methylation=float(np.mean(levels)),
+        cpg_methylation=float(np.mean(contexts.get('CpG', [0]))),
+        chg_methylation=float(np.mean(contexts.get('CHG', [0]))),
+        chh_methylation=float(np.mean(contexts.get('CHH', [0]))),
         methylation_distribution={
             'unmethylated (< 20%)': sum(1 for l in levels if l < 0.2),
             'low (20-50%)': sum(1 for l in levels if 0.2 <= l < 0.5),
@@ -123,9 +123,13 @@ def find_dmrs(sites_group1, sites_group2, min_coverage=5, p_threshold=0.05, min_
         if abs(delta) < min_delta:
             continue
 
-        x1 = np.array([1] * s1.methylated_count + [0] * (s1.coverage - s1.methylated_count))
-        x2 = np.array([1] * s2.methylated_count + [0] * (s2.coverage - s2.methylated_count))
-        _, pval = sp_stats.mannwhitneyu(x1, x2, alternative='two-sided')
+        # 2x2 contingency (methylated vs unmethylated, group 1 vs 2):
+        # Fisher's exact test is the standard — the old Mann-Whitney over
+        # tie-heavy binary vectors is inaccurate, especially at low counts.
+        _, pval = sp_stats.fisher_exact([
+            [s1.methylated_count, s1.coverage - s1.methylated_count],
+            [s2.methylated_count, s2.coverage - s2.methylated_count],
+        ])
 
         if pval < p_threshold:
             dmrs.append({

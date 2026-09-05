@@ -15,13 +15,12 @@ Usage:
     results = parallel_map(download_func, url_list, workers=8, io_bound=True)
 """
 
+import logging
 import os
 import sys
 import time
-import logging
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from typing import Callable, List, Any, Optional, Dict
-from functools import partial
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger('biosuite.parallel')
 
@@ -97,12 +96,13 @@ def parallel_map(
     results = [None] * len(items)
     completed = 0
     
-    # On Windows, ProcessPoolExecutor uses 'spawn' which requires picklable functions.
-    # If io_bound or on Windows with non-module functions, use ThreadPoolExecutor.
-    # On Windows, ProcessPoolExecutor uses 'spawn' which requires picklable
-    # functions defined in importable modules. For safety, always use ThreadPoolExecutor
-    # on Windows unless the user explicitly needs process-level parallelism.
-    if io_bound or sys.platform == 'win32':
+    # Windows spawn needs picklable module-level functions.  On POSIX,
+    # non-picklable callables (closures, lambdas, locals — e.g. the helper
+    # inside parallel_align_pairs) previously blew up inside the pickling
+    # machinery of every worker and silently fell back to SEQUENTIAL mode
+    # after an exception storm; proactive picklability check picks threads
+    # instead, which is cheap and correct for such callables.
+    if io_bound or sys.platform == 'win32' or not _is_picklable(func):
         executor_class = ThreadPoolExecutor
     else:
         executor_class = ProcessPoolExecutor

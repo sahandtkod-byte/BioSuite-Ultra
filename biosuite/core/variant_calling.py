@@ -5,11 +5,11 @@ Pure Python variant caller as default, FreeBayes as optional faster tool.
 """
 import os
 import subprocess
-import tempfile
-import numpy as np
-import pandas as pd
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+
+import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -39,7 +39,7 @@ class VariantReport:
     message: str = ""
 
 
-from .utils import has_tool as _has_tool
+from .utils import has_tool as _has_tool, secure_temp_path
 
 
 def check_variant_tools():
@@ -56,7 +56,9 @@ def _read_sam(sam_file):
             if len(parts) < 11:
                 continue
             flag = int(parts[1])
-            if flag & 4:
+            # 0x4 unmapped, 0x100 secondary, 0x800 supplementary — the latter
+            # two would double-count their bases in the pileup.
+            if flag & 0x904:
                 continue
             reads.append({
                 'qname': parts[0],
@@ -78,14 +80,20 @@ def _pileup_reads(reads, min_depth=4, min_base_quality=20):
         cigar = r['cigar']
         read_offset = 0
         for num, op in _parse_cigar(cigar):
-            if op == 'M':
-                for i in range(num):
+            qual = r.get('qual') or '*'
+            if op in ('M', '=', 'X'):  # '='/'X' also consume ref+read
+                for _ in range(num):
                     if read_offset < len(read_seq):
-                        piles[r['rname']][ref_pos + i].append(read_seq[read_offset])
+                        # Honour the per-base quality filter when qualities
+                        # are present ('*' means no qualities in the SAM).
+                        if (qual == '*' or read_offset >= len(qual) or
+                                ord(qual[read_offset]) - 33 >= min_base_quality):
+                            piles[r['rname']][ref_pos].append(read_seq[read_offset])
                     read_offset += 1
+                    ref_pos += 1  # critical: advance or later ops drift
             elif op in ('I', 'S'):
                 read_offset += num
-            elif op == 'D':
+            elif op in ('D', 'N'):  # 'N' = spliced intron: consumes reference
                 ref_pos += num
     return piles
 
@@ -130,7 +138,7 @@ def _call_variants_from_pileup(piles, min_depth=4, min_allele_freq=0.25):
                 qual = min(99, int(count / total * 60))
 
                 variants.append(Variant(
-                    chrom=chrom, pos=pos + 1, ref=ref_base, alt=alt,
+                    chrom=chrom, pos=pos, ref=ref_base, alt=alt,
                     quality=qual, depth=total, alt_count=count,
                     genotype=gt, variant_type=vtype
                 ))
@@ -154,7 +162,10 @@ def _builtin_call_variants(sam_file, output_vcf=None, min_depth=4):
         tool='builtin_pileup', engine='builtin',
         total_variants=len(variants), snps=snps, indels=indels,
         ti_tv_ratio=ti_tv, variants=variants,
-        message=f"Built-in caller: {len(variants)} variants ({snps} SNPs, {indels} indels)"
+        message=(f"Built-in caller: {len(variants)} variants "
+                 f"({snps} SNPs, {indels} indels). Note: without a reference "
+                 f"genome, REF is the majority allele at each site and true "
+                 f"INS/DEL calls are not emitted — use freebayes for those.")
     )
 
     if output_vcf:
@@ -168,7 +179,11 @@ def _calculate_ti_ttv(variants):
     transitions = {'AG', 'GA', 'CT', 'TC'}
     ti = sum(1 for v in variants if f"{v.ref}{v.alt}" in transitions)
     ttv = len(variants) - ti
-    return ti / ttv if ttv > 0 else 0
+    # All-transitions sample has an infinite Ti/Tv — must not be reported
+    # as 0.0 (that would look like a 100% transversion sample).
+    if ttv == 0:
+        return float('inf') if ti > 0 else 0.0
+    return ti / ttv
 
 
 def _write_vcf(variants, output_file):
@@ -206,7 +221,7 @@ def call_variants(sam_bam_file, reference_file=None, output_vcf=None, min_depth=
 
     if tools['freebayes'] and reference_file and os.path.exists(reference_file):
         if output_vcf is None:
-            output_vcf = tempfile.mktemp(suffix='.vcf')
+            output_vcf = secure_temp_path(suffix='.vcf')
         if _freebayes_call(sam_bam_file, reference_file, output_vcf):
             return VariantReport(
                 tool='freebayes', engine='freebayes', output_vcf=output_vcf,
@@ -214,7 +229,7 @@ def call_variants(sam_bam_file, reference_file=None, output_vcf=None, min_depth=
             )
 
     if output_vcf is None:
-        output_vcf = tempfile.mktemp(suffix='.vcf')
+        output_vcf = secure_temp_path(suffix='.vcf')
     return _builtin_call_variants(sam_bam_file, output_vcf, min_depth)
 
 
@@ -281,6 +296,11 @@ def detect_structural_variants(coverage_data, ref_coverage=None, chrom=None,
     svs = []
     if ref_coverage is None or len(ref_coverage) == 0:
         ref_coverage = np.ones_like(coverage_data) * np.median(coverage_data)
+    else:
+        # Align lengths: broadcasting a shorter reference would raise.
+        n = min(len(coverage_data), len(ref_coverage))
+        coverage_data = coverage_data[:n]
+        ref_coverage = ref_coverage[:n]
 
     # Normalize
     median_cov = np.median(coverage_data[coverage_data > 0]) if np.any(coverage_data > 0) else 1
@@ -355,8 +375,9 @@ def detect_cnv(coverage_data, reference_coverage=None, chrom=None, window_size: 
     if reference_coverage is None or len(reference_coverage) == 0:
         reference_coverage = np.ones_like(coverage_data) * np.median(coverage_data)
 
-    # Bin the data
-    n_bins = max(1, len(coverage_data) // window_size)
+    # Bin the data — ceil division keeps the trailing partial bin
+    # (floor division silently dropped the last len % window_size bases).
+    n_bins = max(1, -(-len(coverage_data) // window_size))
     results = []
 
     for i in range(n_bins):

@@ -6,13 +6,12 @@ Pure Python neighbor-joining + bootstrap as default, RAxML/IQ-TREE as optional.
 import os
 import subprocess
 import tempfile
-import numpy as np
 from dataclasses import dataclass, field
 
 try:
     from Bio import AlignIO
+    from Bio.Phylo import draw  # noqa: F401
     from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor
-    from Bio.Phylo import draw
     HAS_BIO = True
 except ImportError:
     HAS_BIO = False
@@ -59,35 +58,61 @@ def _newick_from_tree(tree):
     return buf.getvalue().strip()
 
 
-def _bootstrap_support(alignment, n_replicates=100):
+def _bootstrap_support(alignment, n_replicates=100, seed=None):
+    """Bootstrap CLADE support frequencies (0..1 keyed by taxa tuples).
+
+    Columns are resampled WITH replacement; support is counted per internal
+    clade split, not per whole-tree string.
+
+    Args:
+        alignment: Biopython alignment to resample.
+        n_replicates: number of bootstrap replicates.
+        seed: RNG seed.  Bootstrapping is stochastic, so support values differ
+            between runs unless a seed is given; pass one to make an analysis
+            reproducible.  ``None`` keeps the historical non-deterministic
+            behaviour.
+    """
     if not HAS_BIO or alignment is None:
         return {}
-    support = {}
-    from Bio import AlignIO
     import random
+    from collections import Counter
+
+    rng = random.Random(seed)
+
+    from Bio.Align import MultipleSeqAlignment
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+
     align_len = alignment.get_alignment_length()
 
-    trees_seen = {}
-    for rep in range(n_replicates):
-        cols = random.sample(range(align_len), align_len)
-        boot_records = []
-        for record in alignment:
-            new_seq = ''.join(record.seq[c] for c in sorted(cols))
-            from Bio.SeqRecord import SeqRecord
-            from Bio.Seq import Seq
-            boot_records.append(SeqRecord(Seq(new_seq), id=record.id))
+    def _clade_splits(tree):
+        """Non-trivial splits: frozenset of terminals under each internal clade."""
+        splits = set()
+        all_terms = set(t.name for t in tree.get_terminals())
+        for clade in tree.get_nonterminals():
+            names = frozenset(t.name for t in clade.get_terminals())
+            if 1 < len(names) < len(all_terms):
+                splits.add(names)
+        return splits
 
-        from Bio.Align import MultipleSeqAlignment
+    clade_counts = Counter()
+    for _rep in range(n_replicates):
+        cols = rng.choices(range(align_len), k=align_len)
+        boot_records = [
+            SeqRecord(Seq(''.join(record.seq[c] for c in cols)), id=record.id, description="")
+            for record in alignment
+        ]
         boot_align = MultipleSeqAlignment(boot_records)
         tree, _ = _nj_tree_from_alignment(boot_align)
         if tree:
-            clades = str(tree)
-            trees_seen[clades] = trees_seen.get(clades, 0) + 1
+            for split in _clade_splits(tree):
+                clade_counts[split] += 1
 
-    return {k: v / n_replicates for k, v in trees_seen.items()}
+    return {tuple(sorted(split)): count / n_replicates
+            for split, count in clade_counts.items()}
 
 
-def _builtin_phylogeny(alignment_file, bootstrap=100):
+def _builtin_phylogeny(alignment_file, bootstrap=100, seed=None):
     if not HAS_BIO:
         return PhyloResult(engine='builtin', message="Biopython not installed")
 
@@ -104,7 +129,7 @@ def _builtin_phylogeny(alignment_file, bootstrap=100):
 
     support = {}
     if bootstrap > 0:
-        support = _bootstrap_support(alignment, n_replicates=bootstrap)
+        support = _bootstrap_support(alignment, n_replicates=bootstrap, seed=seed)
 
     return PhyloResult(
         engine='builtin',
@@ -121,7 +146,7 @@ def _raxml_run(alignment_file, output_dir, model='GTRGAMMA', bootstrap=100):
            '--bs-trees', str(bootstrap), '--out-prefix', output_dir + '/tree',
            '--force']
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
         tree_file = output_dir + '/tree.raxml.bestTree'
         if os.path.exists(tree_file):
             with open(tree_file) as f:
@@ -138,7 +163,7 @@ def _iqtree_run(alignment_file, output_dir, model='GTR+G', bootstrap=100):
     cmd = ['iqtree', '-s', alignment_file, '-m', model, '-bb', str(bootstrap),
            '-nt', '1', '-o', output_dir + '/tree']
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
         tree_file = output_dir + '/tree.treefile'
         if os.path.exists(tree_file):
             with open(tree_file) as f:
@@ -153,7 +178,15 @@ def _iqtree_run(alignment_file, output_dir, model='GTR+G', bootstrap=100):
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
-def build_tree(alignment_file, method='auto', model='auto', bootstrap=100):
+def build_tree(alignment_file, method='auto', model='auto', bootstrap=100,
+               seed=None):
+    """Build a phylogenetic tree.
+
+    Args:
+        seed: seed for the bootstrap resampling of the built-in engine; pass a
+            value for a reproducible analysis (external tools manage their own
+            RNG).
+    """
     if not os.path.exists(alignment_file):
         return PhyloResult(engine='none', message=f"File not found: {alignment_file}")
 
@@ -175,16 +208,17 @@ def build_tree(alignment_file, method='auto', model='auto', bootstrap=100):
         if result:
             return result
 
-    return _builtin_phylogeny(alignment_file, bootstrap)
+    return _builtin_phylogeny(alignment_file, bootstrap, seed=seed)
 
 
 def parse_newick(newick_str):
     if not HAS_BIO:
         return None
     from io import StringIO
-    from Bio.Phylo import NewickIO
+
+    from Bio import Phylo
     try:
-        return NewickIO.read(StringIO(newick_str))
+        return Phylo.read(StringIO(newick_str), 'newick')
     except Exception:
         return None
 

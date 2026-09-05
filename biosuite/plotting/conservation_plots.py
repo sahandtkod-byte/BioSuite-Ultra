@@ -3,10 +3,10 @@ Conservation and sequence logo visualization.
 Generates information-content-weighted sequence logos and conservation bars.
 Pure Python / matplotlib implementation.
 """
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from collections import Counter
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def _shannon_entropy(freqs):
@@ -37,7 +37,6 @@ def compute_logo_heights(sequences, alphabet='ACGT', pseudocount=0):
     """
     max_len = max(len(s) for s in sequences)
     positions = list(range(max_len))
-    n_seqs = len(sequences)
 
     all_heights = {c: np.zeros(max_len) for c in alphabet}
     total_height = np.zeros(max_len)

@@ -6,14 +6,14 @@ as optional faster alternatives when installed.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
 import os
 import subprocess
 import tempfile
-import numpy as np
-from collections import defaultdict, Counter
+from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 
 
 @dataclass
@@ -37,6 +37,7 @@ class Alignment:
     score: int
     edit_distance: int
     is_primary: bool = True
+    sequence: str = ""
 
 
 @dataclass
@@ -102,7 +103,10 @@ def _build_fasta_index(fasta_file: str) -> Dict[str, str]:
 def _seed_and_extend(read_seq: str, ref_seq: str, ref_name: str, index: Any, k: int = 15, seed_threshold: int = 3) -> Optional[Dict[str, Any]]:
     """Seed-and-extend alignment of one read against the reference index.
 
-    Returns best locus by extension identity; None if below threshold.
+    Ungapped scoring: after seed clustering fixes the mapping offset, the
+    identity and edit distance are computed base-by-base over the read
+    window (substitutions only — no gap placement, no reverse-complement
+    search; use BWA/Bowtie2 for those).
     """
     seeds = []
     for i in range(len(read_seq) - k + 1):
@@ -125,26 +129,39 @@ def _seed_and_extend(read_seq: str, ref_seq: str, ref_name: str, index: Any, k: 
     if len(best_seeds) < seed_threshold:
         return None
 
-    ref_start = max(0, best_seeds[0][1] - 10)
-    ref_end = min(len(ref_seq), best_seeds[-1][1] + len(read_seq) + 10)
-    target = ref_seq[ref_start:ref_end]
+    # Mapping offset = consensus (ref_pos - read_pos) of the seed cluster.
+    # The old code used seeds[0][1] as the position — that ignores the
+    # read-side offset and shifts the locus right whenever the read has a
+    # 5' region without seeds.
+    position = max(0, best_offset)
 
-    matches = sum(1 for rp, rep in best_seeds if rep < len(ref_seq) and ref_seq[rep] == read_seq[rp])
-    total_seeds = len(best_seeds)
-    identity = matches / total_seeds * 100 if total_seeds > 0 else 0
+    # Real ungapped identity over the full read window.  (The old code
+    # only compared exact seed-start bases, which match by construction —
+    # identity was always 100% and edit_distance always 0.)
+    matches = 0
+    compared = 0
+    for i, base in enumerate(read_seq):
+        rp = position + i
+        if rp >= len(ref_seq):
+            break
+        compared += 1
+        if ref_seq[rp] == base:
+            matches += 1
+    identity = matches / compared * 100 if compared > 0 else 0
+    mismatches = compared - matches
 
     cigar = f"{len(read_seq)}M"
-    score = matches * 2 - (total_seeds - matches) * 3
+    score = matches * 2 - mismatches * 3
 
     return Alignment(
         read_id="",
         reference_id=ref_name,
-        position=best_seeds[0][1],
+        position=position,
         strand="+",
         cigar=cigar,
         mapping_quality=min(60, int(identity * 0.6)),
         score=score,
-        edit_distance=total_seeds - matches
+        edit_distance=mismatches
     )
 
 
@@ -183,6 +200,7 @@ def _builtin_align_reads(reads_file: str, reference_file: str, output_file: Opti
 
             if best_hit:
                 best_hit.read_id = read_id
+                best_hit.sequence = seq
                 alignments.append(best_hit)
                 mapped += 1
                 qualities.append(best_hit.mapping_quality)
@@ -220,8 +238,12 @@ def _write_sam(report: AlignmentReport, output_file: str, refs: Dict[str, str]) 
             f.write(f"@SQ\tSN:{name}\tLN:{len(refs[name])}\n")
         for aln in report.alignments:
             flag = 4 if aln.reference_id == "*" else 0
+            # Emit the read sequence (and flat high qualities) so downstream
+            # pileup tools — e.g. our variant caller — can use this SAM.
+            seq = aln.sequence if aln.sequence and flag != 4 else "*"
+            qual = "I" * len(seq) if seq != "*" else "*"
             f.write(f"{aln.read_id}\t{flag}\t{aln.reference_id}\t{aln.position + 1}\t"
-                    f"{aln.mapping_quality}\t{aln.cigar}\t*\t0\t0\t*\t*\n")
+                    f"{aln.mapping_quality}\t{aln.cigar}\t*\t0\t0\t{seq}\t{qual}\n")
 
 
 # ── External Tool Wrappers ──────────────────────────────────────────────────
@@ -295,7 +317,7 @@ def align_reads(reference_file: str, reads_file: str, output_file: Optional[str]
                                    output_file=sam)
 
     if output_file is None:
-        _fd, output_file = tempfile.mkstemp(suffix="..sam")
+        _fd, output_file = tempfile.mkstemp(suffix=".sam")
         os.close(_fd)
     return _builtin_align_reads(reads_file, reference_file, output_file)
 

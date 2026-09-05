@@ -128,7 +128,7 @@ These are NOT required. The pure Python versions work always.
 
 ---
 
-## New in v4.1.0
+## Parallel Processing and Restriction Enzymes
 
 ### Parallel Processing
 Process large datasets faster with built-in parallel execution:
@@ -146,8 +146,9 @@ processor = ParallelBatchProcessor(workers=4)
 results = processor.process(gc_content, sequences, batch_size=1000)
 ```
 
-### 100+ Restriction Enzymes
-Full database of Type II restriction enzymes:
+### Restriction Enzymes
+Full table of Type II restriction enzymes with recognition sites and cut
+positions. The exact count is available at runtime rather than quoted here:
 
 ```python
 from biosuite.core.utils import RESTRICTION_ENZYMES, RESTRICTION_ENZYMES_SITES

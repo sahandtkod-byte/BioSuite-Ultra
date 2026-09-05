@@ -3,9 +3,10 @@ File format parsers: BED, GFF/GTF, Newick tree, Stockholm.
 
 Pure Python parsers for common bioinformatics file formats.
 """
+from dataclasses import dataclass, field
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
 
 
 @dataclass
@@ -53,23 +54,26 @@ def parse_bed(filepath):
             line = line.strip()
             if not line or line.startswith('#') or line.startswith('track') or line.startswith('browser'):
                 continue
-            parts = line.split('\t')
+            parts = line.split('\t') if '\t' in line else line.split()
             if len(parts) < 3:
                 continue
-            rec = BEDRecord(
-                chrom=parts[0],
-                start=int(parts[1]),
-                end=int(parts[2]),
-                name=parts[3] if len(parts) > 3 else "",
-                score=float(parts[4]) if len(parts) > 4 else 0,
-                strand=parts[5] if len(parts) > 5 else ".",
-            )
-            if len(parts) > 6:
-                rec.thick_start = int(parts[6])
-            if len(parts) > 7:
-                rec.thick_end = int(parts[7])
-            if len(parts) > 8:
-                rec.item_rgb = parts[8]
+            try:
+                rec = BEDRecord(
+                    chrom=parts[0],
+                    start=int(parts[1]),
+                    end=int(parts[2]),
+                    name=parts[3] if len(parts) > 3 else "",
+                    score=(float(parts[4]) if len(parts) > 4 and parts[4] != '.' else 0),
+                    strand=parts[5] if len(parts) > 5 else ".",
+                )
+                if len(parts) > 6:
+                    rec.thick_start = int(parts[6])
+                if len(parts) > 7:
+                    rec.thick_end = int(parts[7])
+                if len(parts) > 8:
+                    rec.item_rgb = parts[8]
+            except (ValueError, IndexError):
+                continue  # malformed row: skip, don't kill the whole parse
             records.append(rec)
     return records
 
@@ -182,7 +186,6 @@ def parse_stockholm(filepath):
     """
     alignment = {}
     metadata = {}
-    in_alignment = False
 
     with open(filepath) as f:
         for line in f:
@@ -198,7 +201,7 @@ def parse_stockholm(filepath):
             elif line.startswith('#'):
                 continue
             elif line.strip() == '//':
-                in_alignment = False
+                break  # end of file marker
             elif line.strip():
                 parts = line.split(None, 1)
                 if len(parts) == 2:
@@ -230,7 +233,7 @@ def gff_to_dataframe(records):
 
 
 def format_bed_summary(records):
-    lines = [f"=== BED File Summary ===", f"Records: {len(records)}"]
+    lines = ["=== BED File Summary ===", f"Records: {len(records)}"]
     if records:
         chroms = set(r.chrom for r in records)
         lines.append(f"Chromosomes: {len(chroms)}")
@@ -240,7 +243,7 @@ def format_bed_summary(records):
 
 
 def format_gff_summary(records):
-    lines = [f"=== GFF Summary ===", f"Records: {len(records)}"]
+    lines = ["=== GFF Summary ===", f"Records: {len(records)}"]
     if records:
         features = {}
         for r in records:
@@ -317,7 +320,7 @@ def bigwig_summary(path, bin_size=1000):
     for chrom, values in data["chroms"].items():
         if len(values) == 0:
             continue
-        n_bins = max(1, len(values) // bin_size)
+        n_bins = max(1, -(-len(values) // bin_size))  # ceil: keep the tail
         for i in range(n_bins):
             start = i * bin_size
             end = min((i + 1) * bin_size, len(values))
@@ -344,19 +347,11 @@ def format_bigwig_summary(df):
 
 # ── CRAM Reader ──────────────────────────────────────────────────────────────
 
-def read_cram(cram_path, reference=None, region=None):
-    """Read CRAM file and return alignment records.
+def _read_alignment(path, reference, region, fmt):
+    """Shared pysam-backed reader for CRAM ('rc'+reference) and BAM ('rb').
 
-    CRAM is a compressed alignment format that requires a reference genome.
-    Uses pysam if available, otherwise returns metadata only.
-
-    Args:
-        cram_path: path to CRAM file.
-        reference: path to reference FASTA (required for decoding).
-        region: genomic region (e.g., 'chr1:1000-2000').
-
-    Returns:
-        dict with headers, alignments count, and optional alignment data.
+    The old read_file() routed .bam files through the CRAM-only mode string
+    'rc', which made every BAM read fail whenever pysam was installed.
     """
     try:
         import pysam
@@ -365,15 +360,17 @@ def read_cram(cram_path, reference=None, region=None):
         has_pysam = False
 
     if not has_pysam:
-        return {"error": "pysam required for CRAM reading. pip install pysam",
-                "format": "cram", "note": "Install pysam for full CRAM support"}
+        return {"error": f"pysam required for {fmt.upper()} reading. pip install pysam",
+                "format": fmt, "note": f"Install pysam for full {fmt.upper()} support"}
 
     try:
-        kwargs = {"format": "cram"}
-        if reference:
-            kwargs["reference_filename"] = reference
+        kwargs = {}
+        if fmt == 'cram':
+            kwargs["format"] = "cram"
+            if reference:
+                kwargs["reference_filename"] = reference
 
-        with pysam.AlignmentFile(cram_path, "rc", **kwargs) as cram:
+        with pysam.AlignmentFile(path, "rc" if fmt == 'cram' else "rb", **kwargs) as cram:
             header = dict(cram.header)
             n_mapped = cram.mapped
             n_unmapped = cram.unmapped
@@ -392,7 +389,7 @@ def read_cram(cram_path, reference=None, region=None):
                     })
 
             return {
-                "format": "cram",
+                "format": fmt,
                 "header": header,
                 "mapped_reads": n_mapped,
                 "unmapped_reads": n_unmapped,
@@ -401,7 +398,29 @@ def read_cram(cram_path, reference=None, region=None):
                 "reference": reference,
             }
     except Exception as e:
-        return {"error": str(e), "format": "cram"}
+        return {"error": str(e), "format": fmt}
+
+
+def read_cram(cram_path, reference=None, region=None):
+    """Read CRAM file and return alignment records.
+
+    CRAM is a compressed alignment format that requires a reference genome.
+    Uses pysam if available, otherwise returns metadata only.
+
+    Args:
+        cram_path: path to CRAM file.
+        reference: path to reference FASTA (required for decoding).
+        region: genomic region (e.g., 'chr1:1000-2000').
+
+    Returns:
+        dict with headers, alignments count, and optional alignment data.
+    """
+    return _read_alignment(cram_path, reference, region, "cram")
+
+
+def read_bam(bam_path, region=None):
+    """Read BAM file and return alignment records (pysam-backed)."""
+    return _read_alignment(bam_path, None, region, "bam")
 
 
 # ── GTF Parser (stricter GFF) ───────────────────────────────────────────────
@@ -467,14 +486,22 @@ def parse_saf(filepath):
             parts = line.split('\t')
             if len(parts) < 4:
                 continue
-            record = {
+            # SAF spec includes a header row ("GeneID Chr Start End Strand");
+            # featureCounts standard output always carries it and the naive
+            # int() used to blow up on "Start".
+            if parts[0] == 'GeneID':
+                continue
+            try:
+                start, end = int(parts[2]), int(parts[3])
+            except ValueError:
+                continue
+            records.append({
                 "gene_id": parts[0],
                 "chr": parts[1],
-                "start": int(parts[2]),
-                "end": int(parts[3]),
+                "start": start,
+                "end": end,
                 "strand": parts[4] if len(parts) > 4 else "+",
-            }
-            records.append(record)
+            })
     return records
 
 
@@ -494,9 +521,7 @@ def read_bam_index(bai_path):
         return {"error": f"Index file not found: {bai_path}"}
 
     try:
-        import pysam
-        # pysam can validate the index
-        # We just check if it loads without error
+        import pysam  # noqa: F401  (availability probe only)
         return {
             "format": "bai",
             "path": bai_path,
@@ -589,12 +614,13 @@ def detect_file_format(filepath):
     import os
     ext = os.path.splitext(filepath)[1].lower()
 
+    low = filepath.lower()
     # Handle double extensions
-    if filepath.endswith('.fa.gz'):
+    if low.endswith(('.fa.gz', '.fasta.gz', '.fna.gz', '.fas.gz')):
         return 'fasta'
-    if filepath.endswith('.fq.gz'):
+    if low.endswith(('.fq.gz', '.fastq.gz')):
         return 'fastq'
-    if filepath.endswith('.vcf.gz'):
+    if low.endswith('.vcf.gz'):
         return 'vcf'
     if filepath.endswith('.cram'):
         return 'cram'
@@ -612,8 +638,8 @@ def read_file(filepath, **kwargs):
     Returns:
         dict with 'format' key and parsed data, or error dict.
     """
-    from .sequence import read_fasta, read_fastq, read_genbank
     from .ngs import read_vcf
+    from .sequence import read_fasta, read_fastq, read_genbank
 
     fmt = detect_file_format(filepath)
 
@@ -627,7 +653,7 @@ def read_file(filepath, **kwargs):
         'saf': lambda: {"format": "saf", "records": parse_saf(filepath)},
         'stockholm': lambda: {"format": "stockholm", "data": parse_stockholm(filepath)},
         'vcf': lambda: {"format": "vcf", "data": read_vcf(filepath)},
-        'bam': lambda: {"format": "bam", "data": read_cram(filepath, **kwargs)},
+        'bam': lambda: {"format": "bam", "data": read_bam(filepath, **kwargs)},
         'cram': lambda: {"format": "cram", "data": read_cram(filepath, **kwargs)},
         'bai': lambda: {"format": "bai", "data": read_bam_index(filepath)},
         'tbi': lambda: {"format": "tbi", "data": read_vcf_index(filepath)},

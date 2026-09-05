@@ -21,14 +21,11 @@ import pandas as pd
 
 try:
     import plotly.graph_objects as go
-    import plotly.express as px
     HAS_PLOTLY = True
 except ImportError:
     HAS_PLOTLY = False
 
 import matplotlib.pyplot as plt
-import matplotlib
-
 
 # ── Theme helpers ────────────────────────────────────────────────────────────
 
@@ -156,7 +153,9 @@ def pca(data, labels=None, group_col=None, n_components=2,
                 mask = groups == group
                 fig.add_trace(go.Scatter(
                     x=coords[mask, 0], y=coords[mask, 1] if n_components > 1 else [0]*sum(mask),
-                    mode='markers', name=str(group), text=labels[mask] if labels is not None else None,
+                    # np.asarray: plain-list labels cannot be boolean-indexed (old TypeError)
+                    mode='markers', name=str(group),
+                    text=np.asarray(labels)[mask].tolist() if labels is not None else None,
                     hoverinfo='text+x+y'
                 ))
         else:
@@ -335,7 +334,7 @@ def heatmap(data, row_labels=None, col_labels=None, title="Heatmap",
 
     if interactive and HAS_PLOTLY:
         fig = go.Figure(data=go.Heatmap(
-            z=data, x=col_labels, y=row_labels, colorscale='Viridis',
+            z=data, x=col_labels, y=row_labels, colorscale=cmap,
             hovertemplate='Row: %{y}<br>Col: %{x}<br>Value: %{z:.3f}<extra></extra>'
         ))
         fig.update_layout(title=title, template=PLOTLY_TEMPLATE)
@@ -516,7 +515,7 @@ def violin(data_dict, title="Violin Plot", ylabel="Value",
     else:
         _apply_mpl_style()
         fig, ax = plt.subplots(figsize=(8, 6))
-        parts = ax.violinplot(list(data_dict.values()), showmeans=True, showmedians=True)
+        ax.violinplot(list(data_dict.values()), showmeans=True, showmedians=True)
         ax.set_xticks(range(1, len(data_dict) + 1))
         ax.set_xticklabels(data_dict.keys())
         ax.set_ylabel(ylabel)
@@ -582,7 +581,9 @@ def qqplot(pvalues, title="Q-Q Plot", interactive=False, output_html=None):
     sorted_p = np.sort(np.asarray(pvalues, dtype=float))
     n = len(sorted_p)
     expected = sp_stats.norm.ppf(np.arange(1, n + 1) / (n + 1))
-    observed = sp_stats.norm.ppf(np.clip(sorted_p, 1e-300, 1 - 1e-300))
+    # clip to float64-resolvable epsilon: 1 - 1e-300 == 1.0 exactly,
+    # so the old bound gave norm.ppf(1.0) = +inf for p=1 (or 0 -> -inf)
+    observed = sp_stats.norm.ppf(np.clip(sorted_p, 1e-16, 1 - 1e-16))
 
     if interactive and HAS_PLOTLY:
         fig = go.Figure()

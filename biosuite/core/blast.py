@@ -6,20 +6,20 @@ k-mer indexed search engine. Works out of the box with just pip install.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
-
 import os
 import subprocess
 import tempfile
-import numpy as np
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 try:
-    from Bio import SeqIO, AlignIO
-    from Bio.Blast import NCBIXML
+    from Bio import AlignIO, SeqIO  # noqa: F401  AlignIO kept for API parity
     from Bio.Align import PairwiseAligner
+    from Bio.Blast import NCBIXML
     HAS_BIO = True
 except ImportError:
     HAS_BIO = False
@@ -166,14 +166,11 @@ def _banded_align_score(seq1: str, seq2: str, start1: int, start2: int, match: i
     """Quick banded local alignment score between two subsequences."""
     max_len = min(len(seq1) - start1, len(seq2) - start2, 500)
     if max_len <= 0:
-        return 0, 0, 0, 0, 0, 0, 0
+        return 0, 0, start1, start2, start1, start2
 
     s1 = seq1[start1:start1 + max_len]
     s2 = seq2[start2:start2 + max_len]
     n, m = len(s1), len(s2)
-
-    best_score = 0
-    best_i, best_j = 0, 0
 
     if HAS_BIO:
         try:
@@ -186,36 +183,46 @@ def _banded_align_score(seq1: str, seq2: str, start1: int, start2: int, match: i
             alignments = aligner.align(s1, s2)
             if alignments:
                 best = alignments[0]
-                score = best.score
-                # Estimate positions from alignment
-                q_start = start1
-                t_start = start2
-                q_end = start1 + len(s1)
-                t_end = start2 + len(s2)
-                matches = sum(1 for a, b in zip(s1[:min(n, m)], s2[:min(n, m)]) if a == b)
-                return score, matches, min(n, m) - matches, q_start, t_start, q_end, t_end
+                # Exact positions and identity from the alignment's aligned
+                # coordinate blocks (the old code compared s through IDENTITY
+                # — it only counted matches on UNALIGNED index positions,
+                # making percent_identity essentially random).
+                qal, tal = best.aligned
+                matches = 0
+                for (qs, qe), (ts, te) in zip(qal, tal):
+                    matches += sum(1 for a, b in zip(
+                        s1[qs:qe], s2[ts:te]) if a == b)
+                aln_len = sum(qe - qs for qs, qe in qal)
+                q_start = start1 + qal[0][0]
+                q_end = start1 + qal[-1][1]
+                t_start = start2 + tal[0][0]
+                t_end = start2 + tal[-1][1]
+                return best.score, matches, aln_len - matches, q_start, t_start, q_end, t_end
         except (ImportError, AttributeError, TypeError):
             pass
 
     # Fallback: simple scoring
     score = 0
     matches = 0
-    gaps = 0
     for i in range(min(n, m)):
         if s1[i] == s2[i]:
             score += match
             matches += 1
         else:
             score += mismatch
-    return score, matches, max_len - matches, start1, start2, start1 + max_len, start2 + max_len
+    return score, matches, min(n, m) - matches, start1, start2, start1 + min(n, m), start2 + min(n, m)
 
 
 def _estimate_evalue(score: float, db_size: int, query_len: int, k: int = 15) -> float:
     """Rough E-value approximation."""
     if score <= 0:
         return 1.0
-    lambda_param = 0.332  # Approximate for nucleotide search
-    K = 0.133
+    # Karlin-Altschul constants approximated for the fallback scoring
+    # (match=+1, mismatch=-1, gap=-2): the previous constants (0.332/0.133
+    # are protein/BLOSUM62-ish values) grossly overestimated E-values for
+    # short built-in hits and caused true planted hits to be filtered out.
+    lambda_param = 1.19
+    K = 0.025
     effective_db = db_size * max(query_len - k + 1, 1)
     return K * effective_db * np.exp(-lambda_param * score)
 
@@ -241,14 +248,24 @@ def _builtin_search(query_file: str, database_file: str, evalue: float = 1e-5, m
                           query_length=0, message='No sequences found.', engine='builtin')
 
     total_db_len = sum(len(s) for _, s in db_seqs)
-    index = _build_kmer_index(db_seqs, k=k)
     first_query_len = len(queries[0][1])
+
+    # Clamp k to the shortest sequence: a k-mer larger than every sequence
+    # can never seed, silently returning ZERO hits for short inputs.
+    shortest = min(len(s) for _, s in queries + db_seqs)
+    clamped = False
+    if k > shortest:
+        k = max(3, shortest)
+        clamped = True
+    index = _build_kmer_index(db_seqs, k=k)
 
     result = BlastResult(
         program='builtin_search',
         database=os.path.basename(database_file),
         query_length=first_query_len,
-        engine='builtin'
+        engine='builtin',
+        message=(f'k clamped to {k} (longest possible seed) — '
+                 if clamped else '')
     )
 
     for q_id, q_seq in queries:
@@ -264,10 +281,18 @@ def _builtin_search(query_file: str, database_file: str, evalue: float = 1e-5, m
             if db_seq is None:
                 continue
 
+            # Anchor BOTH sequences to the same diagonal: the windows must
+            # start at the SAME distance back from the seed.  The previous
+            # "sync" applied max(0, x - slack) independently on each side —
+            # when one side clamped at 0 the diagonals still diverged
+            # (seed at db offset 3 anchored q=0/db=0 instead of q=0/db=3,
+            # scoring a perfect planted hit as ~2 matches and dropping it).
             seed_pos = positions[0]
-            db_start = max(0, offset - 5)
+            shift = min(5, seed_pos, offset)   # shared back-shift
+            q_start = seed_pos - shift
+            db_start = offset - shift
             score, matches, mismatches, qs, ts, qe, te = _banded_align_score(
-                q_seq, db_seq, seed_pos, db_start
+                q_seq, db_seq, q_start, db_start
             )
 
             align_len = min(qe - qs, te - ts)

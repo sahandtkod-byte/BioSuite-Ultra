@@ -2,41 +2,51 @@
 BioSuite Ultra — Main GUI Application Window.
 Slim orchestrator that composes tab mixins for each analysis domain.
 """
-import customtkinter as ctk
+import os
+import sys
+import threading
 import tkinter as tk
 from tkinter import filedialog
-import os
-import builtins
-import re
-import threading
+
+import customtkinter as ctk
 
 from .. import __version__
-from ..core.utils import config, set_theme, save_config, load_dataframe_safe, center_window
-from ..core.sequence import (read_fasta, read_fastq, read_genbank,
-                              sequence_stats, reverse_complement, translate, gc_content)
-from ..core.alignment import needleman_wunsch, smith_waterman
-from ..core.phylogeny import distance_matrix, upgma_tree, plot_phylogenetic_tree
-from ..core.ngs import read_vcf, manhattan_from_vcf
-from ..core.expression import read_counts_matrix, cpm_normalization, differential_expression
-
-from .themes import (THEMES, PLOT_CATEGORIES, PLOT_FUNCS, FONT_FAMILY, FONT_MONO,
-                      FONT_TITLE, FONT_HEADING, FONT_SUBHEADING, FONT_BODY,
-                      FONT_SMALL, FONT_SIDEBAR, FONT_CODE, FONT_BUTTON)
-from .dialogs import (BioMessageDialog, BioConfirmDialog, BioInputDialog,
-                       BioFilePickerDialog, BioDropdownDialog, BioSplashScreen)
+from ..core.utils import config, save_config, set_theme
+from .dialogs import (
+    BioConfirmDialog,
+    BioDropdownDialog,
+    BioFilePickerDialog,
+    BioInputDialog,
+    BioMessageDialog,
+    BioSplashScreen,
+)
+from .tabs.advanced import AdvancedTabMixin
+from .tabs.cloning import CloningTabMixin
+from .tabs.databases import DatabasesTabMixin
+from .tabs.genomics import GenomicsTabMixin
+from .tabs.help import HelpTabMixin
+from .tabs.metabolomics import MetabolomicsTabMixin
+from .tabs.sequence_analysis import SequenceAnalysisTabMixin
+from .tabs.survival import SurvivalTabMixin
+from .tabs.transcriptomics import TranscriptomicsTabMixin
 
 # Tab mixins
 from .tabs.visualization import VisualizationTabMixin
-from .tabs.sequence_analysis import SequenceAnalysisTabMixin
-from .tabs.transcriptomics import TranscriptomicsTabMixin
-from .tabs.genomics import GenomicsTabMixin
-from .tabs.advanced import AdvancedTabMixin
-from .tabs.databases import DatabasesTabMixin
 from .tabs.workflow import WorkflowTabMixin
-from .tabs.help import HelpTabMixin
-from .tabs.cloning import CloningTabMixin
-from .tabs.survival import SurvivalTabMixin
-from .tabs.metabolomics import MetabolomicsTabMixin
+from .themes import FONT_BODY as FONT_BODY  # noqa: F401
+from .themes import (
+    FONT_BUTTON,
+    FONT_FAMILY,
+    FONT_HEADING,
+    FONT_SMALL,
+    PLOT_FUNCS,
+    THEMES,
+)
+from .themes import FONT_MONO as FONT_MONO  # noqa: F401
+
+# Re-exported for tests and external consumers (imported from here by tests):
+from .themes import PLOT_CATEGORIES as PLOT_CATEGORIES  # noqa: F401
+from .widgets import attach_tooltip
 
 # Heavy imports deferred to _finish_startup for faster GUI launch
 pd = None
@@ -73,6 +83,15 @@ class BioSuiteApp(
 
         self.withdraw()
         self.update_idletasks()
+        self._auto_size_and_center()
+        self.minsize(1050, 700)
+        self.configure(fg_color=self.T['bg'])
+
+        self._splash = BioSplashScreen(self, self.T)
+        self.after(100, self._build_with_splash)
+
+    def _auto_size_and_center(self):
+        """Size the window to ~82% of the screen and center it."""
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         w = min(1400, int(sw * 0.82))
@@ -80,11 +99,6 @@ class BioSuiteApp(
         x = (sw - w) // 2
         y = (sh - h) // 2
         self.geometry(f"{w}x{h}+{x}+{y}")
-        self.minsize(1050, 700)
-        self.configure(fg_color=self.T['bg'])
-
-        self._splash = BioSplashScreen(self, self.T)
-        self.after(100, self._build_with_splash)
 
     def _build_with_splash(self):
         steps = [
@@ -106,9 +120,9 @@ class BioSuiteApp(
 
     def _finish_startup(self):
         global pd, np, plt
-        import pandas as pd
-        import numpy as np
         import matplotlib
+        import numpy as np
+        import pandas as pd
         matplotlib.use('TkAgg')
         import matplotlib.pyplot as plt
         self._build_plot_funcs()
@@ -129,37 +143,55 @@ class BioSuiteApp(
         self._plot_history_index = -1
         self._progress_bar = None
         self._splash.animate_out()
-        sw = self.winfo_screenwidth()
-        sh = self.winfo_screenheight()
-        w = min(1400, int(sw * 0.82))
-        h = min(920, int(sh * 0.85))
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-        self.geometry(f"{w}x{h}+{x}+{y}")
+        self._auto_size_and_center()
         self.after(300, self._show_main_window)
 
     def _show_main_window(self):
         self.deiconify()
         self.update_idletasks()
-        sw = self.winfo_screenwidth()
-        sh = self.winfo_screenheight()
-        w = min(1400, int(sw * 0.82))
-        h = min(920, int(sh * 0.85))
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-        self.geometry(f"{w}x{h}+{x}+{y}")
+        self._auto_size_and_center()
         self.lift()
         self.focus_force()
 
     def _build_plot_funcs(self):
-        from ..plotting.biological_plots import (volcano_plot, pca_plot, manhattan_plot, ma_plot,
-            venn_diagram, barplot_custom, boxplot_custom, heatmap_custom, scatter_custom,
-            timeseries_plot, qq_plot, clustered_heatmap, circos_plot, alignment_viewer,
-            violin_plot, raincloud_plot, ridge_plot, dot_plot, export_all_to_folder,
-            generate_markdown_story, batch_export_to_pdf)
-        from ..plotting.math_plots import (sine_plot, cosine_plot, linear_plot,
-            quadratic_plot, cubic_plot, exponential_plot, logistic_plot)
-        from ..plotting.specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
+        from ..plotting.biological_plots import (
+            alignment_viewer,
+            barplot_custom,
+            batch_export_to_pdf,
+            boxplot_custom,
+            circos_plot,
+            clustered_heatmap,
+            dot_plot,
+            export_all_to_folder,
+            generate_markdown_story,
+            heatmap_custom,
+            ma_plot,
+            manhattan_plot,
+            pca_plot,
+            qq_plot,
+            raincloud_plot,
+            ridge_plot,
+            scatter_custom,
+            timeseries_plot,
+            venn_diagram,
+            violin_plot,
+            volcano_plot,
+        )
+        from ..plotting.math_plots import (
+            cosine_plot,
+            cubic_plot,
+            exponential_plot,
+            linear_plot,
+            logistic_plot,
+            quadratic_plot,
+            sine_plot,
+        )
+        from ..plotting.specialized_plots import (
+            gsea_plot,
+            motif_logo,
+            sankey_diagram,
+            umap_plot,
+        )
         self._export_all_to_folder = export_all_to_folder
         self._batch_export_to_pdf = batch_export_to_pdf
         self._generate_markdown_story = generate_markdown_story
@@ -235,8 +267,22 @@ class BioSuiteApp(
         ctk.set_appearance_mode(self.T['ctk_mode'])
         self.configure(fg_color=self.T['bg'])
         self._rebuild_ui()
+        self._refresh_status_right()
+
+    #: Widgets whose text content should survive a theme rebuild.
+    _PRESERVE_ON_REBUILD = ('seq_text',)
 
     def _rebuild_ui(self):
+        # Stash user-typed content before destroying all widgets, so
+        # switching theme does not wipe the user's input.
+        stash = {}
+        for attr in self._PRESERVE_ON_REBUILD:
+            widget = getattr(self, attr, None)
+            if widget is not None:
+                try:
+                    stash[attr] = widget.get("1.0", "end-1c")
+                except Exception:
+                    pass
         for widget in self.winfo_children():
             widget.destroy()
         self.all_cards = []
@@ -245,72 +291,170 @@ class BioSuiteApp(
         self._build_content()
         self._show_frame(self._current_frame if hasattr(self, '_current_frame') else 'plots')
         self._apply_plot_search()
+        for attr, content in stash.items():
+            widget = getattr(self, attr, None)
+            if widget is not None and content.strip():
+                try:
+                    widget.insert("1.0", content)
+                except Exception:
+                    pass
 
     def _on_close(self):
-        if plt is not None:
-            plt.close('all')
-        self.destroy()
+        self._closing = True
+        try:
+            if plt is not None:
+                plt.close('all')
+        except Exception:
+            pass
+        try:
+            self.destroy()
+        except Exception:
+            pass
+
+    def report_callback_exception(self, exc, val, tb):
+        """Suppress harmless customtkinter teardown noise on shutdown.
+
+        CTkScrollableFrame leaves pending after-callbacks that fire on
+        already-destroyed widgets ('invalid command name'); while closing
+        we swallow those instead of dumping tracebacks on the console.
+        Anything else is reported normally.
+        """
+        import traceback
+        if getattr(self, '_closing', False) and isinstance(val, tk.TclError):
+            if 'invalid command name' in str(val):
+                return
+        print("Exception in Tkinter callback", file=sys.stderr)
+        traceback.print_exception(exc, val, tb)
 
     def _show_plot_from_figure(self, fig, title="Plot"):
-        """Display a matplotlib figure in a popup window with Save As option."""
-        import tempfile, os
-        from tkinter import filedialog
-        from PIL import Image, ImageTk
-        
-        # Save figure to temp file
-        tmp = os.path.join(tempfile.gettempdir(), f"biosuite_{id(fig)}.png")
-        fig.savefig(tmp, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
-        plt.close(fig)
-        
-        # Create window
+        """Display a matplotlib figure in an interactive, themed window.
+
+        Embeds the figure with a FigureCanvasTkAgg so the user gets real
+        zoom / pan / configure / save via the navigation toolbar (native
+        toolbar save writes correct PNG/PDF/SVG bytes — no more PNG-in-.pdf).
+        Falls back to a static image if canvas embedding fails.
+        """
+        self._record_plot(fig, title)
+        T = self.T
         win = ctk.CTkToplevel(self)
         win.title(title)
-        win.geometry("950x750")
-        win.configure(fg_color=self.T.get('bg', '#0a0f0a'))
+        # Center over the main window so the plot opens where you look
+        win.update_idletasks()
+        pw, ph = 980, 780
+        try:
+            mx, my = self.winfo_rootx(), self.winfo_rooty()
+            mw, mh = self.winfo_width(), self.winfo_height()
+            px = mx + max(0, (mw - pw) // 2)
+            py = my + max(0, (mh - ph) // 2)
+            win.geometry(f"{pw}x{ph}+{px}+{py}")
+        except Exception:
+            win.geometry(f"{pw}x{ph}")
+        win.minsize(640, 480)
+        win.configure(fg_color=T.get('bg', '#0a0f0a'))
+        win.transient(self)
+
+        embedded = False
+        try:
+            from matplotlib.backends.backend_tkagg import (
+                FigureCanvasTkAgg,
+                NavigationToolbar2Tk,
+            )
+
+            canvas = FigureCanvasTkAgg(fig, master=win)
+            canvas.draw()
+
+            toolbar = NavigationToolbar2Tk(canvas, win, pack_toolbar=False)
+            toolbar.update()
+            self._style_mpl_toolbar(toolbar, T)
+            toolbar.pack(side='bottom', fill='x')
+
+            widget = canvas.get_tk_widget()
+            widget.configure(bg=T.get('card', '#111c11'),
+                             highlightthickness=0)
+            widget.pack(fill='both', expand=True, padx=10, pady=10)
+            embedded = True
+        except Exception:
+            embedded = False
+
+        if not embedded:
+            self._show_plot_static(win, fig)
+
+        hint = ctk.CTkLabel(
+            win, text="Toolbar: 🏠 reset  ·  ←→ history  ·  🔍 zoom  ·  ✋ pan  ·  💾 save  ·  Esc/Ctrl+W close",
+            font=FONT_SMALL, text_color=T.get('text_muted', '#3d6b4a'))
+        hint.pack(side='bottom', pady=(0, 6))
+
+        def on_close():
+            try:
+                plt.close(fig)
+            except Exception:
+                pass
+            win.destroy()
+
+        win.bind('<Escape>', lambda e: on_close())
+        win.bind('<Control-w>', lambda e: on_close())
+        win.bind('<Control-W>', lambda e: on_close())
+        win.protocol("WM_DELETE_WINDOW", on_close)
+        win.lift()
+        return win
+
+    def _style_mpl_toolbar(self, toolbar, T):
+        """Apply the active theme colours to the plain-tk matplotlib toolbar.
+
+        Matplotlib ships dark-glyph icons only, so buttons get a LIGHT
+        background for icon legibility while the strip itself stays themed.
+        """
+        card = T.get('card', '#111c11')
+        text_c = T.get('text', '#e0ffe8')
+        accent = T.get('accent', '#00ff88')
+        btn_bg = '#dfe3ea'          # light chip so dark icons stay readable
+        btn_active = '#c3c9d4'
+        try:
+            toolbar.configure(background=card)
+            for child in toolbar.winfo_children():
+                cls = child.winfo_class()
+                if cls == 'Button':
+                    child.configure(background=btn_bg,
+                                    activebackground=btn_active,
+                                    relief='flat', bd=0)
+                elif cls == 'Label':
+                    child.configure(background=card, foreground=text_c)
+                elif cls in ('Frame', 'TFrame'):
+                    child.configure(background=card)
+            msg = getattr(toolbar, '_message_label', None)
+            if msg is not None:
+                msg.configure(background=card, foreground=accent)
+        except Exception:
+            pass
+
+    def _show_plot_static(self, win, fig):
+        """Static fallback: render figure to PNG and show it (no interaction)."""
+        import tempfile
+
+        from PIL import Image, ImageTk
+        tmp = os.path.join(tempfile.gettempdir(), f"biosuite_{id(fig)}.png")
+        fig.savefig(tmp, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
         photo_ref = [None]
-        
         try:
             img = Image.open(tmp)
             img.thumbnail((900, 650), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
             photo_ref[0] = photo
             label = ctk.CTkLabel(win, image=photo, text="")
+            label._photo_ref = photo_ref  # prevent GC
             label.pack(fill='both', expand=True, padx=10, pady=10)
         except Exception as e:
             ctk.CTkLabel(win, text=f"Error: {e}").pack(pady=20)
-        
-        # Bottom buttons
-        btn_frame = ctk.CTkFrame(win, fg_color='transparent')
-        btn_frame.pack(fill='x', padx=10, pady=5)
-        
-        def save_as():
-            ext = filedialog.asksaveasfilename(
-                defaultextension=".png",
-                filetypes=[("PNG", "*.png"), ("PDF", "*.pdf"), ("SVG", "*.svg"), ("All", "*.*")],
-                title="Save Plot As"
-            )
-            if ext:
-                import shutil
-                shutil.copy2(tmp, ext)
-                self._set_status(f"Plot saved to: {ext}")
-        
-        def on_close():
-            photo_ref[0] = None
-            try: os.unlink(tmp)
-            except: pass
-            win.destroy()
-        
-        ctk.CTkButton(btn_frame, text="💾 Save As...", command=save_as,
-                      fg_color=self.T.get('accent', '#00ff88'),
-                      text_color='#000000', width=120).pack(side='left', padx=5)
-        ctk.CTkButton(btn_frame, text="Close", command=on_close,
-                      fg_color='#ff4444', text_color='#ffffff', width=80).pack(side='right', padx=5)
-        
-        win.protocol("WM_DELETE_WINDOW", on_close)
 
     def _on_resize(self, event=None):
         if event and event.widget == self:
-            self.update_idletasks()
+            # Debounce: the Configure event storm during a window drag
+            # collapses into one idle pass instead of forcing a full
+            # update on every pixel of movement.
+            if getattr(self, '_resize_scheduled', False):
+                return
+            self._resize_scheduled = True
+            self.after_idle(lambda: setattr(self, '_resize_scheduled', False))
 
     # ─── Sidebar ──────────────────────────────────────────────────────────────
 
@@ -341,6 +485,17 @@ class BioSuiteApp(
             ctk.CTkLabel(self.sidebar_scroll, text=title, font=(FONT_FAMILY, 8, 'bold'),
                         text_color=T['text_muted'], anchor='w').pack(fill='x', padx=10, pady=(6, 1))
 
+        FRAME_TIPS = {
+            'plots': "40+ plot types: volcano, PCA, Manhattan, circos, UMAP...",
+            'sequence': "GC%, reverse complement, translation, composition stats",
+            'alignment': "Needleman-Wunsch & Smith-Waterman pairwise alignment",
+            'phylogeny': "Distance matrices, UPGMA and Neighbor-Joining trees",
+            'expression': "CPM/TPM/DESeq2 normalization & differential expression",
+            'cloning': "Restriction digest, PCR, ligation and virtual gel electrophoresis",
+            'crispr': "Guide RNA design with PAM finding and off-target scoring",
+            'help': "Built-in guides for every module (or press F1)",
+        }
+
         def _sidebar_item(key, label):
             btn = ctk.CTkButton(self.sidebar_scroll, text=f"  {label}", anchor='w',
                                 font=(FONT_FAMILY, 11), height=28, corner_radius=6,
@@ -348,6 +503,9 @@ class BioSuiteApp(
                                 hover_color=T['sidebar_hover'],
                                 command=lambda k=key: self._show_frame(k))
             btn.pack(fill='x', padx=8, pady=1)
+            tip = FRAME_TIPS.get(key)
+            if tip:
+                attach_tooltip(btn, f"{label.split(' ', 1)[-1]} — {tip}", T)
             self.sidebar_buttons[key] = btn
 
         _sidebar_category("VISUALIZATION")
@@ -434,7 +592,10 @@ class BioSuiteApp(
         version_frame.pack(side='bottom', fill='x', padx=18, pady=(0, 16))
         ctk.CTkLabel(version_frame, text=f"v{__version__}", font=(FONT_FAMILY, 9),
                       text_color=T['text_muted']).pack(anchor='w')
-        self._current_frame = 'plots'
+        # Don't reset the frame the user is on during a theme rebuild —
+        # only set the initial value at first launch.
+        if not hasattr(self, '_current_frame'):
+            self._current_frame = 'plots'
 
     # ─── Content Area ─────────────────────────────────────────────────────────
 
@@ -481,23 +642,136 @@ class BioSuiteApp(
         self._build_cloning_frame()
         self._build_survival_frame()
         self._build_metabolomics_frame()
-        self.status_bar = ctk.CTkLabel(self, text="  Ready", anchor='w', font=FONT_SMALL,
-                                        fg_color=T['card'], text_color=T['text_dim'], height=30)
-        self.status_bar.pack(side='bottom', fill='x')
+        self.status_container = ctk.CTkFrame(self, fg_color=T['card'], height=30,
+                                             corner_radius=0)
+        self.status_container.pack(side='bottom', fill='x')
+        self.status_container.pack_propagate(False)
+        self.status_bar = ctk.CTkLabel(self.status_container, text="  Ready", anchor='w',
+                                       font=FONT_SMALL, fg_color='transparent',
+                                       text_color=T['text_dim'], height=30)
+        self.status_bar.pack(side='left', fill='x', expand=True)
+        self.status_right = ctk.CTkLabel(
+            self.status_container,
+            text=f"theme: {T.get('name', self.current_theme_key)}  ",
+            anchor='e', font=FONT_SMALL, fg_color='transparent',
+            text_color=T['text_muted'], height=30)
+        self.status_right.pack(side='right')
         self._set_status(f"BioSuite Ultra v{__version__} loaded successfully")
 
-    def _set_status(self, text):
-        self.status_bar.configure(text=f"  {text}")
+    def _set_status(self, text, elapsed=None):
+        msg = f"  {text}"
+        if elapsed is not None:
+            msg += f"   ·   {elapsed:,.1f}s"
+        try:
+            self.status_bar.configure(text=msg)
+        except Exception:
+            pass
+
+    def _refresh_status_right(self):
+        try:
+            self.status_right.configure(
+                text=f"theme: {self.T.get('name', self.current_theme_key)}  ")
+        except Exception:
+            pass
 
     # ─── Keyboard Shortcuts ─────────────────────────────────────────────────
 
     def _save_current(self):
-        self._set_status("Save triggered (Ctrl+S)")
+        """Ctrl+S: save the current tab's main output (text or figure)."""
+        key = getattr(self, '_current_frame', 'plots')
+
+        # Sequence tab: save the results/stats box (or fall back to input).
+        if key == 'sequence' and getattr(self, 'seq_stats', None) is not None:
+            content = self.seq_stats.get("1.0", "end-1c")
+            if content.strip():
+                self._save_text_dialog(content, "sequence_results.txt")
+                return
+
+        # Plots tab: save the most recent figure at full quality.
+        if key == 'plots' and getattr(self, '_plot_history', None):
+            fig = self._plot_history[-1].get('fig')
+            if fig is not None:
+                self._save_figure_dialog(fig, "plot")
+                return
+
+        self._set_status("Nothing to save here yet (Ctrl+S)")
+
+    def _save_text_dialog(self, content, default_name):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".txt", initialfile=default_name,
+            filetypes=[("Text", "*.txt"), ("All files", "*.*")],
+            title="Save Output As")
+        if path:
+            try:
+                with open(path, 'w', encoding='utf-8') as fh:
+                    fh.write(content)
+                self._set_status(f"Saved: {path}")
+            except Exception as e:
+                self._msg_error("Save Error", str(e))
+
+    def _save_figure_dialog(self, fig, default_name):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".png", initialfile=f"{default_name}.png",
+            filetypes=[("PNG", "*.png"), ("PDF", "*.pdf"), ("SVG", "*.svg")],
+            title="Save Figure As")
+        if path:
+            try:
+                fig.savefig(path, dpi=300, bbox_inches='tight',
+                            facecolor=fig.get_facecolor())
+                self._set_status(f"Figure saved: {path}")
+            except Exception as e:
+                self._msg_error("Save Error", str(e))
 
     def _refresh_current(self):
         key = self._current_frame
         self._show_frame(key)
         self._set_status(f"Refreshed: {key}")
+
+    # ─── Background Execution ───────────────────────────────────────────────
+
+    def _run_bg(self, work, on_result=None, on_error=None, status="Working..."):
+        """Run `work()` in a daemon thread; marshal callbacks to the UI thread.
+
+        Args:
+            work: callable executed in the background; its return value is
+                  passed to on_result.
+            on_result: optional callable(result) — always runs on the UI thread.
+            on_error: optional callable(exception) — UI thread. Defaults to a
+                      themed error dialog.
+            status: status-bar text while running; 'Ready' is restored after,
+                    along with the operation's elapsed time.
+        """
+        import time
+        started = time.perf_counter()
+        self._set_status(status)
+        self._busy_cursor(True)
+        def runner():
+            try:
+                result = work()
+            except Exception as exc:  # noqa: BLE001 - last-resort UI guard
+                if on_error is not None:
+                    self.after(0, lambda e=exc: on_error(e))
+                else:
+                    self.after(0, lambda e=exc:
+                               self._msg_error("Error", str(e)))
+            else:
+                if on_result is not None:
+                    self.after(0, lambda r=result: on_result(r))
+            finally:
+                elapsed = time.perf_counter() - started
+                self.after(0, lambda t=elapsed: self._set_status("Ready", elapsed=t))
+                self.after(0, self._busy_cursor_off)
+        threading.Thread(target=runner, daemon=True).start()
+
+    def _busy_cursor(self, on):
+        """Show a 'working' mouse cursor while a background op runs."""
+        try:
+            self.configure(cursor="watch" if on else "")
+        except Exception:
+            pass
+
+    def _busy_cursor_off(self):
+        self._busy_cursor(False)
 
     # ─── Progress Bar ───────────────────────────────────────────────────────
 
@@ -506,7 +780,11 @@ class BioSuiteApp(
             self._progress_bar = ctk.CTkProgressBar(self, height=3, corner_radius=1,
                                                       fg_color=self.T['border'],
                                                       progress_color=self.T['accent'])
-            self._progress_bar.pack(side='bottom', fill='x', before=self.status_bar)
+            anchor = getattr(self, 'status_container', None)
+            if anchor is not None:
+                self._progress_bar.pack(side='bottom', fill='x', before=anchor)
+            else:
+                self._progress_bar.pack(side='bottom', fill='x')
         self._progress_bar.set(0)
         self._progress_bar.lift()
         self._set_status(text)
@@ -526,6 +804,10 @@ class BioSuiteApp(
     def _record_plot(self, fig, name="plot"):
         if not hasattr(self, '_plot_history'):
             self._plot_history = []
+        # Dedupe: callers may record before displaying and the plot window
+        # records again — don't store the same figure twice in a row.
+        if self._plot_history and self._plot_history[-1].get('fig') is fig:
+            return
         self._plot_history.append({"fig": fig, "name": name})
         if len(self._plot_history) > 10:
             old = self._plot_history.pop(0)
@@ -558,6 +840,8 @@ class BioSuiteApp(
             self._set_status(f"Loaded: {os.path.basename(files[0])}")
 
     def _show_frame(self, key):
+        if key not in self.frames:
+            return
         for f in self.frames.values():
             f.pack_forget()
         self.frames[key].pack(in_=self.content, fill='both', expand=True, padx=16, pady=16)
@@ -568,6 +852,12 @@ class BioSuiteApp(
             else:
                 btn.configure(fg_color='transparent', text_color=T['sidebar_text'])
         self._current_frame = key
+        # Keep the window title in sync with where the user is
+        try:
+            label = self.sidebar_buttons[key].cget('text').strip()
+            self.title(f"BioSuite Ultra  ·  {label}")
+        except Exception:
+            pass
 
     # ─── UI Helpers ───────────────────────────────────────────────────────────
 
@@ -583,14 +873,17 @@ class BioSuiteApp(
         ctk.CTkLabel(parent, text=text, font=FONT_HEADING,
                       text_color=self.T['text']).pack(anchor='w', padx=4, pady=(4, 8))
 
-    def _action_button(self, parent, text, command, color_key='accent'):
+    def _action_button(self, parent, text, command, color_key='accent', tip=None):
         T = self.T
         color = T.get(color_key, T['accent'])
         hover = T.get(f'{color_key}_dim', color)
-        return ctk.CTkButton(parent, text=text, height=36, corner_radius=8,
-                              font=FONT_BUTTON, fg_color=color, hover_color=hover,
-                              text_color='#000000' if color_key == 'accent' else '#ffffff',
-                              command=command)
+        btn = ctk.CTkButton(parent, text=text, height=36, corner_radius=8,
+                             font=FONT_BUTTON, fg_color=color, hover_color=hover,
+                             text_color='#000000' if color_key == 'accent' else '#ffffff',
+                             command=command)
+        if tip:
+            attach_tooltip(btn, tip, T)
+        return btn
 
     def _input_entry(self, parent, placeholder, **kwargs):
         T = self.T
@@ -624,9 +917,10 @@ class BioSuiteApp(
         Saves as HTML and opens in default browser, or displays in webview if available.
         """
         try:
-            import plotly.io as pio
             import tempfile
             import webbrowser
+
+            import plotly.io as pio  # noqa: F401 - availability probe
 
             # Save to temporary HTML file
             html_path = os.path.join(tempfile.gettempdir(), f"biosuite_plot_{id(fig)}.html")
@@ -645,7 +939,6 @@ class BioSuiteApp(
     def _save_interactive_plot(self, fig, default_name="interactive_plot"):
         """Save a Plotly figure as HTML."""
         try:
-            import plotly.io as pio
             from tkinter import filedialog
 
             filepath = filedialog.asksaveasfilename(
@@ -663,9 +956,9 @@ class BioSuiteApp(
     def _gui_interactive_plot_api(self):
         """Launch the interactive plot explorer."""
         try:
-            from biosuite.plotting.plot_api import (volcano, pca, manhattan, heatmap,
-                                                       scatter, boxplot, violin, qqplot)
             import numpy as np
+
+            from biosuite.plotting.plot_api import volcano
 
             # Demo with sample data
             np.random.seed(42)

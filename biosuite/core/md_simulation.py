@@ -10,15 +10,16 @@ Implements:
 - Proper PDB parsing with residue/chain metadata
 - Correct radius of gyration calculation
 """
-import os
 import math
-import numpy as np
+import os
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional, Dict
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 
 try:
-    from openmm.app import PDBFile, ForceField, Simulation, Modeller
-    from openmm import unit, LangevinMiddleIntegrator
+    from openmm import LangevinMiddleIntegrator, unit
+    from openmm.app import PME, ForceField, HBonds, Modeller, PDBFile, Simulation
     HAS_OPENMM = True
 except ImportError:
     HAS_OPENMM = False
@@ -150,9 +151,15 @@ _ELEMENT_MAP = {
 
 
 def _guess_element(atom_name: str) -> str:
-    """Guess element from atom name (PDB convention: first letter is element)."""
-    clean = atom_name.strip().lstrip('0123456789')
-    first = clean[0].upper() if clean else 'C'
+    """Guess element from atom name (PDB convention: column-aligned naming).
+
+    Two-letter heavy-metal ion names (FE/ZN/MG) resolve to their metal
+    element; 'CA' stays carbon (the alpha-carbon collision in PDB files).
+    """
+    clean = atom_name.strip().lstrip('0123456789').upper()
+    if len(clean) >= 2 and clean[:2] in ('FE', 'ZN', 'MG'):
+        return clean[:2]
+    first = clean[0] if clean else 'C'
     if first in _ELEMENT_MAP:
         return first
     return 'C'  # fallback
@@ -276,7 +283,6 @@ def lj_cutoff_correction(sigma: np.ndarray, epsilon: np.ndarray,
     rough approximation).
     """
     # Use a simple pairwise average approximation
-    n_pairs = n * (n - 1) / 2
     avg_sigma = np.mean(sigma)
     avg_eps = np.mean(epsilon)
     sr = avg_sigma / cutoff
@@ -514,7 +520,7 @@ def minimize_energy(coords: np.ndarray, lj: LJParameters,
     energy, forces = compute_forces(coords, lj, bonds, angles, cutoff)
     energy_history.append(energy)
 
-    for step in range(max_steps):
+    for _step in range(max_steps):
         fmag = np.sqrt(np.sum(forces * forces))
         if fmag < convergence_tol:
             break
@@ -739,7 +745,7 @@ def write_pdb(coords: np.ndarray, output_file: str,
                     f"ALA A   1    {x:8.3f}{y:8.3f}{z:8.3f}"
                     f"  1.00  0.00           C  \n"
                 )
-        f.write(f"ENDMDL\n")
+        f.write("ENDMDL\n")
         f.write("END\n")
 
 
