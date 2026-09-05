@@ -129,8 +129,76 @@ def test_gui_tab_count_is_correct():
     assert count == 11, f"GUI tab count changed to {count}; update the docs"
 
 
+def _cli_menu_option_count():
+    """Distinct numeric choices the interactive menu dispatches, excluding 0 (exit)."""
+    src = (REPO / "biosuite" / "cli" / "menu.py").read_text(encoding="utf-8")
+    nums = {int(m) for m in re.findall(r"choice\s*==\s*['\"](\d+)['\"]", src)}
+    nums |= {int(m) for m in re.findall(r"^\s*['\"](\d+)['\"]\s*:", src, re.M)}
+    return len({n for n in nums if n != 0})
+
+
+def test_documented_cli_menu_option_count_is_correct():
+    measured = _cli_menu_option_count()
+    assert measured == 99, f"CLI menu options changed to {measured}; update the docs"
+    assert "99" in _read("README.md")
+
+
+def test_documented_plot_catalogue_size_is_correct():
+    """README and docs quote the size of the GUI plot catalogue."""
+    tree = ast.parse((REPO / "biosuite" / "gui" / "themes.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (isinstance(node, ast.Assign)
+                and getattr(node.targets[0], "id", "") == "PLOT_CATEGORIES"):
+            categories = len(node.value.keys)
+            plots = sum(len(v.elts) for v in node.value.values)
+            break
+    else:                                    # pragma: no cover - structural guard
+        pytest.fail("PLOT_CATEGORIES not found in biosuite/gui/themes.py")
+    assert (categories, plots) == (9, 40), \
+        f"plot catalogue changed to {plots} plots in {categories} categories"
+    assert "40 plot types" in _read("README.md")
+
+
+def test_supported_python_versions_match_the_ci_matrix():
+    """Never advertise an interpreter the CI matrix does not exercise."""
+    workflow = _read(".github/workflows/ci.yml")
+    matrix = set(re.findall(r"'(3\.\d+)'", workflow.split("python-version:")[1][:80]))
+    pyproject = _read("pyproject.toml")
+    classifiers = set(re.findall(r"Programming Language :: Python :: (3\.\d+)", pyproject))
+    assert classifiers == matrix, (
+        f"pyproject advertises {sorted(classifiers)} but CI tests {sorted(matrix)}")
+    requires = re.search(r'requires-python\s*=\s*"([^"]+)"', pyproject).group(1)
+    assert requires == ">=" + min(matrix, key=lambda v: tuple(map(int, v.split(".")))), \
+        f"requires-python {requires} disagrees with the CI matrix {sorted(matrix)}"
+
+
+def test_no_stale_version_strings_are_hard_coded_in_the_package():
+    """The version policy in AGENTS.md: only biosuite/__init__.py hard-codes it."""
+    import biosuite
+    offenders = []
+    for path in (REPO / "biosuite").rglob("*.py"):
+        if path.name == "__init__.py" and path.parent.name == "biosuite":
+            continue
+        text = path.read_text(encoding="utf-8")
+        # A leading letter means it is somebody else's version string, e.g. the
+        # "##fileformat=VCFv4.2" header that variant_calling.py must emit.
+        for stale in ("v4.0", "v4.1", "v4.2", "v5.0.0"):
+            if re.search(rf"(?<![A-Za-z]){re.escape(stale)}", text):
+                offenders.append(f"{path.relative_to(REPO)}: {stale}")
+    assert not offenders, f"stale hard-coded versions: {offenders}"
+
+
+def test_readme_makes_no_unverifiable_superlative_claims():
+    text = _read("README.md")
+    for phrase in ("most comprehensive", "SnapGene-killer", "100% free",
+                   "unhackable", "enterprise-grade", "1,444", "cyberpunk"):
+        assert phrase.lower() not in text.lower(), f"README still claims: {phrase}"
+
+
 def test_test_file_count_claim_is_not_wildly_wrong():
     actual = len(list((REPO / "tests").rglob("test_*.py")))
     assert actual > 100, f"only {actual} test files found"
     text = _read("AGENTS.md")
-    assert "30 test files" not in text and "30 files" not in text
+    # Word-boundary match: "130 test files" is correct and must not trip this.
+    assert not re.search(r"(?<!\d)30 test files", text)
+    assert not re.search(r"(?<!\d)30 files", text)

@@ -5,7 +5,7 @@
 - **Internal module:** `biosuite`
 - **PyPI page:** https://pypi.org/project/biosuite-ultra/
 - **Source:** `C:\Users\SAHAND\Desktop\python\BioSuite-Ultra`
-- **Python:** 3.9+
+- **Python:** 3.10+ (tested on 3.10, 3.11, 3.12)
 - **Build system:** setuptools + wheel
 
 ## How to Update and Publish

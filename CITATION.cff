@@ -9,28 +9,32 @@ repository-code: "https://github.com/sahandtkod-byte/BioSuite-Ultra"
 doi: "10.5281/zenodo.21256296"
 url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"
 abstract: >-
-  BioSuite Ultra is a comprehensive open-source bioinformatics platform
-  with 47 analysis modules, 26 visualization types (123 plotting functions),
-  a cyberpunk GUI, a 117-option CLI, molecular cloning tools with 169
-  restriction enzymes, parallel processing, and a 40-endpoint REST API —
-  all in pure Python. No external bioinformatics tools required.
-  100% free and open source under the MIT license.
+  BioSuite Ultra is an integrated open-source bioinformatics platform written
+  in pure Python. It provides 47 analysis modules covering sequence analysis,
+  alignment, phylogenetics, transcriptomics, genomics, population genetics,
+  proteomics and metabolism; a plotting library of 105 public functions;
+  molecular cloning tools with a 169-enzyme restriction table; and
+  reproducible workflows with provenance tracking. The same core is exposed
+  as a Python library, an interactive command-line interface, a CustomTkinter
+  desktop application and a 38-endpoint FastAPI REST service. Core
+  functionality requires no external bioinformatics binaries; where optional
+  external tools are available they are used in preference to the built-in
+  approximations. Released under the MIT license.
 keywords:
   - bioinformatics
+  - computational-biology
   - genomics
   - proteomics
   - transcriptomics
   - sequence-analysis
   - ngs
-  - machine-learning
-  - molecular-cloning
-  - plasmid-maps
-  - virtual-gel
-  - restriction-enzymes
-  - parallel-processing
   - phylogenetics
+  - population-genetics
+  - molecular-cloning
+  - restriction-enzymes
   - crispr
   - single-cell
+  - scientific-computing
 license: MIT
 version: 5.5.0
 date-released: "2026-08-09"

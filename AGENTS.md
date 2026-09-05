@@ -5,11 +5,11 @@ BioSuite Ultra is a pure-Python bioinformatics platform. All numbers below were
 measured from the tree — keep them accurate if you change the code.
 
 - **47 analysis modules** in `biosuite/core/` (+ `biosuite/core/workflow/`)
-- **12 plotting modules** exposing **123 functions** (105 public) across **26 plot types**
+- **12 plotting modules** exposing **123 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
 - **11 GUI tabs**, **99 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **86 Python files / ~28.8K lines** in the package; ~43K lines including tests and examples
-- **2,500+ tests** in **128 test files**
+- **~32.5K lines** of Python in `biosuite/`
+- **2,486 tests collected** in **130 test files** (CI: 2,472 passed, 14 skipped on 3.10/3.11/3.12)
 
 ## Architecture
 ```
@@ -20,7 +20,7 @@ biosuite/
 ├── cli/            # menu.py — interactive CLI, 99 options
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 128 files, 2,500+ tests
+tests/              # 130 files, 2,486 tests collected
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx
@@ -31,7 +31,7 @@ docs/               # Sphinx
 - `biosuite/__init__.py` — **single source of truth for `__version__`**
 - `biosuite_config.json` — user configuration (theme, API keys)
 - `biotools.json` — external tool definitions
-- `pyproject.toml` — package metadata; extras: `bio`, `api`, `notebook`, `parallel`, `full`, `dev`
+- `pyproject.toml` — package metadata; extras: `bio`, `gui`, `cloning`, `api`, `notebook`, `parallel`, `full`, `dev`
 
 ## Version Policy
 `biosuite/__init__.py::__version__` is the only hard-coded version string in Python code.
@@ -40,7 +40,7 @@ updated together on a release. The API, CLI banner, `--version` flag and GUI lab
 `__version__` — never hard-code a version in them again.
 
 ## Code Style
-- Python 3.9+ compatible
+- Python 3.10+ (CI matrix: 3.10, 3.11, 3.12)
 - Type hints on public functions, Google-style docstrings
 - Max line length 100
 - Plotting functions must **return the figure** and never call `plt.show()` or `plt.close()` —

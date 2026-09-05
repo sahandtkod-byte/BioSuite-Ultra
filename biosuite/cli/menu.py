@@ -348,7 +348,7 @@ def _build_parser():
     """Build argparse parser for non-interactive mode."""
     parser = argparse.ArgumentParser(
         prog='biosuite',
-        description='BioSuite Ultra — Bioinformatics Platform v4.0',
+        description=f'BioSuite Ultra — Bioinformatics Platform v{__version__}',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   biosuite                          Interactive menu

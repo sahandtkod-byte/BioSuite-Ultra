@@ -90,6 +90,62 @@ regression test that fails on the previous behaviour.
 - Container image runs as an unprivileged user, ships no build toolchain and
   has a health check; `docker-compose.yml` requires explicit secrets and
   publishes to loopback.
+- `requires-python` narrowed from `>=3.9` to `>=3.10`, and the 3.9 and 3.13
+  trove classifiers were removed, so the declared support matches the versions
+  CI actually verifies (3.10, 3.11, 3.12).  The published 5.0.3 wheel already
+  declared `>=3.10`; this aligns the source tree with it.
+
+### Fixed - CI and static analysis
+- The test workflow installed `python3-tk` but not the `gui` extra, which is
+  where `customtkinter` lives.  Every module under `biosuite/gui` imports it,
+  so the 141 GUI tests had never actually executed in CI.  The extra is now
+  installed and a dedicated step fails loudly if the GUI dependencies are not
+  importable.
+- `goatools` was not installed in CI, so three known-answer enrichment tests
+  failed.  The dependency is installed rather than the tests being skipped.
+- The API path resolver relied on `ntpath.isabs()`, whose result for a bare UNC
+  root differs between CPython 3.10 and 3.11+, producing a different HTTP
+  status for the same input depending on the interpreter.  Absolute and UNC
+  prefixes are now matched explicitly.
+- CodeQL reported four High "uncontrolled data used in a path expression"
+  findings against the file endpoints.  The resolver now validates the raw
+  string against an allowlist before any filesystem call and then matches each
+  component against the real directory listing, so untrusted text is never
+  concatenated into a path.  This also closed real gaps: dotfiles such as
+  `.env` inside the data directory were previously reachable, NUL bytes were
+  not rejected by the resolver, and double-encoded traversal survived the
+  single decode performed by the web framework.
+- CodeQL reported three Medium findings for workflow jobs without a
+  `permissions:` block; least-privilege `contents: read` is now set at workflow
+  scope and on every job.
+- The test suite republishes its summary as workflow annotations, so failures
+  are visible without downloading raw logs.
+
+### Documentation
+- README rewritten against the current tree; every count is now measured
+  (47 analysis modules, 105 public plotting functions of 123 total, 169
+  restriction enzymes, 11 GUI tabs, 99 CLI menu options, 38 REST endpoints)
+  and asserted by `tests/test_documentation_accuracy.py`.
+- Removed stale and unverifiable claims, including "1,444 tests", "117 CLI
+  options", "40 endpoints", "26"/"36+" visualization types, "43K+ lines",
+  "53 analysis modules", superlatives and marketing language.
+- Hard-coded `v4.0` version strings in the CLI `--help` banner, the GUI About
+  dialog and the GUI help tab now derive from `biosuite.__version__`; the help
+  tab's "52+ analysis modules" claim was corrected to the measured 47.
+- `SECURITY.md` updated: supported versions now reflect the 5.x series, and it
+  documents credential handling, the required environment variables and the
+  credential-rotation requirement.
+- `CITATION.cff`, `AGENTS.md`, `docs/index.rst` and the package description
+  synchronised; the Sphinx toctree no longer references five documents that do
+  not exist.
+
+### Known limitations
+- **BSU-022 is only partially fixed.**  Always-true assertions,
+  defect-documenting tests and `(200, 500)` status tolerances were removed, but
+  roughly 297 shallow `assert x is not None` assertions remain, mostly under
+  `tests/plotting/`.
+- Coverage is measured in CI but no coverage threshold is enforced, and the
+  project does not claim full coverage.
 
 ### Security notice
 Any deployment that ran a previous version with the shipped defaults must

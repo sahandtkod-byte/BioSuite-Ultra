@@ -3,6 +3,7 @@ Help & Guides tab — all help text for every module.
 """
 import customtkinter as ctk
 
+from ... import __version__
 from ..themes import FONT_FAMILY
 
 
@@ -68,10 +69,10 @@ class HelpTabMixin:
         self.help_text.insert("end", func())
 
     def _help_getting_started(self):
-        return """GETTING STARTED WITH BIOSUITE ULTRA
+        return f"""GETTING STARTED WITH BIOSUITE ULTRA
 ====================================
 
-Welcome to BioSuite Ultra v4.0 -- a complete bioinformatics platform with 52+ analysis modules, molecular cloning toolkit, plasmid maps, and virtual gel electrophoresis.
+Welcome to BioSuite Ultra v{__version__} -- a complete bioinformatics platform with 47 analysis modules, a molecular cloning toolkit, plasmid maps, and virtual gel electrophoresis.
 
 QUICK START:
 1. Click any tab in the left sidebar to access that analysis tool
