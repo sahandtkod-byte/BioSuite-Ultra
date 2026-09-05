@@ -92,6 +92,23 @@ def test_absolute_path_inside_the_root_is_also_refused(tmp_path, monkeypatch):
     _expect_status(str(tmp_path / "sample.fasta"), 400, tmp_path, monkeypatch)
 
 
+@pytest.mark.parametrize("payload", [
+    "\\\\server\\share", "\\\\server\\share\\secret.txt", "\\x", "/x", "C:x",
+])
+def test_absolute_detection_does_not_depend_on_the_python_version(payload,
+                                                                  tmp_path,
+                                                                  monkeypatch):
+    """ntpath.isabs() disagrees across versions for a bare UNC root.
+
+    On CPython 3.10 ``ntpath.isabs("\\\\server\\share")`` is False (splitdrive
+    consumes the whole UNC root and leaves an empty remainder) while on 3.11+
+    it is True. Relying on it made this resolver return 404 on 3.10 and 400 on
+    3.11/3.12 for the same input, which CI caught. The check is now explicit,
+    so every supported interpreter must agree.
+    """
+    _expect_status(payload, 400, tmp_path, monkeypatch)
+
+
 def test_excessive_depth_is_rejected(tmp_path, monkeypatch):
     _expect_status("/".join(["a"] * 64), 400, tmp_path, monkeypatch)
 

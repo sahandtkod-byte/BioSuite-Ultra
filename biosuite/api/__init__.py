@@ -18,9 +18,7 @@ API Documentation:
 """
 import logging
 import functools
-import ntpath
 import os
-import posixpath
 import re
 import tempfile
 import time
@@ -111,6 +109,11 @@ def _data_root() -> Path:
 # alphanumeric or "_", which rejects "..", "~" and dotfiles such as ".env"
 # outright; the remainder is a conservative allowlist.
 _SAFE_COMPONENT = re.compile(r"\A[A-Za-z0-9_][A-Za-z0-9._+\-]{0,254}\Z")
+# Any leading separator (POSIX root or a UNC share) or a drive letter means the
+# caller is not asking for a path relative to the data directory. This is
+# checked explicitly rather than via ntpath.isabs(), whose result for a bare
+# UNC root such as "\\\\server\\share" differs between Python 3.10 and 3.11+.
+_ABSOLUTE_PREFIX = re.compile(r"\A(?:[/\\]|[A-Za-z]:)")
 _MAX_PATH_DEPTH = 16
 
 
@@ -135,7 +138,7 @@ def _validated_components(user_path: str) -> List[str]:
 
     if not decoded or "\x00" in decoded:
         raise HTTPException(status_code=400, detail="Invalid file path")
-    if posixpath.isabs(decoded) or ntpath.isabs(decoded):
+    if _ABSOLUTE_PREFIX.match(decoded):
         raise HTTPException(
             status_code=400,
             detail="file_path must be inside the configured data directory")

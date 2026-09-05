@@ -64,11 +64,20 @@ jobs:
           # customtkinter, so without this extra the whole tests/gui tree
           # errors out with ModuleNotFoundError and the job fails.
           pip install -e ".[api,notebook,dev,gui]"
+          # tests/core/test_enrichment_fixtures.py asserts real ORA output
+          # against known-answer fixtures. Without goatools the enrichment code
+          # degrades to a "not installed" message and those assertions fail, so
+          # the dependency is installed rather than the tests being skipped.
+          # goatools alone, not the whole [bio] extra: the rest of that extra
+          # (cutadapt, cobra, ete3, scanpy) needs compilers and minutes of
+          # build time for no additional coverage here.
+          pip install "goatools>=1.3"
 
       - name: Verify the GUI test dependencies really are importable
         run: |
           # Fail loudly here rather than as 141 confusing test errors later.
           python -c "import tkinter, customtkinter; print('tkinter + customtkinter OK')"
+          python -c "import goatools; print('goatools OK')"
 
       - name: Show resolved dependency versions
         run: pip freeze
