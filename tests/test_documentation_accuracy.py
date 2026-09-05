@@ -468,9 +468,12 @@ def test_every_documented_repository_url_is_the_official_one():
 def test_shipped_code_makes_no_marketing_or_unimplemented_claims():
     """Runtime strings and docstrings are user-visible; keep them factual."""
     banned = (r"100%\s*free", r"no paid", r"SnapGene", r"most comprehensive",
-              r"killer", r"Gibson")
+              r"killer", r"Gibson", r"36\+", r"26 visualization", r"48 analysis")
     offenders = []
-    for path in sorted((REPO / "biosuite").rglob("*.py")):
+    shipped = sorted((REPO / "biosuite").rglob("*.py")) + \
+        sorted((REPO / "examples").rglob("*.py")) + \
+        sorted((REPO / "examples").rglob("*.ipynb"))
+    for path in shipped:
         text = path.read_text(encoding="utf-8")
         for pattern in banned:
             for m in re.finditer(pattern, text, re.I):
