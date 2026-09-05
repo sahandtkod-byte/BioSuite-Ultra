@@ -75,8 +75,50 @@ jobs:
 
       - name: Run full test suite
         run: |
-          xvfb-run -a pytest tests/ -q \
-            --cov=biosuite --cov-report=xml --cov-report=term-missing
+          # pipefail keeps the real pytest exit status even though we tee.
+          set -o pipefail
+          xvfb-run -a pytest tests/ -q -rf --tb=short \
+            --cov=biosuite --cov-report=xml --cov-report=term-missing \
+            2>&1 | tee /tmp/pytest-${{ matrix.python-version }}.log
+
+      - name: Surface test failures as annotations
+        # Runs only when the suite above failed, and does not change its
+        # outcome: the job is already failing. Raw logs are not always
+        # retrievable, so the failure summary is republished as workflow
+        # annotations, which show inline on the pull request.
+        if: failure()
+        run: |
+          python - <<'PY'
+          import collections, os, pathlib, re
+          log = pathlib.Path(f"/tmp/pytest-{os.environ['PYVER']}.log")
+          if not log.exists():
+              print("::error::pytest produced no log file")
+              raise SystemExit(0)
+          text = log.read_text(errors="replace")
+          failed = re.findall(r"^(?:FAILED|ERROR) (\S+).*$", text, re.M)
+          counts = collections.Counter(f.split("::")[0] for f in failed)
+          tail = [ln for ln in text.splitlines() if ln.startswith(("FAILED", "ERROR"))]
+          summary = re.findall(r"^=+ .*(?:passed|failed|error).* =+$", text, re.M)
+
+          def emit(title, body):
+              print(f"::error title={title}::" + body.replace("\n", "%0A")[:60000])
+
+          emit("pytest summary", "\n".join(summary[-1:]) or "no summary line")
+          if counts:
+              emit("failures per file",
+                   "\n".join(f"{n:>4}  {f}" for f, n in counts.most_common()))
+          # The reason a test failed matters more than its name: republish the
+          # head of the FAILURES section so the traceback is visible too.
+          block = re.split(r"^=+ FAILURES =+$", text, maxsplit=1, flags=re.M)
+          if len(block) > 1:
+              emit("first failures (traceback)",
+                   "\n".join(block[1].splitlines()[:80]))
+          for i in range(0, min(len(tail), 120), 30):
+              emit(f"failing tests {i + 1}-{min(i + 30, len(tail))}",
+                   "\n".join(tail[i:i + 30]))
+          PY
+        env:
+          PYVER: ${{ matrix.python-version }}
 
       - name: Fail if any test was skipped for a missing dependency
         run: |
