@@ -90,12 +90,14 @@ jobs:
             --cov=biosuite --cov-report=xml --cov-report=term-missing \
             2>&1 | tee /tmp/pytest-${{ matrix.python-version }}.log
 
-      - name: Surface test failures as annotations
-        # Runs only when the suite above failed, and does not change its
-        # outcome: the job is already failing. Raw logs are not always
-        # retrievable, so the failure summary is republished as workflow
-        # annotations, which show inline on the pull request.
-        if: failure()
+      - name: Surface the test summary as annotations
+        # Raw Actions logs are not retrievable from every environment and this
+        # workflow uploads no test artifact, so the pytest summary is
+        # republished as workflow annotations: a notice when the suite passed,
+        # errors (with the failure list and traceback head) when it did not.
+        # This never changes the job outcome - the step reports, it does not
+        # decide.
+        if: always()
         run: |
           python - <<'PY'
           import collections, os, pathlib, re
@@ -109,8 +111,11 @@ jobs:
           tail = [ln for ln in text.splitlines() if ln.startswith(("FAILED", "ERROR"))]
           summary = re.findall(r"^=+ .*(?:passed|failed|error).* =+$", text, re.M)
 
+          level = "error" if failed else "notice"
+
           def emit(title, body):
-              print(f"::error title={title}::" + body.replace("\n", "%0A")[:60000])
+              print(f"::{level} title={title}::"
+                    + body.replace("\n", "%0A")[:60000])
 
           emit("pytest summary", "\n".join(summary[-1:]) or "no summary line")
           if counts:
