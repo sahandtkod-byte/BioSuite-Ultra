@@ -415,7 +415,7 @@ If you use BioSuite Ultra in your research, please cite it using the metadata in
 - **PyPI**: https://pypi.org/project/biosuite-ultra/
 - **Issues**: https://github.com/sahandtkod-byte/BioSuite-Ultra/issues
 - **API guide**: [API_GUIDE.md](API_GUIDE.md)
-- **Deployment**: [DEPLOY.md](DEPLOY.md)
+- **Deployment**: [DEPLOY.md](docs/deployment/DEPLOY.md)
 
 ## Contributors
 

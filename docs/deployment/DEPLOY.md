@@ -95,7 +95,7 @@ pip install "biosuite-ultra[full]"      # all optional features
 | `twine: command not found` | Run `pip install twine` |
 
 ## Current Version
-**v5.5.0** — see [CHANGELOG.md](CHANGELOG.md) for the full entry.
+**v5.5.0** — see [CHANGELOG.md](../../CHANGELOG.md) for the full entry.
 
 Note that 5.5.0 is the version in this source tree; the latest version published to PyPI is
 5.0.3.

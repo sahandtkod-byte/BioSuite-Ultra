@@ -2,7 +2,7 @@
 
 The repository's docs stated counts that were simply false for this tree:
 117 CLI options (99), 40 REST endpoints (38), "1,444 tests in 30 files",
-and AGENTS.md still advertised version 4.2.5.
+and DEVELOPMENT.md still advertised version 4.2.5.
 
 These tests re-measure from the code, so the numbers cannot drift back
 unnoticed. They assert the documented figure equals the measured one; when the
@@ -64,7 +64,7 @@ def test_version_is_a_single_source_of_truth():
 
 def test_agents_md_does_not_advertise_a_stale_version():
     import biosuite
-    text = _read("AGENTS.md")
+    text = _read("DEVELOPMENT.md")
     assert "4.2.5" not in text.split("## ")[0] or biosuite.__version__ == "4.2.5"
     assert biosuite.__version__ in text
 
@@ -86,18 +86,18 @@ def test_the_api_app_reports_the_package_version():
 # ── documented counts match the code (BSU-025) ──────────────────────────────
 
 def test_no_document_still_claims_117_cli_options():
-    for name in ("README.md", "AGENTS.md"):
+    for name in ("README.md", "DEVELOPMENT.md"):
         assert "117" not in _read(name), f"{name} still claims 117 CLI options"
 
 
 def test_no_document_still_claims_1444_tests():
-    for name in ("README.md", "AGENTS.md"):
+    for name in ("README.md", "DEVELOPMENT.md"):
         text = _read(name)
         assert "1,444" not in text and "1444" not in text
 
 
 def test_no_document_still_claims_40_endpoints():
-    for name in ("README.md", "AGENTS.md"):
+    for name in ("README.md", "DEVELOPMENT.md"):
         assert "40 endpoints" not in _read(name)
 
 
@@ -173,7 +173,7 @@ def test_supported_python_versions_match_the_ci_matrix():
 
 
 def test_no_stale_version_strings_are_hard_coded_in_the_package():
-    """The version policy in AGENTS.md: only biosuite/__init__.py hard-codes it."""
+    """The version policy in DEVELOPMENT.md: only biosuite/__init__.py hard-codes it."""
     import biosuite
     offenders = []
     for path in (REPO / "biosuite").rglob("*.py"):
@@ -198,16 +198,16 @@ def test_readme_makes_no_unverifiable_superlative_claims():
 def test_test_file_count_claim_is_not_wildly_wrong():
     actual = len(list((REPO / "tests").rglob("test_*.py")))
     assert actual > 100, f"only {actual} test files found"
-    text = _read("AGENTS.md")
+    text = _read("DEVELOPMENT.md")
     # Word-boundary match: "130 test files" is correct and must not trip this.
     assert not re.search(r"(?<!\d)30 test files", text)
     assert not re.search(r"(?<!\d)30 files", text)
 
 
-# ── AGENTS.md / DEPLOY.md coverage ──────────────────────────────────────────
-# These two files were the last to carry stale figures: AGENTS.md advertised
+# ── DEVELOPMENT.md / docs/deployment/DEPLOY.md coverage ──────────────────────────────────────────
+# These two files were the last to carry stale figures: DEVELOPMENT.md advertised
 # "2,500+ tests" in its Build & Test block while the same file quoted the real
-# number two other times, and DEPLOY.md still announced "v4.1.0" with
+# number two other times, and docs/deployment/DEPLOY.md still announced "v4.1.0" with
 # "100+ restriction enzymes" under a "Current Version" heading.  Both are tied
 # below to authoritative values measured from the tree, not to literal numbers.
 
@@ -224,9 +224,9 @@ def _readme_ci_pass_counts():
 
 
 def _agents_ci_pass_counts():
-    """Pass counts AGENTS.md states in a CI context (not the local figure)."""
+    """Pass counts DEVELOPMENT.md states in a CI context (not the local figure)."""
     counts = set()
-    for line in _read("AGENTS.md").splitlines():
+    for line in _read("DEVELOPMENT.md").splitlines():
         if re.search(r"\bCI\b", line):
             counts |= {int(m.replace(",", ""))
                        for m in re.findall(r"([\d,]{3,})\s+passed", line)}
@@ -234,41 +234,41 @@ def _agents_ci_pass_counts():
 
 
 def test_agents_md_quotes_the_authoritative_test_file_count():
-    text = _read("AGENTS.md")
+    text = _read("DEVELOPMENT.md")
     actual = _test_file_count()
     quoted = {int(m) for m in re.findall(r"(\d+)\s+(?:test\s+)?files\b", text)}
-    assert quoted, "AGENTS.md quotes no test-file count at all"
+    assert quoted, "DEVELOPMENT.md quotes no test-file count at all"
     assert quoted == {actual}, (
-        f"AGENTS.md quotes test-file counts {sorted(quoted)}; measured {actual}")
+        f"DEVELOPMENT.md quotes test-file counts {sorted(quoted)}; measured {actual}")
 
 
 def test_agents_md_does_not_carry_the_stale_test_count_claims():
-    text = _read("AGENTS.md")
+    text = _read("DEVELOPMENT.md")
     for stale in ("2,500+", "2500+", "2,529", "2,375"):
-        assert stale not in text, f"AGENTS.md still claims '{stale}' tests"
+        assert stale not in text, f"DEVELOPMENT.md still claims '{stale}' tests"
 
 
 def test_agents_md_and_readme_agree_on_the_ci_pass_count():
     """Tie the two documents together so they cannot drift apart again.
 
-    AGENTS.md may additionally quote the local figure, which differs because
+    DEVELOPMENT.md may additionally quote the local figure, which differs because
     the GUI tests cannot run without tkinter; what it must not do is quote a
     *different* CI figure from the one in the README.
     """
     readme = _readme_ci_pass_counts()
     agents = _agents_ci_pass_counts()
     assert readme, "README's CI results table quotes no pass count"
-    assert agents, "AGENTS.md quotes no CI pass count"
+    assert agents, "DEVELOPMENT.md quotes no CI pass count"
     assert len(readme) == 1, f"README quotes conflicting pass counts: {readme}"
     assert agents == readme, (
-        f"AGENTS.md CI pass counts {sorted(agents)} disagree with the README "
+        f"DEVELOPMENT.md CI pass counts {sorted(agents)} disagree with the README "
         f"table {sorted(readme)}")
 
 
 def _deploy_current_version_section():
-    text = _read("DEPLOY.md")
+    text = _read("docs/deployment/DEPLOY.md")
     match = re.search(r"^## Current Version$(.*?)(?=^## |\Z)", text, re.M | re.S)
-    assert match, "DEPLOY.md has no '## Current Version' section"
+    assert match, "docs/deployment/DEPLOY.md has no '## Current Version' section"
     return match.group(1)
 
 
@@ -276,30 +276,30 @@ def test_deploy_md_current_version_matches_the_package():
     import biosuite
     section = _deploy_current_version_section()
     assert f"v{biosuite.__version__}" in section, (
-        f"DEPLOY.md 'Current Version' does not state v{biosuite.__version__}")
+        f"docs/deployment/DEPLOY.md 'Current Version' does not state v{biosuite.__version__}")
 
 
 def test_deploy_md_has_no_stale_current_version_claim():
     section = _deploy_current_version_section()
     stale = re.findall(r"v4\.\d+\.\d+", section)
-    assert not stale, f"DEPLOY.md 'Current Version' still claims {stale}"
+    assert not stale, f"docs/deployment/DEPLOY.md 'Current Version' still claims {stale}"
 
 
 def test_deploy_md_quotes_the_authoritative_enzyme_count():
     from biosuite.core.utils import RESTRICTION_ENZYMES
-    text = _read("DEPLOY.md")
+    text = _read("docs/deployment/DEPLOY.md")
     assert f"{len(RESTRICTION_ENZYMES)} restriction enzymes" in text, (
-        f"DEPLOY.md does not quote the measured enzyme count "
+        f"docs/deployment/DEPLOY.md does not quote the measured enzyme count "
         f"({len(RESTRICTION_ENZYMES)})")
     assert not re.search(r"\d+\+ restriction enzymes", text), (
-        "DEPLOY.md still uses an open-ended '<n>+ restriction enzymes' claim")
+        "docs/deployment/DEPLOY.md still uses an open-ended '<n>+ restriction enzymes' claim")
 
 
 def test_deploy_md_python_requirement_matches_pyproject():
     pyproject = _read("pyproject.toml")
     minimum = re.search(r'requires-python\s*=\s*">=([\d.]+)"', pyproject).group(1)
-    assert f"{minimum}+" in _read("DEPLOY.md"), (
-        f"DEPLOY.md does not state the packaged minimum Python ({minimum}+)")
+    assert f"{minimum}+" in _read("docs/deployment/DEPLOY.md"), (
+        f"docs/deployment/DEPLOY.md does not state the packaged minimum Python ({minimum}+)")
 
 
 # ── Sphinx docs and API guide currency ──────────────────────────────────────
@@ -307,7 +307,7 @@ def test_deploy_md_python_requirement_matches_pyproject():
 # still introduced the project as v4.1.0, advertised "100+ restriction
 # enzymes", and linked two Sphinx documents that were never written.
 
-CURRENT_STATE_DOCS = ("API_GUIDE.md", "DEPLOY.md", "README.md",
+CURRENT_STATE_DOCS = ("API_GUIDE.md", "docs/deployment/DEPLOY.md", "README.md",
                       "docs/index.rst", "docs/getting_started.rst",
                       "docs/api/index.rst", "docs/tutorials/index.rst")
 
