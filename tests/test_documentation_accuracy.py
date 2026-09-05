@@ -300,3 +300,143 @@ def test_deploy_md_python_requirement_matches_pyproject():
     minimum = re.search(r'requires-python\s*=\s*">=([\d.]+)"', pyproject).group(1)
     assert f"{minimum}+" in _read("DEPLOY.md"), (
         f"DEPLOY.md does not state the packaged minimum Python ({minimum}+)")
+
+
+# ── Sphinx docs and API guide currency ──────────────────────────────────────
+# API_GUIDE.md carried a "New in v4.1.0" section and docs/getting_started.rst
+# still introduced the project as v4.1.0, advertised "100+ restriction
+# enzymes", and linked two Sphinx documents that were never written.
+
+CURRENT_STATE_DOCS = ("API_GUIDE.md", "DEPLOY.md", "README.md",
+                      "docs/index.rst", "docs/getting_started.rst",
+                      "docs/api/index.rst", "docs/tutorials/index.rst")
+
+
+def test_current_state_docs_do_not_advertise_a_superseded_version():
+    """No user-facing document may present a pre-5.x release as current."""
+    import biosuite
+    offenders = []
+    for name in CURRENT_STATE_DOCS:
+        for hit in re.findall(r"v[0-4]\.\d+(?:\.\d+)?", _read(name)):
+            offenders.append(f"{name}: {hit}")
+    assert not offenders, (
+        f"superseded version presented as current (package is "
+        f"{biosuite.__version__}): {offenders}")
+
+
+def test_getting_started_states_the_packaged_version():
+    import biosuite
+    assert f"v{biosuite.__version__}" in _read("docs/getting_started.rst"), (
+        f"docs/getting_started.rst does not introduce v{biosuite.__version__}")
+
+
+def test_docs_quote_the_authoritative_enzyme_count_or_none_at_all():
+    """An enzyme count may be exact or omitted, never an open-ended '100+'."""
+    from biosuite.core.utils import RESTRICTION_ENZYMES
+    actual = len(RESTRICTION_ENZYMES)
+    for name in CURRENT_STATE_DOCS:
+        text = _read(name)
+        assert not re.search(r"\d+\+\s*(?:restriction\s+)?enzymes", text, re.I), (
+            f"{name} uses an open-ended '<n>+ enzymes' claim")
+        for quoted in re.findall(r"(\d+)\s+restriction\s+enzymes", text, re.I):
+            assert int(quoted) == actual, (
+                f"{name} claims {quoted} restriction enzymes; measured {actual}")
+
+
+def _rst_files():
+    return sorted((REPO / "docs").rglob("*.rst"))
+
+
+def test_no_sphinx_doc_reference_is_dangling():
+    dangling = []
+    docs = REPO / "docs"
+    for rst in _rst_files():
+        text = rst.read_text(encoding="utf-8")
+        for match in re.finditer(r":doc:`([^`<]*?<)?([^`>]+)>?`", text):
+            target = match.group(2).strip()
+            base = docs / target.lstrip("/") if target.startswith("/") \
+                else rst.parent / target
+            if not base.with_suffix(".rst").exists():
+                dangling.append(f"{rst.relative_to(docs)} -> :doc:`{target}`")
+    assert not dangling, f"dangling :doc: references: {dangling}"
+
+
+def test_no_sphinx_toctree_entry_is_dangling():
+    dangling = []
+    docs = REPO / "docs"
+    for rst in _rst_files():
+        text = rst.read_text(encoding="utf-8")
+        for block in re.findall(r"\.\. toctree::\n((?:[ \t]+.*\n|\n)*)", text):
+            for line in block.splitlines():
+                entry = line.strip()
+                if not entry or entry.startswith(":"):
+                    continue
+                if not (rst.parent / entry).with_suffix(".rst").exists():
+                    dangling.append(f"{rst.relative_to(docs)} -> {entry}")
+    assert not dangling, f"dangling toctree entries: {dangling}"
+
+
+# ── public-facing neutrality ────────────────────────────────────────────────
+# Repository-visible material describes the software, not the tooling used to
+# author it.  This guard deliberately targets *development-provenance* phrases
+# only: BioSuite ships genuine machine-learning functionality (biosuite.core.
+# bio_ml, the ML tutorial, the "machine-learning" keyword), and legitimate
+# scientific references to AI/ML must never trip this test.
+
+_PROVENANCE_PATTERNS = (
+    r"\bAI[- ]generated\b",
+    r"\bgenerated\s+by\s+(?:an?\s+)?AI\b",
+    r"\bAI[- ]assisted\b",
+    r"\bAI\s+remediation\b",
+    r"\bcoding\s+agent\b",
+    r"\bautonomous\s+agent\b",
+    r"\bagent[- ]generated\b",
+    r"\bagent\s+verification\b",
+    r"\b(?:written|created|authored|fixed|implemented)\s+by\s+"
+    r"(?:an?\s+)?(?:AI|agent|LLM|bot)\b",
+    r"\bChatGPT\b", r"\bClaude\b", r"\bCopilot\b",
+    r"\blarge\s+language\s+model\b", r"\bLLM\b",
+)
+
+
+def _public_facing_files():
+    """Repository-visible sources and documents, excluding this test file."""
+    exts = {".md", ".rst", ".py", ".toml", ".cff", ".cfg", ".txt", ".yml", ".yaml"}
+    skip_names = {pathlib.Path(__file__).name}
+    for path in sorted(REPO.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in exts:
+            continue
+        rel = path.relative_to(REPO)
+        if rel.parts[0] in {".git", ".venv", "build", "dist", "node_modules"}:
+            continue
+        if path.name in skip_names:
+            continue
+        yield rel, path
+
+
+def test_public_material_has_no_development_provenance_references():
+    offenders = []
+    for rel, path in _public_facing_files():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for pattern in _PROVENANCE_PATTERNS:
+            for m in re.finditer(pattern, text, re.I):
+                line = text[:m.start()].count("\n") + 1
+                offenders.append(f"{rel}:{line}: {m.group(0)!r}")
+    assert not offenders, (
+        "development-provenance references in repository-visible material:\n  "
+        + "\n  ".join(offenders))
+
+
+def test_legitimate_machine_learning_references_are_preserved():
+    """Guard against over-correction: the ML functionality is a real feature."""
+    assert (REPO / "biosuite" / "core" / "bio_ml.py").exists(), \
+        "the machine-learning module must not be removed by neutrality edits"
+    keywords = _read("pyproject.toml")
+    assert "machine learning" in _read("docs/tutorials/index.rst").lower() \
+        or "Machine Learning" in _read("docs/tutorials/index.rst"), \
+        "the machine-learning tutorial section must survive neutrality edits"
+    assert "scikit-learn" in keywords, \
+        "scikit-learn must remain a declared dependency"

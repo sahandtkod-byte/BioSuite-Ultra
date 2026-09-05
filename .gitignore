@@ -87,10 +87,8 @@ logs/
 !docs/**/*.png
 !docs/**/*.svg
 
-# ── Agent/tooling scratch space ────────────────────────────────────────────
-.hermes/
+# ── Local tooling scratch directories ──────────────────────────────────────
 _tmp_repo/
-.claude/
 
 # ── Notebook checkpoints ───────────────────────────────────────────────────
 .ipynb_checkpoints/

@@ -1,16 +1,6 @@
 API Reference
 =============
 
-.. toctree::
-   :maxdepth: 2
-
-   core
-   plotting
-   notebook
-   plugin
-   provenance
-   parallel
-
 Core Modules
 ------------
 
