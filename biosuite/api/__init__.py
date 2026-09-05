@@ -18,11 +18,15 @@ API Documentation:
 """
 import logging
 import functools
+import ntpath
 import os
+import posixpath
+import re
 import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import unquote
 
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,26 +107,94 @@ def _data_root() -> Path:
     return Path(os.environ.get("BIOSUITE_DATA_DIR", os.getcwd())).resolve()
 
 
-def resolve_user_path(user_path: str) -> Path:
-    """Resolve *user_path* strictly inside :func:`_data_root`.
+# A single path component that is safe to look up. The first character must be
+# alphanumeric or "_", which rejects "..", "~" and dotfiles such as ".env"
+# outright; the remainder is a conservative allowlist.
+_SAFE_COMPONENT = re.compile(r"\A[A-Za-z0-9_][A-Za-z0-9._+\-]{0,254}\Z")
+_MAX_PATH_DEPTH = 16
 
-    Absolute paths, ``..`` traversal and symlinks that escape the root are all
-    rejected with 400 so the endpoint cannot be used to read arbitrary files.
+
+def _validated_components(user_path: str) -> List[str]:
+    """Split *user_path* into components that are provably safe to look up.
+
+    This runs **before** any filesystem call. Percent-encoding is unwrapped
+    first, so ``..%2f..%2f`` cannot smuggle traversal past the check, and every
+    remaining component must match a strict allowlist. NUL bytes, absolute
+    POSIX paths, Windows drive letters and UNC paths, ``..``, ``~`` and
+    dotfiles are all rejected here.
     """
-    root = _data_root()
-    candidate = Path(user_path)
-    if candidate.is_absolute():
-        try:
-            resolved = candidate.resolve()
-        except OSError as exc:
-            raise HTTPException(status_code=400, detail="Invalid file path") from exc
-    else:
-        resolved = (root / candidate).resolve()
-    if resolved != root and root not in resolved.parents:
+    if not isinstance(user_path, str):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
+    decoded = user_path
+    for _ in range(4):                        # unwrap repeated percent-encoding
+        once = unquote(decoded)
+        if once == decoded:
+            break
+        decoded = once
+
+    if not decoded or "\x00" in decoded:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    if posixpath.isabs(decoded) or ntpath.isabs(decoded):
         raise HTTPException(
             status_code=400,
             detail="file_path must be inside the configured data directory")
-    return resolved
+
+    components = [c for c in re.split(r"[\\/]+", decoded) if c not in ("", ".")]
+    if not components or len(components) > _MAX_PATH_DEPTH:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    for component in components:
+        if not _SAFE_COMPONENT.match(component):
+            raise HTTPException(
+                status_code=400,
+                detail="file_path must be inside the configured data directory")
+    return components
+
+
+def resolve_user_path(user_path: str) -> Path:
+    """Resolve *user_path* strictly inside :func:`_data_root`.
+
+    Untrusted text is never concatenated into a path expression. After the
+    allowlist check in :func:`_validated_components`, each component is matched
+    against the *actual* directory listing, so the path handed to the
+    filesystem is assembled entirely from names the filesystem itself reported;
+    the user-supplied string is only ever used on the right-hand side of an
+    equality test. A final ``startswith`` containment check catches symlinks
+    that live inside the root but point outside it.
+
+    Raises 400 for anything that is not a plain relative path inside the data
+    directory, and 404 when the target does not exist.
+    """
+    components = _validated_components(user_path)
+    root_real = os.path.realpath(str(_data_root()))
+
+    current = root_real
+    for component in components:
+        entry_path = None
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    # `component` is compared, never joined: no untrusted value
+                    # reaches a path expression.
+                    if entry.name == component:
+                        entry_path = entry.path
+                        break
+        except (NotADirectoryError, FileNotFoundError, PermissionError) as exc:
+            raise HTTPException(status_code=404,
+                                detail="Requested file was not found") from exc
+        if entry_path is None:
+            raise HTTPException(status_code=404,
+                                detail="Requested file was not found")
+        current = entry_path
+
+    # Defence in depth: a symlink inside the root may still point outside it.
+    final = os.path.realpath(current)
+    prefix = root_real if root_real.endswith(os.sep) else root_real + os.sep
+    if not final.startswith(prefix):
+        raise HTTPException(
+            status_code=400,
+            detail="file_path must be inside the configured data directory")
+    return Path(final)
 
 
 # ── Managed temporary artifacts ──────────────────────────────────────────────

@@ -14,6 +14,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default: every job below gets read-only access to the
+# repository contents and nothing else. A job that genuinely needs to write
+# (none do today) has to opt in explicitly with its own `permissions:` block.
+permissions:
+  contents: read
+
 env:
   # Deterministic, non-default credentials. The application refuses to start
   # with a published default, so CI has to configure real values.
@@ -25,6 +31,8 @@ env:
 jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -51,7 +59,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[api,notebook,dev]"
+          # The `gui` extra carries customtkinter. Installing python3-tk alone
+          # is NOT enough: every module under biosuite/gui imports
+          # customtkinter, so without this extra the whole tests/gui tree
+          # errors out with ModuleNotFoundError and the job fails.
+          pip install -e ".[api,notebook,dev,gui]"
+
+      - name: Verify the GUI test dependencies really are importable
+        run: |
+          # Fail loudly here rather than as 141 confusing test errors later.
+          python -c "import tkinter, customtkinter; print('tkinter + customtkinter OK')"
 
       - name: Show resolved dependency versions
         run: pip freeze
@@ -81,6 +98,8 @@ jobs:
 
   security:
     name: Security regression suite
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -144,6 +163,8 @@ jobs:
 
   lint:
     name: Lint (ruff)
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -167,6 +188,8 @@ jobs:
 
   build:
     name: Package build
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
