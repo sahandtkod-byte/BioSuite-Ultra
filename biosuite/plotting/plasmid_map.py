@@ -1,7 +1,7 @@
 """
-Plasmid Map Viewer — SnapGene-killer circular plasmid visualization.
+Plasmid Map Viewer — circular plasmid visualization.
 
-Pure matplotlib/numpy. No paid dependencies.
+Implemented with matplotlib and numpy only.
 """
 
 from __future__ import annotations

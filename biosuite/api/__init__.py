@@ -1,8 +1,7 @@
 """
 BioSuite Ultra — REST API Server
 
-Exposes all 48 analysis modules as HTTP endpoints.
-100% free, open-source, no paid features.
+Exposes the analysis modules as HTTP endpoints.
 
 Usage:
     python -m biosuite.api.server
@@ -59,8 +58,7 @@ _DOCS_PUBLIC = dev_mode() or os.environ.get("BIOSUITE_PUBLIC_DOCS", "").strip() 
 
 app = FastAPI(
     title="BioSuite Ultra API",
-    description="The most comprehensive open-source bioinformatics REST API. "
-                "47 analysis modules, 26 visualization types — all free, all pure Python.",
+    description="REST API for the BioSuite Ultra bioinformatics platform: sequence analysis, alignment, phylogenetics, expression analysis, population genetics, molecular cloning and plotting.",
     version=__version__,
     docs_url="/docs" if _DOCS_PUBLIC else None,
     redoc_url="/redoc" if _DOCS_PUBLIC else None,
@@ -433,8 +431,7 @@ async def root():
     <head><title>BioSuite Ultra API</title></head>
     <body style="font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
         <h1 style="color: #00ff88;">BioSuite Ultra API</h1>
-        <p>The most comprehensive open-source bioinformatics REST API.</p>
-        <p><strong>48 analysis modules</strong> | <strong>36+ visualization types</strong> | <strong>100% free</strong></p>
+        <p>REST API for the BioSuite Ultra bioinformatics platform: sequence analysis, alignment, phylogenetics, expression analysis, population genetics, molecular cloning and plotting.</p>
         <hr>
         <h2>Quick Links</h2>
         <ul>

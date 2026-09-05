@@ -443,3 +443,37 @@ def test_legitimate_machine_learning_references_are_preserved():
         "scikit-learn must remain a declared dependency"
     assert "machine-learning" in keywords, \
         "the machine-learning keyword describes a real feature and must remain"
+
+
+def test_every_documented_repository_url_is_the_official_one():
+    """A wrong owner in a clone URL silently breaks the install instructions."""
+    official = "github.com/sahandtkod-byte/BioSuite-Ultra"
+    # Contributor docs legitimately show a fork placeholder to substitute.
+    placeholders = {"YOUR_USERNAME", "YOUR-USERNAME", "your-username", "USERNAME"}
+    offenders = []
+    for rel, path in _public_facing_files():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for m in re.finditer(r"github\.com/([\w.-]+)/BioSuite-Ultra", text):
+            if m.group(1) in placeholders:
+                continue
+            if m.group(0) not in official:
+                line = text[:m.start()].count("\n") + 1
+                offenders.append(f"{rel}:{line}: {m.group(0)}")
+    assert not offenders, f"non-official repository URLs: {offenders}"
+
+
+def test_shipped_code_makes_no_marketing_or_unimplemented_claims():
+    """Runtime strings and docstrings are user-visible; keep them factual."""
+    banned = (r"100%\s*free", r"no paid", r"SnapGene", r"most comprehensive",
+              r"killer", r"Gibson")
+    offenders = []
+    for path in sorted((REPO / "biosuite").rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        for pattern in banned:
+            for m in re.finditer(pattern, text, re.I):
+                line = text[:m.start()].count("\n") + 1
+                offenders.append(f"{path.relative_to(REPO)}:{line}: {m.group(0)!r}")
+    assert not offenders, f"marketing or unimplemented claims in shipped code: {offenders}"

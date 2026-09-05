@@ -326,7 +326,7 @@ BioSuite-Ultra/
 
 ## Key Principles
 
-1. **Free and open source** - MIT licensed, with no paid dependencies
+1. **Free and open source** - released under the MIT license
 2. **Pure Python First** - Works with just `pip install`
 3. **Dual-Mode** - External tools optional, builtin always works
 4. **Well-Tested** - Comprehensive test coverage

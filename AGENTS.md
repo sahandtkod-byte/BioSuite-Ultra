@@ -60,7 +60,7 @@ The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY
 ## Current Status
 - Version: **5.5.0**
 - Tests in CI: **2,491 passed, 14 skipped, 0 failed** on 3.10/3.11/3.12
-- Tests locally without tkinter: **2,350 passed, 141 failed, 14 skipped** — the 141 GUI tests
+- Tests locally without tkinter: **2,352 passed, 141 failed, 14 skipped** — the 141 GUI tests
   cannot import tkinter in a headless checkout; they run and pass in the matrix
 - Published on PyPI as `biosuite-ultra`
 - Zenodo DOI: 10.5281/zenodo.21256296

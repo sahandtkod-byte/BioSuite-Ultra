@@ -19,6 +19,7 @@ import logging
 import os
 import sys
 
+from biosuite import __version__
 from biosuite.api import app  # noqa: F401  — the documented ASGI target
 from biosuite.api.config import dev_mode, format_config_error, validate_runtime_config
 
@@ -50,8 +51,8 @@ def main(argv=None) -> int:
     reload_enabled = dev_mode() and os.environ.get("BIOSUITE_API_RELOAD", "1") not in {"0", "false"}
 
     print("\n" + "=" * 60)
-    print("  BioSuite Ultra REST API Server")
-    print("  100% Free • Open Source • No Paid Features")
+    print(f"  BioSuite Ultra v{__version__} | Pure-Python Bioinformatics Platform")
+    print("  REST API server")
     print("=" * 60)
     print()
     print(f"  API Documentation: http://{host}:{port}/docs")

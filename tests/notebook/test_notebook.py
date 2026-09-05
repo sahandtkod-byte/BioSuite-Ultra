@@ -13,12 +13,17 @@ Covers:
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-# Ensure the project root is importable
-sys.path.insert(0, "C:/Users/SAHAND/Desktop/python/BioSuite-Ultra")
+# Make the repository root importable when the tests are run from a checkout
+# without the package installed.  Resolved relative to this file so it works on
+# any machine and any operating system.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 import biosuite.notebook as nbmod
 

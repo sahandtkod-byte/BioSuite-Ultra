@@ -22,7 +22,7 @@ From source:
 
 .. code-block:: bash
 
-   git clone https://github.com/sahandtouri/BioSuite-Ultra.git
+   git clone https://github.com/sahandtkod-byte/BioSuite-Ultra.git
    cd BioSuite-Ultra
    pip install -r requirements.txt
 

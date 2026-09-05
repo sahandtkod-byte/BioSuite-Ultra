@@ -491,7 +491,7 @@ class BioSuiteApp(
             'alignment': "Needleman-Wunsch & Smith-Waterman pairwise alignment",
             'phylogeny': "Distance matrices, UPGMA and Neighbor-Joining trees",
             'expression': "CPM/TPM/DESeq2 normalization & differential expression",
-            'cloning': "Digest, PCR, ligation, Gibson & virtual gel — free SnapGene-style tools",
+            'cloning': "Restriction digest, PCR, ligation and virtual gel electrophoresis",
             'crispr': "Guide RNA design with PAM finding and off-target scoring",
             'help': "Built-in guides for every module (or press F1)",
         }

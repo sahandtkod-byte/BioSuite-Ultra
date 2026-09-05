@@ -2,7 +2,7 @@
 Molecular Cloning Toolkit — restriction digestion, ligation, PCR, and
 virtual gel electrophoresis.
 
-Pure matplotlib / numpy. No paid dependencies.
+Implemented with matplotlib and numpy only.
 """
 
 from __future__ import annotations
