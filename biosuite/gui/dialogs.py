@@ -1,6 +1,6 @@
 """
 Custom themed dialogs and splash screen for BioSuite GUI.
-No native Windows widgets — all cyberpunk-themed.
+No native Windows widgets — all styled with the active theme.
 """
 import customtkinter as ctk
 
@@ -304,7 +304,7 @@ class BioDropdownDialog(_BaseDialog):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class BioSplashScreen(ctk.CTkToplevel):
-    """Animated splash screen with glassy cyberpunk aesthetic."""
+    """Animated splash screen using the active theme palette."""
 
     def __init__(self, parent, T):
         super().__init__(parent)

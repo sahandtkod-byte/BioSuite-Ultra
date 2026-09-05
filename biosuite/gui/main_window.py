@@ -399,7 +399,7 @@ class BioSuiteApp(
         return win
 
     def _style_mpl_toolbar(self, toolbar, T):
-        """Apply cyberpunk colors to the plain-tk matplotlib toolbar.
+        """Apply the active theme colours to the plain-tk matplotlib toolbar.
 
         Matplotlib ships dark-glyph icons only, so buttons get a LIGHT
         background for icon legibility while the strip itself stays themed.

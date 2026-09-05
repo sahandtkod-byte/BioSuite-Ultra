@@ -2,7 +2,7 @@
 Reusable GUI widgets for BioSuite Ultra.
 
 Currently provides a lightweight themed Tooltip that works with any
-tkinter/customtkinter widget and follows the active cyberpunk theme.
+tkinter/customtkinter widget and follows the active theme.
 """
 import tkinter as tk
 
