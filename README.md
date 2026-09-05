@@ -35,7 +35,7 @@ see [Scientific scope and limitations](#scientific-scope-and-limitations).
   pipelines are seedable and re-runnable.
 - **Graceful degradation, honestly labelled.** Optional accelerators are used when present;
   the pure-Python fallbacks state their approximations rather than hiding them.
-- **Tested and scanned on every change.** 2,472 tests run on Python 3.10, 3.11 and 3.12, with
+- **Tested and scanned on every change.** 2,477 tests run on Python 3.10, 3.11 and 3.12, with
   Ruff, a dedicated security-regression suite and CodeQL in the same pipeline.
 
 ---
@@ -306,9 +306,9 @@ security-regression suite, a package build and CodeQL analysis.
 
 | Check | Status at the latest verified run |
 |---|---|
-| Tests — Python 3.10 | 2472 passed, 14 skipped, 0 failed |
-| Tests — Python 3.11 | 2472 passed, 14 skipped, 0 failed |
-| Tests — Python 3.12 | 2472 passed, 14 skipped, 0 failed |
+| Tests — Python 3.10 | 2477 passed, 14 skipped, 0 failed |
+| Tests — Python 3.11 | 2477 passed, 14 skipped, 0 failed |
+| Tests — Python 3.12 | 2477 passed, 14 skipped, 0 failed |
 | Ruff (`E9,F,B` as a hard gate) | pass |
 | Security regression suite | pass |
 | Package build (`build` + `twine check`) | pass |
@@ -378,9 +378,11 @@ ruff check biosuite/ --select E9,F,B
 ```
 
 New scientific behaviour should come with a test that fails before the change and passes after
-it. Documented counts in this README are asserted by
-`tests/test_documentation_accuracy.py`, so if you add a module, endpoint or enzyme, update the
-documentation in the same commit.
+it. The structural counts quoted in this README — analysis modules, REST endpoints, plotting
+functions, plot types, restriction enzymes, GUI tabs, CLI menu options and supported Python
+versions — are asserted by `tests/test_documentation_accuracy.py`, so if you add one, update
+the documentation in the same commit or CI will fail. The pass/skip figures in the table above
+are refreshed from the latest verified CI run and are not test-locked.
 
 ## Security reporting
 

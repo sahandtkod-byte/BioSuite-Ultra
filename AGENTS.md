@@ -9,7 +9,7 @@ measured from the tree — keep them accurate if you change the code.
 - **11 GUI tabs**, **99 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
 - **~32.5K lines** of Python in `biosuite/`
-- **2,486 tests collected** in **130 test files** (CI: 2,472 passed, 14 skipped on 3.10/3.11/3.12)
+- **2,491 tests collected** in **130 test files** (CI: 2,477 passed, 14 skipped on 3.10/3.11/3.12)
 
 ## Architecture
 ```
@@ -20,7 +20,7 @@ biosuite/
 ├── cli/            # menu.py — interactive CLI, 99 options
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 130 files, 2,486 tests collected
+tests/              # 130 files, 2,491 tests collected
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx
