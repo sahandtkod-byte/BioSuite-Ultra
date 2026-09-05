@@ -44,7 +44,7 @@ BioSuite Ultra provides three user interfaces:
 The platform includes 123 plotting functions (105 public) spanning 40 plot
 types in its graphical catalogue, a molecular cloning toolkit with 169
 restriction enzymes, and a parallel processing engine. The test suite runs
-2,484 tests on Python 3.10, 3.11 and 3.12. Selected numerical routines --
+2,491 tests on Python 3.10, 3.11 and 3.12. Selected numerical routines --
 pairwise alignment, Hardy-Weinberg testing, GC content and reverse complement
 -- are checked in the test suite against independent reference
 implementations rather than against their own output.
