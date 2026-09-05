@@ -394,14 +394,15 @@ _PROVENANCE_PATTERNS = (
     r"\bagent\s+verification\b",
     r"\b(?:written|created|authored|fixed|implemented)\s+by\s+"
     r"(?:an?\s+)?(?:AI|agent|LLM|bot)\b",
-    r"\bChatGPT\b", r"\bClaude\b", r"\bCopilot\b",
+    r"\bChatGPT\b", r"\bClaude\b", r"\bCopilot\b", r"\bHermes\s+Agent\b",
     r"\blarge\s+language\s+model\b", r"\bLLM\b",
 )
 
 
 def _public_facing_files():
     """Repository-visible sources and documents, excluding this test file."""
-    exts = {".md", ".rst", ".py", ".toml", ".cff", ".cfg", ".txt", ".yml", ".yaml"}
+    exts = {".md", ".rst", ".py", ".toml", ".cff", ".cfg", ".txt", ".yml",
+            ".yaml", ".html", ".ipynb"}
     skip_names = {pathlib.Path(__file__).name}
     for path in sorted(REPO.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in exts:
@@ -440,3 +441,5 @@ def test_legitimate_machine_learning_references_are_preserved():
         "the machine-learning tutorial section must survive neutrality edits"
     assert "scikit-learn" in keywords, \
         "scikit-learn must remain a declared dependency"
+    assert "machine-learning" in keywords, \
+        "the machine-learning keyword describes a real feature and must remain"

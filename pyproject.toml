@@ -16,7 +16,7 @@ keywords = [
     "bioinformatics", "computational-biology", "genomics", "proteomics",
     "transcriptomics", "sequence-analysis", "ngs", "phylogenetics",
     "population-genetics", "molecular-cloning", "restriction-enzymes",
-    "crispr", "single-cell", "scientific-computing",
+    "crispr", "single-cell", "machine-learning", "scientific-computing",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
