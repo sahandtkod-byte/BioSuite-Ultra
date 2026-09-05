@@ -212,10 +212,15 @@ Every finding was independently re-verified against the tree before being acted 
   cleanly**; the 4 failures are GUI modules and 100 % tkinter. **Zero non-GUI import failures.**
 
 ### BSU-030 — GUI static review
-- **Status: NOT FIXED — NOT VERIFIED — ENVIRONMENT LIMITATION**
-- tkinter/customtkinter are absent from this sandbox. GUI code was **statically reviewed only**.
+- **Status: FIXED — verified in CI, not in this sandbox**
+- tkinter/customtkinter are absent from this sandbox and every route to installing them is
+  blocked (apt, python.org, python-build-standalone, PyPI — no package ships `_tkinter`).
   Injecting fake stubs to manufacture passing GUI tests was considered and **rejected**.
-  CI installs `python3-tk` + `xvfb`, which is the compensating control.
+- The workflow was missing the `gui` extra, so the GUI tests had *never actually executed*
+  anywhere — the compensating control was not working. Fixed (see §I, defect CI-1).
+- **Evidence:** run `33951574152`, all three interpreters, `2472 passed / 0 failed`, which
+  includes all 141 GUI tests. They are verified by execution; the verification is simply not
+  reproducible in this sandbox.
 
 ### BSU-031 — Minor items (INFO)
 - **Status: FIXED** where actionable (docstrings, heuristic labelling, changelog).
@@ -251,6 +256,23 @@ installed and its 7 tests pass).
 
 These 141 are **not expected to fail in CI**, which installs `python3-tk` and runs under
 `xvfb-run`. They are `NOT VERIFIED — ENVIRONMENT LIMITATION` in this sandbox.
+
+### C.1 CI counts — measured, all three interpreters
+
+The sandbox cannot run the GUI tests at all, so the authoritative numbers come from CI. Run
+[`33951574152`](https://github.com/sahandtkod-byte/BioSuite-Ultra/actions/runs/33951574152) at
+commit `9fc9cdf`:
+
+| Job | Collected | Passed | Failed | Skipped | Errors | Duration |
+|---|---|---|---|---|---|---|
+| Tests (Python 3.10) | 2486 | **2472** | **0** | 14 | 0 | 164.7 s |
+| Tests (Python 3.11) | 2486 | **2472** | **0** | 14 | 0 | 153.5 s |
+| Tests (Python 3.12) | 2486 | **2472** | **0** | 14 | 0 | 161.2 s |
+
+All 141 GUI tests **pass in CI**. The prior `NOT VERIFIED — ENVIRONMENT LIMITATION` status for
+the GUI test tree is therefore **discharged**: those tests are now verified, just not in this
+sandbox. The 14 skips are the optional-dependency skips listed in §G and are identical locally
+and in CI.
 
 **CI gate suites, run exactly as the workflow invokes them:** both pass.
 
@@ -366,15 +388,34 @@ are a shortlist, not affinities. Docking scores are labelled arbitrary units, no
 
 Computed anew from the current tree.
 
-### Fully fixed and verified (28 of the 31 BSU findings)
-BSU-001…021, 023…029 (excluding 022 and 030), plus the NEW findings below.
+### Fully fixed and verified (29 of the 31 BSU findings)
+BSU-001…021, 023…031 (excluding 022), plus the NEW findings below. BSU-030 moved from
+NOT FIXED to FIXED once the GUI tests were made to execute in CI and passed there.
 
 ### Partially fixed (1)
 - **BSU-022** — always-true assertions, defect-documenting tests and `(200, 500)` tolerances all
   eliminated; ~297 bare `is not None` assertions remain.
 
-### Not fixed (1)
-- **BSU-030** — GUI dynamic verification, environment-blocked, compensating control in CI.
+### Not fixed (0)
+
+### Introduced by this remediation and then fixed (3)
+Found by CI, not by me, which is the point of having it:
+- **CI-1** — the `gui` extra was never installed, so 141 GUI tests had never run. HIGH impact on
+  assurance (a whole test tree was silently dead), zero impact on shipped code.
+- **CI-2** — `ntpath.isabs()` disagrees between CPython 3.10 and 3.11+ for a bare UNC root, so
+  the new path resolver returned 404 on one interpreter and 400 on the others. Caught only by
+  the version matrix.
+- **CI-3** — `goatools` absent in CI turned three known-answer enrichment tests red.
+
+### CodeQL findings (7 → 0)
+- 4 High *uncontrolled data used in path expression* (`biosuite/api/__init__.py` 116/120/577/976)
+  — **fixed** by severing the taint flow; regression test
+  `tests/api/test_path_resolution_hardening.py` (37 tests, 19 of which fail against the previous
+  resolver).
+- 3 Medium *workflow does not contain permissions* (`ci.yml` 83/146/169) — **fixed** with
+  least-privilege `contents: read` at workflow scope and on all four jobs.
+- Verified at commit `9fc9cdf`: `CodeQL`, `Analyze (python)`, `Analyze (actions)` all succeed
+  with **zero annotations**. Nothing dismissed; no suppression comment exists in the tree.
 
 ### Invalidated (0)
 No prior finding was wrong. One near-miss: a 187/300 apparent HWE mismatch against my oracle
@@ -421,7 +462,55 @@ not `OSError` — was caught by its own test.
 
 ---
 
-## I. Note on the snapshot rollback
+## I. The CI failure: diagnosis and two further defects
+
+The first CI run on this branch failed the `Tests` job on all three interpreters while every
+other job passed. Actions log storage, artifacts and the signed-in job page were all
+unreachable from this sandbox, so the cause was established by static reasoning and then
+confirmed empirically.
+
+**Defect CI-1 — undeclared GUI dependency (introduced by this work).** The workflow installed
+`python3-tk` so the GUI tests could run, but the pip line was
+`pip install -e ".[api,notebook,dev]"`. `customtkinter` lives only in the `gui` extra, and all
+13 modules under `biosuite/gui` import it, so every GUI test errored with
+`ModuleNotFoundError`. Evidence gathered before any change: the resolved package set for
+`[api,notebook,dev]` contains no `customtkinter`, and the import closure of all seven GUI
+modules reached by the five failing test files reaches a `customtkinter` importer. Fixed by
+installing the `gui` extra and adding an explicit `import tkinter, customtkinter` check so a
+missing GUI dependency fails loudly instead of as 141 opaque errors.
+
+Ruling my own code changes out first: comparing `fcd7233` with HEAD by AST showed 0 module-level
+symbols removed from `main_window`, 209 ≡ 209 `BioSuiteApp`/mixin methods, `themes.py`
+unchanged (all 9 required `PLOT_CATEGORIES` keys, 40 leaves ≥ the required 30) and only 5
+method bodies altered, none of them ones the GUI tests inspect. CI subsequently confirmed this:
+all 141 GUI tests pass unmodified.
+
+**Defect CI-2 — `ntpath.isabs()` is version-dependent (introduced by this work).** The hardened
+path resolver used `ntpath.isabs()` to reject UNC paths. For a bare UNC root such as
+`\\server\share`, `ntpath.splitdrive()` consumes the entire string on CPython 3.10 and leaves
+an empty remainder, so `isabs()` is `False` there and `True` on 3.11+. The same input therefore
+produced 404 on 3.10 and 400 on 3.11/3.12. Only the version matrix exposed this. Absolute and
+UNC prefixes are now matched with an explicit regex that every supported interpreter agrees on,
+pinned by a parametrised regression test.
+
+**Defect CI-3 — missing test dependency.** `tests/core/test_enrichment_fixtures.py` asserts real
+ORA output against known-answer fixtures, but `goatools` is in the `[bio]` extra, which CI does
+not install, so the code returned `goatools not installed` and three assertions failed.
+Reproduced locally by uninstalling `goatools` (`3 failed, 4 passed`, matching CI exactly).
+Fixed by **installing the dependency**, not by skipping the tests. `goatools` alone rather than
+the whole `[bio]` extra, whose remaining members need compilers and minutes of build time for
+no extra coverage here.
+
+**Observability.** Because the log endpoints are not reachable everywhere and the workflow
+uploads no test artifact, the suite now tees its output and republishes the pytest summary as
+workflow annotations — a notice on success, errors with the failure list and traceback head on
+failure. The step is `if: always()`, uses `pipefail` so the real exit status survives the tee,
+and reports only; it never changes a job outcome. Nothing is skipped, xfailed, or marked
+`continue-on-error`.
+
+---
+
+## J. Note on the snapshot rollback
 
 During the final phase the sandbox was restored from an earlier snapshot. `.git` was reset to the
 original clone — all commits and their objects were unrecoverable (`git fsck` found no dangling
@@ -448,24 +537,38 @@ Every confirmed CRITICAL and HIGH finding is fixed, each with a regression test.
 original exploits were re-run on the rebuilt tree and none reproduces in a production posture
 (28/28 blocked). The scientific defects were corrected and re-verified against independent
 oracles rather than against the implementation itself. The CI hard gate was found to be
-*actually failing* and is now genuinely passing, and it caught real errors during this work.
-There are zero product test failures; all 141 remaining failures are a single environment
-limitation that does not exist in CI.
+*actually failing* and is now genuinely passing, and it caught real errors during this work —
+including two defects introduced by the remediation itself (an undeclared `gui` extra and a
+version-dependent `ntpath.isabs()`), both fixed at root cause.
 
-Two honest reservations: the GUI has not been dynamically executed anywhere I can observe, and
-~297 shallow assertions remain in the plotting tests. Neither is a defect in shipped code, and
-both have compensating controls.
+**CI and CodeQL are green on every check.** Run `33951574152` at commit `9fc9cdf`:
+`2472 passed, 14 skipped, 0 failed` on Python 3.10, 3.11 and 3.12, plus Lint, Package build and
+the Security regression suite. `CodeQL`, `Analyze (python)` and `Analyze (actions)` all pass
+with **zero annotations**, down from 4 High and 3 Medium. No alert was dismissed, no
+suppression comment exists anywhere in the tree, and no `skip`, `xfail` or `continue-on-error`
+was added to reach this state.
+
+The 4 High findings (*uncontrolled data in a path expression*) were fixed by severing the taint
+flow, not by silencing the query: the resolver validates the raw string against an allowlist
+before any filesystem call, then matches each component against the real directory listing, so
+untrusted text is only ever compared to a name the filesystem itself reported. The 3 Medium
+findings were fixed with least-privilege `permissions: contents: read` at workflow level and on
+each of the four jobs.
+
+One honest reservation remains: ~297 shallow `assert x is not None` assertions in the plotting
+tests (BSU-022, PARTIALLY FIXED). The earlier GUI reservation is **discharged** — the 141 GUI
+tests execute and pass in CI, though still not in this sandbox.
 
 On the basis of the fresh re-audit — not the targeted regression suite alone:
 
 # MERGE READY
 
-**Conditional on two release-blocking operational actions, neither of which is a code change:**
+**Conditional on one remaining release-blocking operational action, which is not a code
+change:**
 
 1. **Rotate the API key, the JWT signing secret and the admin password.** They are in the
    upstream git history and must be treated as compromised.
-2. **Confirm the CI run on this branch is green**, since CI is the only environment where the
-   141 tkinter-blocked GUI tests actually execute. If they fail there, this verdict reverts to
-   NOT MERGE READY pending their resolution.
+2. ~~Confirm the CI run on this branch is green.~~ **Satisfied.** Run `33951574152` at commit
+   `9fc9cdf`: all nine checks pass, including the 141 previously unexecuted GUI tests.
 
 The final merge is deliberately **not** performed here and is left for human approval.
