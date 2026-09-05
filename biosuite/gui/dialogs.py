@@ -1,9 +1,10 @@
 """
 Custom themed dialogs and splash screen for BioSuite GUI.
-No native Windows widgets — all cyberpunk-themed.
+No native Windows widgets — all styled with the active theme.
 """
 import customtkinter as ctk
 
+from .. import __version__
 from .themes import FONT_BODY, FONT_BUTTON, FONT_FAMILY, FONT_MONO, FONT_SMALL
 
 
@@ -303,7 +304,7 @@ class BioDropdownDialog(_BaseDialog):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class BioSplashScreen(ctk.CTkToplevel):
-    """Animated splash screen with glassy cyberpunk aesthetic."""
+    """Animated splash screen using the active theme palette."""
 
     def __init__(self, parent, T):
         super().__init__(parent)
@@ -337,7 +338,7 @@ class BioSplashScreen(ctk.CTkToplevel):
         title.pack(pady=(0, 2))
 
         # Subtitle
-        ctk.CTkLabel(body, text="Ultra v4.0", font=(FONT_FAMILY, 13),
+        ctk.CTkLabel(body, text=f"Ultra v{__version__}", font=(FONT_FAMILY, 13),
                       text_color=T['text_dim']).pack(pady=(0, 4))
         ctk.CTkLabel(body, text="Bioinformatic Platform", font=FONT_SMALL,
                       text_color=T['text_muted']).pack(pady=(0, 32))
@@ -358,7 +359,7 @@ class BioSplashScreen(ctk.CTkToplevel):
         self._progress.set(0)
 
         # Version tag at bottom
-        ctk.CTkLabel(body, text="v4.0  ·  Pure Python", font=(FONT_FAMILY, 9),
+        ctk.CTkLabel(body, text=f"v{__version__}  ·  Pure Python", font=(FONT_FAMILY, 9),
                       text_color=T['text_muted']).pack(side='bottom', pady=(20, 0))
 
     def update_status(self, text, progress):

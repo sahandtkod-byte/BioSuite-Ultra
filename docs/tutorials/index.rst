@@ -1,17 +1,7 @@
 Tutorials
 =========
 
-.. toctree::
-   :maxdepth: 1
-
-   01_sequence_analysis
-   02_alignment
-   03_differential_expression
-   04_single_cell
-   05_crispr_guide_rna
-   06_metagenomics
-   07_machine_learning
-   08_advanced_visualization
+Each tutorial below has a runnable script under ``examples/``.
 
 Tutorial 1: Sequence Analysis
 -----------------------------
@@ -108,9 +98,6 @@ Publication-quality figures:
 
 See: ``examples/tutorial_08_visualization.py``
 
-New in v4.1.0
---------------
-
 Tutorial 9: Parallel Processing
 --------------------------------
 
@@ -127,7 +114,7 @@ Tutorial 10: Molecular Cloning
 
 Complete molecular cloning toolkit:
 
-- Restriction digest with 100+ enzymes
+- Restriction digest using the built-in enzyme table
 - PCR simulation
 - Ligation efficiency
 - Virtual gel electrophoresis

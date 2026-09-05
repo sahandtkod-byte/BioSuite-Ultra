@@ -3,6 +3,7 @@ Help & Guides tab — all help text for every module.
 """
 import customtkinter as ctk
 
+from ... import __version__
 from ..themes import FONT_FAMILY
 
 
@@ -68,10 +69,10 @@ class HelpTabMixin:
         self.help_text.insert("end", func())
 
     def _help_getting_started(self):
-        return """GETTING STARTED WITH BIOSUITE ULTRA
+        return f"""GETTING STARTED WITH BIOSUITE ULTRA
 ====================================
 
-Welcome to BioSuite Ultra v4.0 -- a complete bioinformatics platform with 52+ analysis modules, molecular cloning toolkit, plasmid maps, and virtual gel electrophoresis.
+Welcome to BioSuite Ultra v{__version__} -- a complete bioinformatics platform with 47 analysis modules, a molecular cloning toolkit, plasmid maps, and virtual gel electrophoresis.
 
 QUICK START:
 1. Click any tab in the left sidebar to access that analysis tool
@@ -79,7 +80,7 @@ QUICK START:
 3. Most tools work immediately with just pip install
 
 NAVIGATION:
-- Plots Gallery -- 36+ visualization types (UpSet, Genome Browser, Interactive, Logos)
+- Plots Gallery -- 40 plot types (UpSet, Genome Browser, Interactive, Logos)
 - Sequence Analysis -- FASTA/FASTQ I/O, GC%, translation, ORF finding
 - Alignments -- BLAST search, multiple alignment, pairwise
 - Phylogenetics -- Tree building (NJ, ML, Bayesian)
@@ -474,7 +475,7 @@ TIP: Start without external tools. Add them only when you need faster processing
         return """VISUALIZATION GUIDE
 =====================
 
-BioSuite includes 36+ visualization types in the Plots Gallery.
+BioSuite includes 40 plot types in the Plots Gallery.
 
 STATISTICAL PLOTS:
 - Volcano Plot -- Differential expression (log2FC vs p-value)
@@ -743,8 +744,8 @@ TIPS:
         return """REST API SERVER
 =================
 
-BioSuite includes a built-in REST API server that exposes all 48
-analysis modules as HTTP endpoints. 100% free, no paid features.
+BioSuite includes a built-in REST API server that exposes the
+analysis modules as HTTP endpoints.
 
 HOW TO START:
 1. Go to the "System" section and click "Launch API Server"
@@ -788,4 +789,4 @@ BENEFITS:
 - Mobile apps can call the API
 - Other tools can interoperate
 - Works offline (no cloud required)
-- 100% free, MIT license"""
+- MIT licensed"""

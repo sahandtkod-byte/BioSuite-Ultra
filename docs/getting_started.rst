@@ -1,7 +1,7 @@
 Getting Started
 ===============
 
-This guide will help you get started with BioSuite Ultra v4.1.0.
+This guide will help you get started with BioSuite Ultra v5.5.0.
 
 Installation
 ------------
@@ -22,7 +22,7 @@ From source:
 
 .. code-block:: bash
 
-   git clone https://github.com/sahandtouri/BioSuite-Ultra.git
+   git clone https://github.com/sahandtkod-byte/BioSuite-Ultra.git
    cd BioSuite-Ultra
    pip install -r requirements.txt
 
@@ -95,7 +95,7 @@ Process large datasets faster:
 Molecular Cloning
 ~~~~~~~~~~~~~~~~~
 
-Restriction digest with 100+ enzymes:
+Restriction digest using the built-in enzyme table:
 
 .. code-block:: python
 
@@ -154,15 +154,18 @@ Next Steps
 
 - :doc:`tutorials/index` — Step-by-step tutorials
 - :doc:`api/index` — Full API reference
-- :doc:`gui_guide` — GUI user guide
-- :doc:`cli_guide` — CLI reference
+- `Command-line interface
+  <https://github.com/sahandtkod-byte/BioSuite-Ultra#command-line>`_ — in the project README
+- `Desktop GUI
+  <https://github.com/sahandtkod-byte/BioSuite-Ultra#desktop-gui>`_ — in the project README
 
-What's New in v4.1.0
----------------------
+Capabilities
+------------
 
-- **Parallel Processing**: Multi-threaded/multi-process execution
-- **100+ Restriction Enzymes**: Expanded from 18 to 100+ enzymes
-- **Better Bayesian Phylogeny**: Real MCMC with Jukes-Cantor model
-- **Improved MD Simulation**: Velocity Verlet integrator
-- **30+ Bug Fixes**: Across all modules
-- **New Documentation**: CHANGELOG.md, CONTRIBUTING.md
+- **Parallel processing**: thread- and process-based execution helpers
+- **169 restriction enzymes**: Type II enzymes with recognition sites and cut positions
+- **Bayesian phylogeny**: MCMC sampling under the Jukes-Cantor model
+- **Molecular dynamics**: velocity Verlet integrator with a Berendsen thermostat
+
+For the change history of each release, see the project
+`CHANGELOG <https://github.com/sahandtkod-byte/BioSuite-Ultra/blob/main/CHANGELOG.md>`_.

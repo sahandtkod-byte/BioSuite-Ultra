@@ -41,7 +41,7 @@ class AssemblyResult:
     message: str = ""
 
 
-from .utils import has_tool as _has_tool
+from .utils import has_tool as _has_tool, secure_temp_path
 
 
 def check_assembly_tools() -> dict :
@@ -109,7 +109,7 @@ def _builtin_assembly(reads_file: str, output_fasta: Optional[str] = None) -> As
     applied to produce the final contig set.
     """
     if output_fasta is None:
-        output_fasta = tempfile.mktemp(suffix='.fasta')
+        output_fasta = secure_temp_path(suffix='.fasta')
 
     reads = _load_reads_fasta(reads_file)
     if not reads:
@@ -382,7 +382,7 @@ def assemble(reads_file: str, output_fasta: Optional[str] = None, tool: str = 'a
             return _parse_assembly_fasta(contig_file, 'megahit')
 
     if output_fasta is None:
-        output_fasta = tempfile.mktemp(suffix='.fasta')
+        output_fasta = secure_temp_path(suffix='.fasta')
     return _builtin_assembly(reads_file, output_fasta)
 
 

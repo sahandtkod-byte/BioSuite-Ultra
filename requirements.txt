@@ -1,46 +1,54 @@
-numpy>=1.24
-pandas>=2.0
-matplotlib>=3.7
-seaborn>=0.12
-scipy>=1.10
-scikit-learn>=1.3
-customtkinter>=5.2
-tqdm>=4.65
-pytest>=7.0
-biopython>=1.81
-networkx>=3.0
-plotly>=5.0
+# Runtime requirements for the BioSuite Ultra library and CLI.
+#
+# This file mirrors the `dependencies` table in pyproject.toml.  Optional
+# feature sets live in the extras (`pip install "biosuite-ultra[bio,api,gui]"`)
+# and are listed at the bottom for reference only - they are NOT installed by
+# `pip install -r requirements.txt`.
+#
+# Development tooling belongs in the `dev` extra, not here.
 
-# === Tier 1: Core Bioinformatics ===
-goatools>=1.3
-gseapy>=1.0
-cutadapt>=4.0
+numpy>=1.24,<3
+pandas>=2.0,<3
+matplotlib>=3.7,<4
+seaborn>=0.12,<1
+scipy>=1.10,<2
+scikit-learn>=1.3,<2
+tqdm>=4.65,<5
+biopython>=1.81,<2
+networkx>=3.0,<4
+plotly>=5.0,<7
 
-# === Tier 2: Advanced Analysis ===
-scanpy>=1.9
-anndata>=0.9
-scikit-bio>=0.5
-biotite>=0.37
+# === Desktop GUI: pip install "biosuite-ultra[gui]" =========================
+# Also needs the Tk bindings for your interpreter, which are not on PyPI:
+#   Debian/Ubuntu: apt-get install python3-tk
+# customtkinter>=5.2,<6
 
-# === Tier 3: Specialized ===
-ete3>=3.1
-cobra>=0.26.0  # NOTE: cobra is a 0.x package — no cobra 3.0 exists; earlier ">=3.0" pin could never resolve on any platform.
-shap>=0.42
-statsmodels>=0.14
-umap-learn>=0.5
+# === REST API: pip install "biosuite-ultra[api]" ============================
+# fastapi>=0.100
+# uvicorn>=0.23
+# python-jose[cryptography]>=3.3
+# slowapi>=0.1.9
 
-# === Tier 4: API/Web ===
-fastapi>=0.100
-uvicorn>=0.23
-python-jose[cryptography]>=3.3
-slowapi>=0.1.9
-# === Tier 5: Jupyter ===
-ipython>=8.0
-ipywidgets>=8.0
+# === Extended bioinformatics: pip install "biosuite-ultra[bio]" =============
+# goatools>=1.3
+# gseapy>=1.0
+# cutadapt>=4.0
+# scanpy>=1.9
+# anndata>=0.9
+# scikit-bio>=0.5
+# biotite>=0.37
+# ete3>=3.1
+# cobra>=0.26          # cobra is a 0.x series; ">=3.0" could never resolve
+# shap>=0.42
+# statsmodels>=0.14
+# umap-learn>=0.5
 
-# === Tier 6: Optional (may need C build tools) ===
+# === Jupyter helpers: pip install "biosuite-ultra[notebook]" ================
+# ipython>=8.0
+# ipywidgets>=8.0
+
+# === Not installable everywhere (C toolchain / large downloads) =============
 # pysam>=0.21       # BAM/CRAM support (complex install on Windows)
-# openmm>=8.0       # Molecular dynamics (complex install)
+# openmm>=8.0       # Molecular dynamics
 # pymzml>=2.5       # Metabolomics
-# esm               # Protein structure prediction (requires torch)
-# torch             # Deep learning backend for ESMFold
+# torch, esm        # ESMFold structure prediction

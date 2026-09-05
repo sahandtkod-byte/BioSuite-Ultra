@@ -39,10 +39,22 @@ class ColorFormatter(logging.Formatter):
     def format(self, record):
         color = self.COLORS.get(record.levelno, '')
         level = f"{color}{record.levelname:<8}{self.RESET}"
-        msg = f"{color}{record.msg}{self.RESET}"
+        # record.getMessage() applies the %-style args.  Using record.msg
+        # directly emitted the raw template, so every logger.warning("... %s",
+        # value) call in the package logged a literal "%s" - including the
+        # "Failed admin login attempt from %s" audit line, which made the
+        # security log useless for identifying an attacker.
+        msg = f"{color}{record.getMessage()}{self.RESET}"
         ts = datetime.now().strftime('%H:%M:%S')
         name = record.name if hasattr(record, 'name') else ''
-        return f"{ts} {level} [{name}] {msg}"
+        line = f"{ts} {level} [{name}] {msg}"
+        # Formatter.format() normally appends these; building the line by hand
+        # silently discarded every traceback passed via exc_info=True.
+        if record.exc_info:
+            line += "\n" + self.formatException(record.exc_info)
+        if record.stack_info:
+            line += "\n" + self.formatStack(record.stack_info)
+        return line
 
 
 def _setup_root():
@@ -56,7 +68,18 @@ def _setup_root():
 
     # Console handler with colors
     console = logging.StreamHandler(sys.stderr)
-    console.setLevel(logging.DEBUG)
+    # Default to INFO: a library must not spray DEBUG at every user's console.
+    # BIOSUITE_DEBUG=1 or BIOSUITE_LOG_LEVEL=<name> opts back in.
+    _level_name = os.environ.get('BIOSUITE_LOG_LEVEL', '').strip().upper()
+    if os.environ.get('BIOSUITE_DEBUG', '').strip() in ('1', 'true', 'True'):
+        _console_level = logging.DEBUG
+    elif _level_name:
+        _console_level = logging.getLevelName(_level_name)
+        if not isinstance(_console_level, int):
+            _console_level = logging.INFO
+    else:
+        _console_level = logging.INFO
+    console.setLevel(_console_level)
     console.setFormatter(ColorFormatter())
     root.addHandler(console)
 

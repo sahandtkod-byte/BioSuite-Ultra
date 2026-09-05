@@ -10,6 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
+from scipy.stats import poisson
 
 
 @dataclass
@@ -23,6 +24,12 @@ class Peak:
     fold_enrichment: float
     length: int = 0
     name: str = ""
+    #: Benjamini-Hochberg FDR across the peaks called in the same run.
+    q_value: float = float('nan')
+    #: Poisson background rate (lambda) the p-value was computed against.
+    background: float = float('nan')
+    #: Pileup depth a region had to exceed to be considered.
+    threshold: float = float('nan')
 
 
 @dataclass
@@ -34,7 +41,7 @@ class PeakReport:
     message: str = ""
 
 
-from .utils import has_tool as _has_tool
+from .utils import has_tool as _has_tool, secure_temp_path
 
 
 def check_peak_tools():
@@ -60,87 +67,244 @@ def _read_sam_positions(sam_file, min_mapq=20):
     return positions
 
 
+SMOOTH_WINDOW = 50   # bases of moving-average smoothing applied to the pileup
+
 CHUNK_SIZE = 5_000_000  # bp per coverage chunk (dense per-chromosome was
 #                          a ~2 GB array on human chromosomes -> OOM)
 
 
 def _chunked_smoothed_coverage(starts, window=200, chunk=CHUNK_SIZE):
-    """Yield smoothed coverage arrays over consecutive genomic chunks.
+    """Yield ``(offset, smoothed)`` coverage arrays over consecutive chunks.
 
     Dense per-chromosome coverage allocation made the built-in caller
     allocate ~2 GB for a single human chromosome and crash with a
     MemoryError; chunks cap memory at ~200 MB regardless of chromosome
-    length.  Overlap of ``window`` bases between chunks keeps the running
-    mean and the peak state machine seamless at chunk boundaries.
+    length.
+
+    Each chunk is computed with ``window + SMOOTH_WINDOW`` bases of context on
+    *both* sides and then trimmed, so the result is bit-for-bit identical to
+    computing the whole chromosome at once: reads that start before a chunk
+    but extend into it are counted, and the smoothing kernel never sees a
+    fabricated zero edge in the interior of the chromosome.
+
+    Coverage is built from a difference array (O(reads)) instead of a Python
+    loop that touched every covered base (O(reads x window)).
     """
-    if not starts:
+    if len(starts) == 0:
         return
     starts = np.sort(np.asarray(starts, dtype=np.int64))
     max_pos = int(starts[-1]) + window
-    kernel = np.ones(50) / 50
+    kernel = np.ones(SMOOTH_WINDOW) / SMOOTH_WINDOW
+    pad = window + SMOOTH_WINDOW
     offset = 0
     while offset < max_pos:
         end = min(offset + chunk, max_pos)
-        padded_end = min(end + window, max_pos)
-        lo = np.searchsorted(starts, offset)
-        hi = np.searchsorted(starts, padded_end, side='right')
-        cov = np.zeros(padded_end - offset)
-        for s in starts[lo:hi]:
-            cov[s - offset:min(s - offset + window, len(cov))] += 1
+        lo_bound = max(0, offset - pad)
+        hi_bound = min(max_pos, end + pad)
+        # Reads whose [start, start+window) interval intersects the padded
+        # region.  searchsorted on the left bound must reach back a full
+        # window, otherwise reads spanning the chunk boundary are lost.
+        lo = int(np.searchsorted(starts, lo_bound - window, side='left'))
+        hi = int(np.searchsorted(starts, hi_bound, side='right'))
+        span = hi_bound - lo_bound
+        diff = np.zeros(span + 1)
+        if hi > lo:
+            rel_start = np.clip(starts[lo:hi] - lo_bound, 0, span)
+            rel_end = np.clip(starts[lo:hi] + window - lo_bound, 0, span)
+            np.add.at(diff, rel_start, 1.0)
+            np.add.at(diff, rel_end, -1.0)
+        cov = np.cumsum(diff[:-1])
         smoothed = np.convolve(cov, kernel, mode='same')
-        yield offset, smoothed[:end - offset]
+        left = offset - lo_bound
+        yield offset, smoothed[left:left + (end - offset)]
         offset = end
 
 
-def _find_peaks_from_coverage(positions, min_score=5, min_distance=200):
-    """Peak-calling directly from read-start positions (chunked)."""
+def _background_lambda(starts, window=200):
+    """Mean smoothed coverage across the covered span = Poisson background.
+
+    This is the ``lambda_bg`` of a MACS-style model: the expected pileup depth
+    if the same number of reads were distributed uniformly over the region
+    that actually carries signal.
+    """
+    starts = np.asarray(starts, dtype=np.int64)
+    if starts.size == 0:
+        return 0.0
+    span = int(starts.max()) - int(starts.min()) + window
+    if span <= 0:
+        return float(starts.size)
+    # Total coverage mass = reads x window (each read covers `window` bases).
+    return float(starts.size * window) / float(span)
+
+
+def _poisson_p_value(observed, lam):
+    """Upper-tail Poisson probability of seeing at least *observed* depth.
+
+    Note:
+        The pileup is smoothed over ``SMOOTH_WINDOW`` bases before this test is
+        applied, so neighbouring positions are correlated and the reported
+        p-value is an approximation in exactly the same sense as MACS's; it is
+        a ranking statistic, not an exact significance level.  It is computed
+        from the data, never hard-coded.
+    """
+    if lam <= 0:
+        return 0.0 if observed > 0 else 1.0
+    k = int(np.ceil(observed))
+    return float(poisson.sf(k - 1, lam))
+
+
+def _poisson_threshold(lam, p_cutoff, floor):
+    """Smallest depth whose Poisson p-value is below *p_cutoff*."""
+    if lam <= 0:
+        return float(max(floor, 1.0))
+    # isf gives the value k with sf(k) <= p_cutoff.
+    k = float(poisson.isf(p_cutoff, lam))
+    if not np.isfinite(k):
+        k = lam
+    return float(max(k, floor, lam))
+
+
+def _benjamini_hochberg(p_values):
+    """Benjamini-Hochberg FDR q-values for a list of p-values."""
+    p = np.asarray(p_values, dtype=float)
+    n = p.size
+    if n == 0:
+        return np.array([], dtype=float)
+    order = np.argsort(p)
+    ranked = p[order] * n / (np.arange(n) + 1)
+    ranked = np.minimum.accumulate(ranked[::-1])[::-1]
+    q = np.empty(n, dtype=float)
+    q[order] = np.clip(ranked, 0.0, 1.0)
+    return q
+
+
+def _runs_above(mask):
+    """Return ``(start, stop)`` index pairs of True runs in a boolean array."""
+    if mask.size == 0:
+        return np.empty((0, 2), dtype=np.int64)
+    padded = np.concatenate(([False], mask, [False]))
+    edges = np.diff(padded.astype(np.int8))
+    starts = np.flatnonzero(edges == 1)
+    stops = np.flatnonzero(edges == -1)
+    return np.stack([starts, stops], axis=1)
+
+
+def _find_peaks_from_coverage(positions, min_score=5, min_distance=200,
+                              p_cutoff=1e-5, threshold=None, window=200):
+    """Call peaks from read-start positions using a Poisson background model.
+
+    Args:
+        positions: mapping of chromosome -> list of read start coordinates.
+        min_score: minimum smoothed pileup depth for a region to be reported.
+        min_distance: minimum distance between summits of reported peaks;
+            closer peaks are merged into the stronger one.
+        p_cutoff: Poisson upper-tail probability used to derive the enrichment
+            threshold.
+        threshold: explicit pileup threshold; overrides the Poisson-derived
+            one (used by tests and by callers that want a fixed cut).
+        window: assumed read footprint in bases.
+
+    Returns:
+        list[Peak]: peaks sorted by score, each carrying a **computed**
+        Poisson p-value and a Benjamini-Hochberg q-value.  Enrichment is
+        expressed over the Poisson background, not over a quantile of the
+        sample's own signal.
+    """
     peaks = []
     for chrom, starts in positions.items():
-        if not starts:
+        if len(starts) == 0:
             continue
 
-        # First pass: pooled threshold over sampled chunks
-        sample_vals = []
-        for _off, smoothed in _chunked_smoothed_coverage(starts):
-            pos = smoothed[smoothed > 0]
-            if pos.size:
-                sample_vals.append(np.percentile(pos, 95))
-        threshold = float(np.median(sample_vals)) if sample_vals else float(min_score)
+        lam = _background_lambda(starts, window=window)
+        cut = (float(threshold) if threshold is not None
+               else _poisson_threshold(lam, p_cutoff, float(min_score)))
 
-        # Second pass: state machine, seamless across chunks
-        in_peak = False
-        peak_start = 0
-        peak_max = 0.0
-        peak_summit = 0
-        for off, smoothed in _chunked_smoothed_coverage(starts):
-            for i in range(len(smoothed)):
-                if smoothed[i] > threshold:
-                    if not in_peak:
-                        in_peak, peak_start = True, off + i
-                        peak_max, peak_summit = smoothed[i], off + i
-                    elif smoothed[i] > peak_max:
-                        peak_max, peak_summit = smoothed[i], off + i
-                elif in_peak:
-                    in_peak = False
-                    if peak_max >= min_score:
-                        peaks.append(Peak(
-                            chrom=chrom, start=peak_start, end=off + i,
-                            summit=peak_summit, score=peak_max,
-                            p_value=1e-5,
-                            fold_enrichment=peak_max / max(threshold, 1.0),
-                            length=off + i - peak_start
-                        ))
-        if in_peak and peak_max >= min_score:
-            end = int(np.max(starts)) + 200
-            peaks.append(Peak(
-                chrom=chrom, start=peak_start, end=end, summit=peak_summit,
-                score=peak_max, p_value=1e-5,
-                fold_enrichment=peak_max / max(threshold, 1.0),
-                length=end - peak_start
-            ))
+        # Vectorised scan: locate runs above the threshold inside each chunk
+        # and stitch runs that straddle a chunk boundary.  The previous
+        # implementation stepped through every base of the genome in Python.
+        pending = None      # (start, max, summit) of a run open at chunk end
+        for off, smoothed in _chunked_smoothed_coverage(starts, window=window):
+            if smoothed.size == 0:
+                continue
+            mask = smoothed > cut
+            # A run left open by the previous chunk ends exactly at this
+            # chunk's first base unless the enrichment continues into it.
+            if pending is not None and not mask[0]:
+                peaks.append(_make_peak(chrom, pending, off, lam,
+                                        min_score, cut))
+                pending = None
+            runs = _runs_above(mask)
+            for lo, hi in runs:
+                segment = smoothed[lo:hi]
+                local_arg = int(np.argmax(segment))
+                seg_max = float(segment[local_arg])
+                seg_summit = off + lo + local_arg
+                if pending is not None and lo == 0:
+                    # Continues the run that straddled the chunk border.
+                    p_start, p_max, p_summit = pending
+                    if seg_max > p_max:
+                        p_max, p_summit = seg_max, seg_summit
+                    pending = (p_start, p_max, p_summit)
+                else:
+                    pending = (int(off + lo), seg_max, int(seg_summit))
+                if hi < mask.size:
+                    # The run is fully contained in this chunk.
+                    peaks.append(_make_peak(chrom, pending, int(off + hi),
+                                            lam, min_score, cut))
+                    pending = None
+        if pending is not None:
+            end = int(np.max(starts)) + window
+            peaks.append(_make_peak(chrom, pending, end, lam, min_score, cut))
 
+    peaks = [p for p in peaks if p is not None]
+    peaks = _merge_close_peaks(peaks, min_distance)
+    if peaks:
+        q_values = _benjamini_hochberg([p.p_value for p in peaks])
+        for peak, q in zip(peaks, q_values):
+            peak.q_value = float(q)
     peaks.sort(key=lambda p: p.score, reverse=True)
     return peaks
+
+
+def _make_peak(chrom, pending, end, lam, min_score, threshold):
+    """Build a Peak from an open run, or None when it is below min_score."""
+    start, peak_max, summit = pending
+    if peak_max < min_score:
+        return None
+    return Peak(
+        chrom=chrom, start=int(start), end=int(end), summit=int(summit),
+        score=float(peak_max),
+        p_value=_poisson_p_value(peak_max, lam),
+        fold_enrichment=float(peak_max / lam) if lam > 0 else float('inf'),
+        length=int(end - start),
+        background=float(lam),
+        threshold=float(threshold),
+    )
+
+
+def _merge_close_peaks(peaks, min_distance):
+    """Collapse peaks whose summits are closer than *min_distance*.
+
+    ``min_distance`` was accepted but ignored, so a single broad enrichment
+    could be reported as several adjacent "independent" peaks.
+    """
+    if min_distance <= 0 or len(peaks) < 2:
+        return list(peaks)
+    merged = []
+    for peak in sorted(peaks, key=lambda p: (p.chrom, p.start)):
+        if merged and merged[-1].chrom == peak.chrom and \
+                peak.summit - merged[-1].summit < min_distance:
+            prev = merged[-1]
+            if peak.score > prev.score:
+                prev.score = peak.score
+                prev.summit = peak.summit
+                prev.p_value = peak.p_value
+                prev.fold_enrichment = peak.fold_enrichment
+            prev.end = max(prev.end, peak.end)
+            prev.length = prev.end - prev.start
+        else:
+            merged.append(peak)
+    return merged
 
 
 def _builtin_call_peaks(sam_file, output_bed=None, min_score=5):
@@ -197,7 +361,7 @@ def call_peaks(input_file, output_bed=None, genome='hs', tool='auto'):
                              message="Using MACS2 (external)")
 
     if output_bed is None:
-        output_bed = tempfile.mktemp(suffix='.bed')
+        output_bed = secure_temp_path(suffix='.bed')
     return _builtin_call_peaks(input_file, output_bed)
 
 

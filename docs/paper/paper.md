@@ -41,11 +41,13 @@ BioSuite Ultra provides three user interfaces:
 - A **command-line interface** with over 100 analysis options
 - A **RESTful API** with 38 endpoints for programmatic integration
 
-The platform includes 123 visualization functions covering 26 plot types, a
-molecular cloning toolkit with 149 restriction enzymes, and a parallel
-processing engine. All 1,444 unit tests pass, and the platform is validated
-against BioPython and R implementations with concordant results across all
-tested analyses.
+The platform includes 123 plotting functions (105 public) spanning 40 plot
+types in its graphical catalogue, a molecular cloning toolkit with 169
+restriction enzymes, and a parallel processing engine. The test suite runs
+2,493 tests on Python 3.10, 3.11 and 3.12. Selected numerical routines --
+pairwise alignment, Hardy-Weinberg testing, GC content and reverse complement
+-- are checked in the test suite against independent reference
+implementations rather than against their own output.
 
 BioSuite Ultra can be installed via `pip install biosuite-ultra` and is freely
 available under the MIT license. Extended validation results, Docker setup
@@ -93,7 +95,7 @@ learning (RF, SVM, SHAP), and survival analysis.
 
 ## Visualization Engine
 
-123 visualization functions generate 26 plot types including volcano plots,
+123 plotting functions (105 public) generate 40 catalogued plot types including volcano plots,
 Manhattan plots, PCA plots, heatmaps, plasmid maps, phylogenetic trees, virtual
 gel images, network diagrams, UMAP plots, and interactive Plotly
 visualizations.

@@ -608,7 +608,7 @@ def circos_plot(pdf=None):
             n_links = safe_int_input("Number of links: ", 2)
             for i in range(n_links):
                 s1 = input(f"Link {i+1} from sector: ").strip()
-                s2 = input(f"          to sector: ").strip()
+                s2 = input("          to sector: ").strip()
                 links.append((s1, s2))
         else:
             sectors = {"Gene_A": 10, "Gene_B": 8, "Gene_C": 12, "Gene_D": 6}
@@ -931,8 +931,10 @@ def export_all_to_folder(folder_name="biosuite_export"):
             plt.savefig(f"{default_name}.png", dpi=config['default_dpi'],
                         bbox_inches='tight', facecolor=plt.rcParams['figure.facecolor'])
             print(f"   Auto-saved: {default_name}.png")
-        except OSError:
-            pass
+        except OSError as exc:
+            # Printing nothing at all left the user believing the batch export
+            # had produced a file for every plot.
+            print(f"   FAILED to save {default_name}.png: {exc}")
 
     # Patch the auto-saver into EVERY module that IMPORTS ask_save_plot
     # (math_plots / specialized_plots imported the symbol into their own

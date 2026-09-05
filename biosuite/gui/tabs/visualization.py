@@ -192,7 +192,7 @@ class VisualizationTabMixin:
 
     def _plot_name_for(self, plot_id):
         """Human-readable name for a plot id (for window title/history)."""
-        for cat, plots in PLOT_CATEGORIES.items():
+        for _cat, plots in PLOT_CATEGORIES.items():
             for name, pid in plots:
                 if pid == plot_id:
                     return name
@@ -584,21 +584,21 @@ class VisualizationTabMixin:
                 from ...plotting.plot_api import boxplot, manhattan, pca, qqplot, violin
                 if plot_type == 'pca':
                     data = np.random.randn(30, 50) if not isinstance(self._inter_data, dict) else self._inter_data.get('x', np.random.randn(30, 50))
-                    fig = pca(data, labels=['Ctrl']*15 + ['Treat']*15, interactive=True, output_html=output)
+                    pca(data, labels=['Ctrl']*15 + ['Treat']*15, interactive=True, output_html=output)
                 elif plot_type == 'manhattan':
                     chroms = np.random.choice(['chr1', 'chr2', 'chr3'], 200)
                     positions = np.random.randint(1, 1000000, 200)
                     pvals = np.random.uniform(0, 1, 200)
-                    fig = manhattan(chroms, positions, pvals, interactive=True, output_html=output)
+                    manhattan(chroms, positions, pvals, interactive=True, output_html=output)
                 elif plot_type == 'boxplot':
                     data = {'Ctrl': np.random.randn(30).tolist(), 'Treat': (np.random.randn(30) + 1).tolist()}
-                    fig = boxplot(data, interactive=True, output_html=output)
+                    boxplot(data, interactive=True, output_html=output)
                 elif plot_type == 'violin':
                     data = {'Ctrl': np.random.randn(30).tolist(), 'Treat': (np.random.randn(30) + 1).tolist()}
-                    fig = violin(data, interactive=True, output_html=output)
+                    violin(data, interactive=True, output_html=output)
                 elif plot_type == 'qq-plot':
                     pvals = np.random.uniform(0, 1, 100)
-                    fig = qqplot(pvals, interactive=True, output_html=output)
+                    qqplot(pvals, interactive=True, output_html=output)
             else:
                 # Use existing interactive_plots for legacy types
                 from ...plotting.interactive_plots import (
@@ -613,20 +613,20 @@ class VisualizationTabMixin:
                     if isinstance(self._inter_data, dict):
                         x, y = self._inter_data['x'], self._inter_data['y']
                         labels = self._inter_data.get('label')
-                        fig = interactive_scatter(x, y, color_col=labels, output_html=output)
+                        interactive_scatter(x, y, color_col=labels, output_html=output)
                     else:
                         cols = list(self._inter_data.select_dtypes(include=[np.number]).columns)
                         if len(cols) >= 2:
-                            fig = interactive_scatter(self._inter_data[cols[0]].values,
+                            interactive_scatter(self._inter_data[cols[0]].values,
                                                       self._inter_data[cols[1]].values, output_html=output)
                 elif plot_type == 'bar':
                     if isinstance(self._inter_data, dict):
                         vals = list(self._inter_data.get('y', [1, 2, 3]))
                         cats = list(self._inter_data.get('label', ['A', 'B', 'C']))
-                        fig = interactive_bar(cats[:len(vals)], vals[:len(cats)], output_html=output)
+                        interactive_bar(cats[:len(vals)], vals[:len(cats)], output_html=output)
                     else:
                         cols = list(self._inter_data.columns)
-                        fig = interactive_bar(self._inter_data[cols[0]].astype(str).tolist(),
+                        interactive_bar(self._inter_data[cols[0]].astype(str).tolist(),
                                               self._inter_data[cols[1]].tolist(), output_html=output)
                 elif plot_type == 'heatmap':
                     if isinstance(self._inter_data, dict):
@@ -635,17 +635,17 @@ class VisualizationTabMixin:
                     else:
                         df_heat = self._inter_data
                     num = df_heat.select_dtypes(include=[np.number])
-                    fig = interactive_heatmap(num.values[:10, :10], output_html=output)
+                    interactive_heatmap(num.values[:10, :10], output_html=output)
                 elif plot_type == 'volcano':
-                    fig = interactive_volcano(np.random.randn(200), np.random.uniform(0, 1, 200), output_html=output)
+                    interactive_volcano(np.random.randn(200), np.random.uniform(0, 1, 200), output_html=output)
                 elif plot_type == 'line':
                     x = list(range(20))
                     ys = [np.sin(np.array(x)), np.cos(np.array(x))]
-                    fig = interactive_line(x, ys, names=['sin', 'cos'], output_html=output)
+                    interactive_line(x, ys, names=['sin', 'cos'], output_html=output)
                 elif plot_type == 'pie':
-                    fig = interactive_pie(['A', 'B', 'C', 'D'], [30, 25, 20, 25], output_html=output)
+                    interactive_pie(['A', 'B', 'C', 'D'], [30, 25, 20, 25], output_html=output)
                 else:
-                    fig = interactive_scatter(np.random.randn(50), np.random.randn(50), output_html=output)
+                    interactive_scatter(np.random.randn(50), np.random.randn(50), output_html=output)
 
             self.inter_info.delete("1.0", "end")
             self.inter_info.insert("end", f"Saved: {output}\nOpen in a browser to interact.\n\nPlot type: {plot_type}")

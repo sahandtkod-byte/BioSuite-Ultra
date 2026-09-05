@@ -399,7 +399,7 @@ class BioSuiteApp(
         return win
 
     def _style_mpl_toolbar(self, toolbar, T):
-        """Apply cyberpunk colors to the plain-tk matplotlib toolbar.
+        """Apply the active theme colours to the plain-tk matplotlib toolbar.
 
         Matplotlib ships dark-glyph icons only, so buttons get a LIGHT
         background for icon legibility while the strip itself stays themed.
@@ -432,7 +432,6 @@ class BioSuiteApp(
         import tempfile
 
         from PIL import Image, ImageTk
-        T = self.T
         tmp = os.path.join(tempfile.gettempdir(), f"biosuite_{id(fig)}.png")
         fig.savefig(tmp, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
         photo_ref = [None]
@@ -492,7 +491,7 @@ class BioSuiteApp(
             'alignment': "Needleman-Wunsch & Smith-Waterman pairwise alignment",
             'phylogeny': "Distance matrices, UPGMA and Neighbor-Joining trees",
             'expression': "CPM/TPM/DESeq2 normalization & differential expression",
-            'cloning': "Digest, PCR, ligation, Gibson & virtual gel — free SnapGene-style tools",
+            'cloning': "Restriction digest, PCR, ligation and virtual gel electrophoresis",
             'crispr': "Guide RNA design with PAM finding and off-target scoring",
             'help': "Built-in guides for every module (or press F1)",
         }
@@ -921,7 +920,7 @@ class BioSuiteApp(
             import tempfile
             import webbrowser
 
-            import plotly.io as pio
+            import plotly.io as pio  # noqa: F401 - availability probe
 
             # Save to temporary HTML file
             html_path = os.path.join(tempfile.gettempdir(), f"biosuite_plot_{id(fig)}.html")

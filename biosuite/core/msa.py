@@ -54,7 +54,10 @@ class MSA:
 
 # ── External Tool Detection ─────────────────────────────────────────────────
 
-from .utils import has_tool as _has_tool
+from .log import get_logger
+from .utils import has_tool as _has_tool, secure_temp_path, wrote_output
+
+logger = get_logger(__name__)
 
 
 def check_tools() -> dict :
@@ -400,30 +403,58 @@ def _progressive_msa(sequences: list) -> list :
     return list(zip(aligned_names[root], aligned[root]))
 
 
+
+def _restore_input_order(aligned: List[Tuple[str, str]],
+                         original: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """Return `aligned` rows in the order the caller supplied them.
+
+    Both the built-in progressive aligner and the external tools emit rows in
+    guide-tree order, so row i of the result was not sequence i of the input.
+    Any caller doing zip(names, alignment.sequences) therefore mislabelled
+    sequences, and the order also changed depending on whether MUSCLE or MAFFT
+    happened to be installed. Row order is part of the contract, so it is
+    restored here for every engine.
+    """
+    if not aligned:
+        return aligned
+    remaining = list(aligned)
+    ordered = []
+    for name, _ in original:
+        for k, (aname, _aseq) in enumerate(remaining):
+            if aname == name:
+                ordered.append(remaining.pop(k))
+                break
+    ordered.extend(remaining)   # anything unmatched keeps its relative order
+    return ordered if len(ordered) == len(aligned) else aligned
+
+
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
 def _run_clustal_omega(sequences: List[str]) -> MSA:
     """Run Clustal Omega on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
-    out = tempfile.mktemp(suffix='.fasta')
+    out = secure_temp_path(suffix='.fasta')
     try:
         _write_fasta(sequences, inp)
         bio_type = 'DNA' if _is_nucleotide(sequences[0][1]) else 'PROTEIN'
         cmd = ['clustalo', '-i', inp, '-o', out, '-t', bio_type,
                '--threads', '1', '--iterations', '1', '--force']
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if r.returncode == 0 and os.path.exists(out):
+        # wrote_output, not os.path.exists: secure_temp_path reserves the
+        # path by creating it, so exists() is always true and an empty file
+        # would be handed to the alignment parser as a "successful" run.
+        if r.returncode == 0 and wrote_output(out):
             return _load_bio_alignment(out, 'clustal_omega')
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("Clustal Omega could not be run: %s", exc)
     finally:
         for p in [inp, out]:
             if os.path.exists(p):
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Could not remove temp file %s: %s", p, exc)
     return None
 
 
@@ -431,7 +462,7 @@ def _run_muscle(sequences: List[str]) -> MSA:
     """Run MUSCLE on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
-    out = tempfile.mktemp(suffix='.fasta')
+    out = secure_temp_path(suffix='.fasta')
     try:
         _write_fasta(sequences, inp)
         cmd = ['muscle', '-align', inp, '-output', out]
@@ -439,17 +470,17 @@ def _run_muscle(sequences: List[str]) -> MSA:
         if r.returncode != 0:
             cmd = ['muscle', '-in', inp, '-out', out]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if r.returncode == 0 and os.path.exists(out):
+        if r.returncode == 0 and wrote_output(out):
             return _load_bio_alignment(out, 'muscle')
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("MUSCLE could not be run: %s", exc)
     finally:
         for p in [inp, out]:
             if os.path.exists(p):
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Could not remove temp file %s: %s", p, exc)
     return None
 
 
@@ -457,24 +488,26 @@ def _run_mafft(sequences: List[str]) -> MSA:
     """Run MAFFT on the given sequences via subprocess."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
         inp = f.name
-    out = tempfile.mktemp(suffix='.fasta')
+    out = secure_temp_path(suffix='.fasta')
     try:
         _write_fasta(sequences, inp)
         cmd = ['mafft', '--auto', '--thread', '1', inp]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        if r.returncode == 0:
+        # MAFFT writes the alignment to stdout, so exit 0 with empty stdout
+        # is a failure; without this guard an empty file reached the parser.
+        if r.returncode == 0 and r.stdout.strip():
             with open(out, 'w') as f:
                 f.write(r.stdout)
             return _load_bio_alignment(out, 'mafft')
-    except (OSError, subprocess.SubprocessError):
-        pass
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("MAFFT could not be run: %s", exc)
     finally:
         for p in [inp, out]:
             if os.path.exists(p):
                 try:
                     os.unlink(p)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.debug("Could not remove temp file %s: %s", p, exc)
     return None
 
 
@@ -489,14 +522,24 @@ def _load_bio_alignment(filepath: str, method: str) -> MSA:
         return None
     try:
         alignment = AlignIO.read(filepath, 'fasta')
-        seqs = [(rec.id, str(rec.seq)) for rec in alignment]
-        conservation = compute_conservation(alignment)
-        return MSA(method=method, sequences=seqs, alignment_file=filepath,
-                   num_sequences=len(seqs),
-                   alignment_length=alignment.get_alignment_length(),
-                   conservation=conservation)
-    except Exception:  # BioPython AlignIO can raise various errors
+    except (ValueError, OSError) as exc:
+        # Unparseable or missing output from the external tool.
+        logger.warning("Could not read alignment produced by %s from %s: %s",
+                       method, filepath, exc)
         return None
+    seqs = [(rec.id, str(rec.seq)) for rec in alignment]
+    result = MSA(method=method, sequences=seqs, alignment_file=filepath,
+                 num_sequences=len(seqs),
+                 alignment_length=alignment.get_alignment_length(),
+                 engine=method)
+    # NOTE: compute_conservation() takes an MSA, not a Biopython
+    # MultipleSeqAlignment.  Passing the Biopython object raised
+    # AttributeError, which the previous blanket `except Exception` turned
+    # into `return None` — so *every* external-tool alignment was discarded
+    # and auto_align() silently fell back to the built-in engine while
+    # reporting the external tool as unavailable.
+    result.conservation = compute_conservation(result)
+    return result
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
@@ -508,6 +551,12 @@ def _normalize_sequences(sequences: list) -> List[Tuple[str, str]]:
     records — plain strings used to be silently mis-parsed as tuples
     (each sequence's first two characters became name and sequence!).
     """
+    if isinstance(sequences, (str, bytes)):
+        # Iterating a bare str yields characters: passing a FASTA *path*
+        # produced a confident alignment of that path's letters.
+        raise TypeError(
+            "sequences must be a list of sequences (or (name, sequence) pairs), "
+            "not a single string. To align a FASTA file, read it first.")
     norm = []
     for i, item in enumerate(sequences):
         if isinstance(item, str):
@@ -524,7 +573,17 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     progressive aligner otherwise.
     """
     if not sequences or len(sequences) < 2:
-        return MSA(method='none', message='Need at least 2 sequences.')
+        # An alignment of fewer than two sequences is not defined.  Return an
+        # explicit no-op result that still carries the input (it used to be
+        # discarded silently) so callers can tell "nothing to align" apart
+        # from "alignment failed".
+        kept = _normalize_sequences(sequences) if sequences else []
+        return MSA(method='none',
+                   sequences=kept,
+                   num_sequences=len(kept),
+                   alignment_length=len(kept[0][1]) if kept else 0,
+                   conservation=[1.0] * len(kept[0][1]) if kept else [],
+                   message='Need at least 2 sequences.')
 
     sequences = _normalize_sequences(sequences)
 
@@ -532,33 +591,44 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     if tools.get('clustal_omega'):
         result = _run_clustal_omega(sequences)
         if result:
+            result.sequences = _restore_input_order(result.sequences, sequences)
             result.message = "Using Clustal Omega (external)"
             return result
 
     if tools.get('muscle'):
         result = _run_muscle(sequences)
         if result:
+            result.sequences = _restore_input_order(result.sequences, sequences)
             result.message = "Using MUSCLE (external)"
             return result
 
     if tools.get('mafft'):
         result = _run_mafft(sequences)
         if result:
+            result.sequences = _restore_input_order(result.sequences, sequences)
             result.message = "Using MAFFT (external)"
             return result
 
     # Pure Python fallback
-    aligned_seqs = _progressive_msa(sequences)
+    aligned_seqs = _restore_input_order(_progressive_msa(sequences), sequences)
     align_len = len(aligned_seqs[0][1]) if aligned_seqs else 0
 
-    return MSA(
+    result = MSA(
         method='builtin_progressive',
         sequences=aligned_seqs,
         num_sequences=len(aligned_seqs),
         alignment_length=align_len,
-        conservation=[],
         message="Using built-in progressive alignment engine"
     )
+    # Conservation used to be hard-coded to [] here, so every consumer
+    # (MSA viewer, plots, reports) displayed "no conservation" as if it were
+    # a computed result.
+    result.conservation = compute_conservation(result)
+    if len(result.conservation) != align_len:
+        raise RuntimeError(
+            f"conservation vector length {len(result.conservation)} does not "
+            f"match alignment length {align_len}")
+    return result
 
 
 def run_clustal_omega(sequences: List[str], **kwargs: Any) -> MSA:

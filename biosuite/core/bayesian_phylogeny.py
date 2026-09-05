@@ -100,8 +100,19 @@ class TreeSampler:
     Convergence — burn-in removal, thinning, dual-chain PSRF.
     """
 
-    def __init__(self, alignment: Any) -> None:
-        """Initialize result container with default empty collections."""
+    def __init__(self, alignment: Any, seed: int = None) -> None:
+        """Initialize the sampler.
+
+        Args:
+            alignment: Biopython alignment to sample trees for.
+            seed: RNG seed.  MCMC is stochastic, so results differ between
+                runs unless a seed is supplied; pass one for a reproducible
+                analysis.  A single generator instance is used for the whole
+                sampler so that successive chains draw from different parts of
+                the stream and remain genuinely independent (identically
+                seeded chains would make the PSRF diagnostic meaningless).
+        """
+        self._rng = random.Random(seed)
         self.alignment = alignment
         self.n_taxa = len(alignment)
         self.n_sites = alignment.get_alignment_length()
@@ -201,7 +212,7 @@ class TreeSampler:
                 clade.branch_length = 0.05
             if perturb > 0:
                 clade.branch_length = max(
-                    clade.branch_length * math.exp(random.gauss(0, perturb)),
+                    clade.branch_length * math.exp(self._rng.gauss(0, perturb)),
                     1e-4,
                 )
 
@@ -230,9 +241,9 @@ class TreeSampler:
         ]
         if not branches:
             return t, 0.0
-        target = random.choice(branches)
+        target = self._rng.choice(branches)
         old = target.branch_length
-        target.branch_length = max(old * math.exp(random.gauss(0, 0.2)), 1e-6)
+        target.branch_length = max(old * math.exp(self._rng.gauss(0, 0.2)), 1e-6)
         return t, math.log(target.branch_length / old)
 
     @staticmethod
@@ -263,11 +274,11 @@ class TreeSampler:
         if not edges:
             return t, 0.0
 
-        parent, child = random.choice(edges)
+        parent, child = self._rng.choice(edges)
         ci = parent.clades.index(child)
         si = 1 - ci
         sibling = parent.clades[si]
-        gi = random.randint(0, len(child.clades) - 1)
+        gi = self._rng.randint(0, len(child.clades) - 1)
         grandchild = child.clades[gi]
         child.clades[gi] = sibling
         parent.clades[si] = grandchild
@@ -315,7 +326,7 @@ class TreeSampler:
 
         for g in range(n_gen):
             # Choose proposal
-            if random.random() < bl_rate:
+            if self._rng.random() < bl_rate:
                 nt, log_h = self._propose_bl(tree)
             else:
                 nt, log_h = self._propose_nni(tree)
@@ -324,7 +335,7 @@ class TreeSampler:
             np_ = nl + self.log_prior(nt)
 
             # Metropolis-Hastings with the proposal-density correction
-            if math.log(max(random.random(), 1e-300)) < np_ - cur_post + log_h:
+            if math.log(max(self._rng.random(), 1e-300)) < np_ - cur_post + log_h:
                 tree, cur_ll, cur_post = nt, nl, np_
                 accepts += 1
 
@@ -397,7 +408,8 @@ def _compute_psrf(chain_means: Any, chain_vars: Any, n_per_chain: float) -> floa
 
 # ── Built-in Bayesian (JC69 MCMC) ─────────────────────────────────────────
 
-def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_freq: int = 10) -> BayesianResult:
+def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_freq: int = 10,
+                      seed: int = None) -> BayesianResult:
     """
     Run a pure-Python Bayesian MCMC phylogenetic analysis.
 
@@ -426,7 +438,7 @@ def _builtin_bayesian(alignment_file: str, n_generations: int = 5000, sample_fre
     n_keep = max(n_generations // sample_freq, 10)
     thin = max(1, int(n_gen * 0.8) // n_keep)
 
-    sampler = TreeSampler(alignment)
+    sampler = TreeSampler(alignment, seed=seed)
 
     # ── Run 2 independent chains for PSRF ──────────────────────────────
     chain_data = []
@@ -556,8 +568,14 @@ def check_bayesian_tools() -> dict :
     return {'mrbayes': _has_tool('mb')}
 
 
-def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'auto') -> BayesianResult:
-    """Run Bayesian phylogeny; built-in JC69 MCMC when MrBayes is absent."""
+def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'auto',
+                 seed: int = None) -> BayesianResult:
+    """Run Bayesian phylogeny; built-in JC69 MCMC when MrBayes is absent.
+
+    Args:
+        seed: seed for the built-in MCMC sampler.  MCMC is stochastic; supply a
+            seed to make a run reproducible (MrBayes manages its own RNG).
+    """
     if not os.path.exists(alignment_file):
         return BayesianResult(
             engine='none', message=f"File not found: {alignment_file}"
@@ -569,7 +587,7 @@ def run_bayesian(alignment_file: str, n_generations: int = 5000, tool: str = 'au
         if result:
             return result
 
-    return _builtin_bayesian(alignment_file, n_generations)
+    return _builtin_bayesian(alignment_file, n_generations, seed=seed)
 
 
 def format_bayesian_report(result: BayesianResult) -> str:

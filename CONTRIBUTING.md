@@ -275,7 +275,7 @@ If applicable, add screenshots.
 **Environment**
 - OS: [e.g., Windows 10, Ubuntu 22.04]
 - Python version: [e.g., 3.11.0]
-- BioSuite version: [e.g., 4.2.5]
+- BioSuite version: [e.g., 5.5.0]
 
 **Additional context**
 Any other context about the problem.
@@ -326,7 +326,7 @@ BioSuite-Ultra/
 
 ## Key Principles
 
-1. **100% Free** - No paid dependencies, ever
+1. **Free and open source** - released under the MIT license
 2. **Pure Python First** - Works with just `pip install`
 3. **Dual-Mode** - External tools optional, builtin always works
 4. **Well-Tested** - Comprehensive test coverage

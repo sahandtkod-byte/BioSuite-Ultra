@@ -138,6 +138,52 @@ def read_genbank(filepath: str) -> list[tuple[str, str, list]] | None:
         return None
 
 
+#: IUPAC nucleotide alphabet plus gap/mask characters that legitimately appear
+#: in FASTA records.  Anything else is not a nucleotide sequence.
+IUPAC_NUCLEOTIDES = frozenset("ACGTUacgtu"      # unambiguous bases + RNA uracil
+                              "RYSWKMBDHVNrysWkmbdhvn"  # IUPAC ambiguity codes
+                              "-.*")            # gaps / alignment padding
+
+
+def validate_nucleotide_sequence(seq, *, name: str = "sequence",
+                                 allow_empty: bool = True) -> str:
+    """Return *seq* as a string after checking it really is nucleotides.
+
+    Silently accepting non-nucleotide input is how a pasted FASTA header or a
+    protein sequence turned into a plausible-looking GC percentage.  Callers
+    that legitimately handle arbitrary text should not use this helper.
+
+    Args:
+        seq: candidate sequence.
+        name: parameter name to quote in error messages.
+        allow_empty: whether the empty string is acceptable.
+
+    Returns:
+        The sequence with surrounding whitespace and internal newlines removed.
+
+    Raises:
+        TypeError: if *seq* is not a string.
+        ValueError: if it is empty (and ``allow_empty`` is False) or contains
+            characters outside the IUPAC nucleotide alphabet.
+    """
+    if seq is None or not isinstance(seq, str):
+        raise TypeError(
+            f"{name} must be a string of nucleotides, got {type(seq).__name__}")
+    cleaned = "".join(seq.split())
+    if not cleaned:
+        if allow_empty:
+            return ""
+        raise ValueError(f"{name} must not be empty")
+    invalid = sorted({c for c in cleaned if c not in IUPAC_NUCLEOTIDES})
+    if invalid:
+        preview = "".join(invalid[:8])
+        raise ValueError(
+            f"{name} contains characters that are not IUPAC nucleotides: "
+            f"{preview!r}. Pass a DNA/RNA sequence (a FASTA header or protein "
+            f"sequence is not one).")
+    return cleaned
+
+
 def gc_content(seq: str) -> float:
     """Calculate GC content as a percentage.
 
@@ -152,12 +198,25 @@ def gc_content(seq: str) -> float:
 
     Returns:
         GC percentage (0.0 to 100.0). Returns 0.0 for empty sequences.
+
+        Gap characters are excluded from the denominator; ambiguity codes are
+        counted as non-GC.  ``'ACGT!@#'`` used to return 28.57 % by dividing
+        by seven "bases".
+
+    Raises:
+        TypeError: if *seq* is not a string.
+        ValueError: if *seq* contains non-nucleotide characters.
     """
+    seq = validate_nucleotide_sequence(seq, name="seq")
     if not seq:
         return 0.0
     arr = np.array(list(seq.upper()), dtype='U1')
-    gc = ((arr == 'G') | (arr == 'C')).sum()
-    return float(gc / len(arr) * 100.0)
+    counted = ~np.isin(arr, np.array(['-', '.', '*'], dtype='U1'))
+    total = int(counted.sum())
+    if total == 0:
+        return 0.0
+    gc = int(((arr == 'G') | (arr == 'C')) [counted].sum())
+    return float(gc / total * 100.0)
 
 
 def reverse_complement(seq: str) -> str:
@@ -174,8 +233,15 @@ def reverse_complement(seq: str) -> str:
 
     Returns:
         Reverse complemented sequence string.
+
+    Raises:
+        TypeError: if *seq* is not a string.
+        ValueError: if *seq* contains non-nucleotide characters.  ``'XYZ123'``
+            used to come back as ``'321ZYX'``, as if it had been complemented.
     """
-    comp = str.maketrans('ACGTNacgtn', 'TGCANtgcan')
+    seq = validate_nucleotide_sequence(seq, name="seq")
+    comp = str.maketrans('ACGTUNacgtunRYSWKMBDHVryswkmbdhv',
+                         'TGCAANtgcaanYRSWMKVHDByrswmkvhdb')
     return seq.translate(comp)[::-1]
 
 
@@ -198,6 +264,12 @@ def translate(seq: str, frame: int = 1, table: int = 1) -> str:
         Translated protein string using one-letter amino acid codes.
     """
     from .utils import GENETIC_CODE
+    seq = validate_nucleotide_sequence(seq, name="seq")
+    if frame not in (1, 2, 3, -1, -2, -3):
+        raise ValueError(f"frame must be one of 1, 2, 3, -1, -2, -3; got {frame!r}")
+    if table != 1:
+        raise ValueError(
+            f"only the standard genetic code (table=1) is implemented, got {table!r}")
     if frame < 0:
         seq = reverse_complement(seq)
         frame = -frame

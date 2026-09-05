@@ -282,10 +282,26 @@ class TestMainCli:
         captured = capsys.readouterr()
         assert "dark-purple" in captured.out
 
-    def test_empty_cmd_args_raises(self):
-        """Calling gc with no args raises an error (missing required argument)."""
-        with pytest.raises((TypeError, AttributeError, SystemExit)):
-            main_cli(["gc"])
+    def test_missing_required_argument_is_a_usage_error(self, capsys):
+        """Regression guard for BSU-014.
+
+        `biosuite gc` used to propagate a raw
+        ``TypeError: gc_content() missing 1 required positional argument``
+        traceback.  It must now print a usage line and return exit code 2.
+        """
+        rc = main_cli(["gc"])
+        captured = capsys.readouterr()
+        assert rc == 2
+        assert "Usage: biosuite gc <sequence>" in captured.out
+        assert "Missing argument(s): sequence" in captured.out
+        assert "Traceback" not in captured.out + captured.err
+
+    def test_too_many_arguments_is_a_usage_error(self, capsys):
+        """Extra positional arguments must not reach the core function."""
+        rc = main_cli(["gc", "ATCG", "EXTRA"])
+        captured = capsys.readouterr()
+        assert rc == 2
+        assert "Too many arguments" in captured.out
 
 
 # ── Interactive mode mock test ───────────────────────────────────────────────

@@ -19,7 +19,7 @@ def _dl_parts():
 
 def test_no_duplicate_dispatch_keys():
     src, _ = _dl_parts()
-    keys = re.findall(r"elif choice == '([a-z0-9]+)'", src)
+    keys = re.findall(r"(?:el)?if choice == '([a-z0-9]+)'", src)
     dupes = {k for k in set(keys) if keys.count(k) > 1}
     assert not dupes, f"duplicate dispatch branches: {dupes}"
 
@@ -29,7 +29,7 @@ def test_displayed_options_are_dispatched():
     displayed = set(re.findall(r"\{G\}\s*([0-9]{1,3})\{R\}", body))
     displayed |= set(re.findall(r"\{G\}\s*([a-q])\{R\}", body))
     src, _ = _dl_parts()
-    dispatched = set(re.findall(r"elif choice == '([a-z0-9]+)'", src)) | {'0'}
+    dispatched = set(re.findall(r"(?:el)?if choice == '([a-z0-9]+)'", src)) | {'0'}
     missing = displayed - dispatched
     # 101-111 plot functions are dispatched as single-line elifs (see file)
     assert not missing, f"displayed but not dispatched: {sorted(missing)}"

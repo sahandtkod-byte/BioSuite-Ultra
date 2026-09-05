@@ -1,10 +1,12 @@
 """Utility functions: config, session, safe input, file loading, theme, helpers."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -94,9 +96,53 @@ class CachedResult:
         self.access_order = []
         self.ttl = ttl  # seconds, or None for no expiration
 
+    @staticmethod
+    def _key_part(value: Any) -> Any:
+        """Return a collision-resistant, hashable representation of *value*.
+
+        ``str(value)`` is not usable as a cache key for scientific data: numpy
+        abbreviates large arrays with an ellipsis, so two completely different
+        10,000-element arrays stringified identically and the cache returned
+        one call's result for the other's input.  Arrays are hashed over their
+        raw bytes together with dtype and shape.
+        """
+        buffer = getattr(value, "tobytes", None)
+        if buffer is not None and hasattr(value, "dtype") and hasattr(value, "shape"):
+            try:
+                import numpy as _np
+                contiguous = _np.ascontiguousarray(value)
+                digest = hashlib.blake2b(contiguous.tobytes(), digest_size=16).hexdigest()
+                return ("ndarray", str(contiguous.dtype), contiguous.shape, digest)
+            except Exception:  # pragma: no cover - defensive
+                pass
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            return ("bytes", hashlib.blake2b(bytes(value), digest_size=16).hexdigest())
+        if isinstance(value, (str, int, float, bool, type(None))):
+            return (type(value).__name__, value)
+        if isinstance(value, (list, tuple)):
+            return (type(value).__name__, tuple(CachedResult._key_part(v) for v in value))
+        if isinstance(value, dict):
+            return ("dict", tuple(sorted(
+                (str(k), CachedResult._key_part(v)) for k, v in value.items())))
+        if isinstance(value, (set, frozenset)):
+            return ("set", tuple(sorted(str(CachedResult._key_part(v)) for v in value)))
+        to_dict = getattr(value, "to_dict", None)          # pandas objects
+        if callable(to_dict):
+            try:
+                return ("to_dict", CachedResult._key_part(to_dict()))
+            except Exception:  # pragma: no cover - defensive
+                pass
+        return ("repr", type(value).__name__, repr(value))
+
+    @classmethod
+    def make_key(cls, args: tuple, kwargs: dict) -> tuple:
+        """Build the cache key for a call."""
+        return (tuple(cls._key_part(a) for a in args),
+                tuple(sorted((k, cls._key_part(v)) for k, v in kwargs.items())))
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Call the wrapped function, using cache if available."""
-        key = str(args) + str(kwargs)
+        key = self.make_key(args, kwargs)
         now = time.monotonic()
         if key in self.cache:
             result, created_at = self.cache[key]
@@ -106,13 +152,21 @@ class CachedResult:
                 if key in self.access_order:
                     self.access_order.remove(key)
             else:
+                # Genuine LRU: a hit refreshes recency.
+                if key in self.access_order:
+                    self.access_order.remove(key)
+                self.access_order.append(key)
                 return result
         # Auto-clean all expired entries on access
         self._evict_expired(now)
         result = self.func(*args, **kwargs)
-        if len(self.cache) >= self.maxsize:
+        while len(self.cache) >= self.maxsize and self.access_order:
             oldest = self.access_order.pop(0)
-            del self.cache[oldest]
+            self.cache.pop(oldest, None)
+        if len(self.cache) >= self.maxsize:
+            # access_order exhausted but entries remain (should not happen);
+            # drop the oldest insertion rather than raising IndexError.
+            self.cache.pop(next(iter(self.cache)), None)
         self.cache[key] = (result, now)
         self.access_order.append(key)
         return result
@@ -197,36 +251,109 @@ DEFAULT_CONFIG = {
     }
 }
 
-CONFIG_FILE = os.path.join(APP_DIR, "biosuite_config.json")
-SESSION_FILE = os.path.join(APP_DIR, "biosuite_session.json")
+def user_config_dir() -> str:
+    """Directory holding per-user BioSuite state.
+
+    Resolution order:
+
+    1. ``BIOSUITE_CONFIG_DIR`` (explicit override, used by tests and by
+       containers that mount a writable volume),
+    2. ``%APPDATA%\\BioSuite`` on Windows / ``$XDG_CONFIG_HOME/biosuite`` or
+       ``~/.config/biosuite`` elsewhere.
+
+    The configuration deliberately no longer lives next to the source tree:
+    ``api_keys`` written by the GUI/CLI (and by the test-suite) ended up inside
+    the *git-tracked* ``biosuite_config.json``, which is how test residue was
+    committed and how a real user key would be published by ``git add -A``.
+    """
+    override = os.environ.get("BIOSUITE_CONFIG_DIR")
+    if override:
+        return os.path.abspath(os.path.expanduser(override))
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        return os.path.join(base, "BioSuite")
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(base, "biosuite")
+
+
+def get_config_file() -> str:
+    """Absolute path of the active config file (re-read on every call)."""
+    return os.path.join(user_config_dir(), "biosuite_config.json")
+
+
+def get_session_file() -> str:
+    """Absolute path of the active session file (re-read on every call)."""
+    return os.path.join(user_config_dir(), "biosuite_session.json")
+
+
+#: Legacy location kept for one-time read-only migration of existing installs.
+LEGACY_CONFIG_FILE = os.path.join(APP_DIR, "biosuite_config.json")
+
+CONFIG_FILE = get_config_file()
+SESSION_FILE = get_session_file()
 
 def load_config() -> dict :
-    """Load user config from ~/.biosuite/config.json.
+    """Load user config from the user configuration directory.
+
+    Falls back to a read-only migration from the historical in-repository
+    location so existing installations keep their settings.
 
     Returns:
-        dict: Parsed configuration; empty dict when missing/corrupt.
+        dict: Parsed configuration merged over :data:`DEFAULT_CONFIG`.
     """
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r') as f:
-                return {**DEFAULT_CONFIG, **json.load(f)}
-        except (json.JSONDecodeError, OSError):
-            return DEFAULT_CONFIG.copy()
+    for path in (get_config_file(), LEGACY_CONFIG_FILE):
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    return {**DEFAULT_CONFIG, **json.load(f)}
+            except (json.JSONDecodeError, OSError):
+                continue
     return DEFAULT_CONFIG.copy()
 
 def save_config(cfg: Dict[str, Any]) -> None:
-    """Persist the given config dict to ~/.biosuite/config.json atomically."""
+    """Persist the given config dict to the user configuration directory.
+
+    Writes atomically (temp file + replace) and reports failures instead of
+    silently discarding them, so a user never believes an API key was saved
+    when it was not.
+
+    Raises:
+        OSError: if the configuration could not be written.
+    """
+    path = get_config_file()
+    directory = os.path.dirname(path)
     try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(cfg, f, indent=2)
-    except OSError:
-        pass
+        os.makedirs(directory, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".biosuite_config", dir=directory)
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(cfg, f, indent=2)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+        try:
+            os.chmod(path, 0o600)      # the file may hold API keys
+        except OSError as exc:
+            # Not fatal, but the user must know their key file is readable by
+            # others rather than be told the save succeeded outright.
+            logger.warning(
+                "Saved %s but could not restrict its permissions to 0600 (%s). "
+                "If it contains an API key, tighten the permissions manually.",
+                path, exc)
+    except OSError as exc:
+        logger.warning("Could not save configuration to %s: %s", path, exc)
+        raise
 
 def load_session() -> dict :
     """Load last saved session (recent files, last tab) if present."""
-    if os.path.exists(SESSION_FILE):
+    session_file = get_session_file()
+    if os.path.exists(session_file):
         try:
-            with open(SESSION_FILE, 'r') as f:
+            with open(session_file, 'r') as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             return {}
@@ -235,10 +362,15 @@ def load_session() -> dict :
 def save_session(session_data: Dict[str, Any]) -> None:
     """Save session state dict to disk for next-launch restore."""
     try:
-        with open(SESSION_FILE, 'w') as f:
+        os.makedirs(user_config_dir(), exist_ok=True)
+        with open(get_session_file(), 'w') as f:
             json.dump(session_data, f, indent=2)
-    except OSError:
-        pass
+    except OSError as exc:
+        # An explicit save that silently does nothing leaves the user believing
+        # their session was stored. Still does not raise, so it cannot block
+        # GUI shutdown.
+        logger.warning("Could not save the session to %s: %s",
+                       get_session_file(), exc)
 
 def autosave_session(session_data: Optional[Dict[str, Any]] = None) -> None:
     """Best-effort autosave that silently ignores write errors
@@ -460,15 +592,54 @@ def load_dataframe_safe_interactive(filepath: str) -> pd.DataFrame:
 def maybe_downsample(x: List[Any], y: List[Any], max_points: Optional[int] = None) -> Tuple[List[Any], List[Any]]:
     """Uniformly downsample long series for responsive plotting.
 
-    Keeps endpoints so line shapes stay visually faithful.
+    Keeps the first and last points and picks the rest at an even stride, so
+    the visible shape of the curve is preserved and the result is identical on
+    every run.
+
+    The previous implementation used an unseeded ``np.random.choice`` without
+    ``sort``: it returned the samples in random order (scrambling any line
+    plot), dropped the endpoints, produced a different picture on every run,
+    and raised ``TypeError`` when given plain Python lists despite the
+    ``List[Any]`` signature.
+
+    Args:
+        x: x values (list, tuple, ndarray or Series).
+        y: y values, same length as *x*.
+        max_points: maximum number of points to keep.
+
+    Returns:
+        The downsampled ``(x, y)`` pair, in the same order as the input and of
+        the same type family as the input.
+
+    Raises:
+        ValueError: if *x* and *y* have different lengths, or *max_points* < 2.
     """
+    if len(x) != len(y):
+        raise ValueError(
+            f"x and y must be the same length, got {len(x)} and {len(y)}")
     if max_points is None:
         max_points = config.get('downsample_threshold', 5000)
-    if len(x) <= max_points:
+    max_points = int(max_points)
+    if max_points < 2:
+        raise ValueError(f"max_points must be at least 2, got {max_points}")
+    n = len(x)
+    if n <= max_points:
         return x, y
-    indices = np.random.choice(len(x), max_points, replace=False)
-    logger.info(f"Downsampled from {len(x)} to {max_points} points.")
-    return x[indices], y[indices]
+    # Evenly spaced indices including both endpoints; deterministic.
+    indices = np.unique(np.linspace(0, n - 1, max_points).round().astype(int))
+    logger.info(f"Downsampled from {n} to {len(indices)} points.")
+    if isinstance(x, np.ndarray):
+        x_out = x[indices]
+    else:
+        x_out = type(x)(x[i] for i in indices) if isinstance(x, (list, tuple)) \
+            else np.asarray(x)[indices]
+    if isinstance(y, np.ndarray):
+        y_out = y[indices]
+    else:
+        y_out = type(y)(y[i] for i in indices) if isinstance(y, (list, tuple)) \
+            else np.asarray(y)[indices]
+    return x_out, y_out
+
 
 def apply_glass_ax(ax: Any) -> None:
     """Style an Axes with the dark glass look used across BioSuite plots."""
@@ -495,8 +666,9 @@ def ask_save_plot(default_name: str, save_format: str, dpi: int, pdf: Optional[s
             logger.info(f"   Added to PDF: {default_name}")
             if story is not None:
                 story.append(f"![{default_name}]({default_name}.png)")
-        except Exception:
-            pass
+        except (OSError, ValueError, RuntimeError) as exc:
+            logger.warning("Could not add %s to the PDF report: %s",
+                           default_name, exc)
         return
     try:
         save = input("Save this plot? (y/n): ").strip().lower()
@@ -669,9 +841,15 @@ def reverse_complement_dna(seq: str) -> str:
 
     Returns:
         Reverse complemented sequence string.
+
+    This function used to carry its own translation table that handled only
+    ACGTN, so it silently disagreed with sequence.reverse_complement: it left
+    every IUPAC ambiguity code (R, Y, S, W, K, M, B, D, H, V) uncomplemented
+    and happily reversed non-DNA junk, returning '321ZYX' for 'XYZ123'.
+    It now delegates, so there is exactly one implementation.
     """
-    comp = str.maketrans('ACGTNacgtn', 'TGCANtgcan')
-    return seq.translate(comp)[::-1]
+    from .sequence import reverse_complement
+    return reverse_complement(seq)
 
 
 # ── Restriction Enzyme Database ────────────────────────────────────────────────
@@ -871,3 +1049,33 @@ RESTRICTION_ENZYMES = {
 # need recognition sequences (e.g. cloning.py digestion simulation).
 RESTRICTION_ENZYMES_SITES = {name: site for name, (site, _) in RESTRICTION_ENZYMES.items()}
 
+
+def secure_temp_path(suffix: str = "", prefix: str = "biosuite_") -> str:
+    """Reserve a unique temporary path safely and return it.
+
+    tempfile.mktemp() only *predicts* a free name; between the prediction and
+    the open, anything on a shared /tmp can create that path - typically a
+    symlink to a file the process may write. mkstemp() creates the file
+    atomically with mode 0600 and hands back a descriptor, closing the race.
+
+    The path is returned already existing and empty, so callers must not treat
+    mere existence as proof a tool wrote output - use wrote_output().
+    """
+    fd, path = tempfile.mkstemp(suffix=suffix, prefix=prefix)
+    os.close(fd)
+    return path
+
+
+def wrote_output(path: str) -> bool:
+    """True if `path` exists and is non-empty.
+
+    Success checks written as os.path.exists(path) became tautologies once
+    secure_temp_path started reserving the path by creating it. This is also
+    strictly stronger than the original check: an external tool that exits 0
+    without writing anything is now caught rather than passed to a parser.
+    """
+    try:
+        return os.path.exists(path) and os.path.getsize(path) > 0
+    except (OSError, ValueError, TypeError):
+        # ValueError: embedded null byte; TypeError: non-path input.
+        return False

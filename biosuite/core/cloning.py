@@ -2,7 +2,7 @@
 Molecular Cloning Toolkit — restriction digestion, ligation, PCR, and
 virtual gel electrophoresis.
 
-Pure matplotlib / numpy. No paid dependencies.
+Implemented with matplotlib and numpy only.
 """
 
 from __future__ import annotations
@@ -347,7 +347,7 @@ def simulate_ligation(fragments: List[str],
     if insert_sequence and vector_sequence:
         try:
             ins = _validate_dna(insert_sequence, "insert")
-            vec = _validate_dna(vector_sequence, "vector")
+            _validate_dna(vector_sequence, "vector")   # validate, value unused
             # Check if the insert (or its RC) is present in the product
             verified = (ins in product) or (_reverse_complement(ins) in product)
             if not verified:
@@ -969,7 +969,7 @@ def format_pcr_report(result: dict) -> str:
         "=" * 60,
         "  PCR AMPLIFICATION REPORT",
         "=" * 60,
-        f"  Template length: N/A (see product size)",
+        "  Template length: N/A (see product size)",
         f"  Product size: {result['size']:,} bp",
         f"  Cycles: {result['cycles']}",
         f"  Estimated efficiency: {result.get('efficiency', 0) * 100:.0f}%",

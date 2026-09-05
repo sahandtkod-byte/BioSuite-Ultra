@@ -2,20 +2,39 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    # The default branch AND the long-lived integration branches, otherwise CI
+    # never runs on the branch where the work actually happens.
+    branches: [ main, 'testing/**', 'release/**' ]
   pull_request:
-    branches: [ main ]
+    # Empty-by-omission means "PRs targeting any branch"; the previous
+    # `branches: [main]` meant PRs into testing/* were never checked.
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default: every job below gets read-only access to the
+# repository contents and nothing else. A job that genuinely needs to write
+# (none do today) has to opt in explicitly with its own `permissions:` block.
+permissions:
+  contents: read
+
+env:
+  # Deterministic, non-default credentials. The application refuses to start
+  # with a published default, so CI has to configure real values.
+  MPLBACKEND: Agg
+  BIOSUITE_API_KEY: ci-test-key-not-a-real-secret
+  BIOSUITE_JWT_SECRET: ci-jwt-secret-not-a-real-secret
+  BIOSUITE_ADMIN_PASSWORD: ci-admin-password
+
 jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -30,17 +49,101 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      # The GUI package needs the Tk bindings, which are not part of the
+      # setup-python runtime. Without this the whole tests/gui tree errored
+      # out and nobody noticed, because the job's exit status was never
+      # checked against an expected count.
+      - name: Install Tk bindings (for the GUI tests)
+        run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[api,notebook,dev]"
-          pip install httpx
+          # The `gui` extra carries customtkinter. Installing python3-tk alone
+          # is NOT enough: every module under biosuite/gui imports
+          # customtkinter, so without this extra the whole tests/gui tree
+          # errors out with ModuleNotFoundError and the job fails.
+          pip install -e ".[api,notebook,dev,gui]"
+          # tests/core/test_enrichment_fixtures.py asserts real ORA output
+          # against known-answer fixtures. Without goatools the enrichment code
+          # degrades to a "not installed" message and those assertions fail, so
+          # the dependency is installed rather than the tests being skipped.
+          # goatools alone, not the whole [bio] extra: the rest of that extra
+          # (cutadapt, cobra, ete3, scanpy) needs compilers and minutes of
+          # build time for no additional coverage here.
+          pip install "goatools>=1.3"
+
+      - name: Verify the GUI test dependencies really are importable
+        run: |
+          # Fail loudly here rather than as 141 confusing test errors later.
+          python -c "import tkinter, customtkinter; print('tkinter + customtkinter OK')"
+          python -c "import goatools; print('goatools OK')"
+
+      - name: Show resolved dependency versions
+        run: pip freeze
 
       - name: Run full test suite
+        run: |
+          # pipefail keeps the real pytest exit status even though we tee.
+          set -o pipefail
+          xvfb-run -a pytest tests/ -q -rf --tb=short \
+            --cov=biosuite --cov-report=xml --cov-report=term-missing \
+            2>&1 | tee /tmp/pytest-${{ matrix.python-version }}.log
+
+      - name: Surface the test summary as annotations
+        # Raw Actions logs are not retrievable from every environment and this
+        # workflow uploads no test artifact, so the pytest summary is
+        # republished as workflow annotations: a notice when the suite passed,
+        # errors (with the failure list and traceback head) when it did not.
+        # This never changes the job outcome - the step reports, it does not
+        # decide.
+        if: always()
+        run: |
+          python - <<'PY'
+          import collections, os, pathlib, re
+          log = pathlib.Path(f"/tmp/pytest-{os.environ['PYVER']}.log")
+          if not log.exists():
+              print("::error::pytest produced no log file")
+              raise SystemExit(0)
+          text = log.read_text(errors="replace")
+          failed = re.findall(r"^(?:FAILED|ERROR) (\S+).*$", text, re.M)
+          counts = collections.Counter(f.split("::")[0] for f in failed)
+          tail = [ln for ln in text.splitlines() if ln.startswith(("FAILED", "ERROR"))]
+          summary = re.findall(r"^=+ .*(?:passed|failed|error).* =+$", text, re.M)
+
+          level = "error" if failed else "notice"
+
+          def emit(title, body):
+              print(f"::{level} title={title}::"
+                    + body.replace("\n", "%0A")[:60000])
+
+          emit("pytest summary", "\n".join(summary[-1:]) or "no summary line")
+          if counts:
+              emit("failures per file",
+                   "\n".join(f"{n:>4}  {f}" for f, n in counts.most_common()))
+          # The reason a test failed matters more than its name: republish the
+          # head of the FAILURES section so the traceback is visible too.
+          block = re.split(r"^=+ FAILURES =+$", text, maxsplit=1, flags=re.M)
+          if len(block) > 1:
+              emit("first failures (traceback)",
+                   "\n".join(block[1].splitlines()[:80]))
+          for i in range(0, min(len(tail), 120), 30):
+              emit(f"failing tests {i + 1}-{min(i + 30, len(tail))}",
+                   "\n".join(tail[i:i + 30]))
+          PY
         env:
-          MPLBACKEND: Agg
-          BIOSUITE_API_KEY: ci-test-key
-        run: pytest tests/ -q --cov=biosuite --cov-report=xml
+          PYVER: ${{ matrix.python-version }}
+
+      - name: Fail if any test was skipped for a missing dependency
+        run: |
+          # A skipped security or GUI test is indistinguishable from a passing
+          # one in the summary line, so make the difference explicit.
+          xvfb-run -a pytest tests/api tests/cli -q --no-header -rs \
+            | tee /tmp/skips.txt
+          if grep -q "SKIPPED" /tmp/skips.txt; then
+            echo "::error::security/CLI tests were skipped in CI"
+            exit 1
+          fi
 
       - name: Upload coverage
         if: matrix.python-version == '3.11'
@@ -49,8 +152,75 @@ jobs:
           files: ./coverage.xml
           fail_ci_if_error: false
 
+  security:
+    name: Security regression suite
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,dev]"
+
+      # These are the tests that reproduce the fixed vulnerabilities. They are
+      # a hard gate: no continue-on-error, no allowed skips.
+      - name: Run the security regression tests
+        run: |
+          pytest -q \
+            tests/api/test_api_security_regression.py \
+            tests/api/test_api_auth_security.py \
+            tests/api/test_api_startup_security.py \
+            tests/cli/test_cli_safety.py \
+            tests/core/test_temp_file_safety.py
+
+      # The validation and precision suites guard scientific-correctness
+      # regressions that a security-only run would miss.
+      - name: Run the input-validation and precision regression tests
+        run: |
+          pytest -q \
+            tests/core/test_input_validation.py \
+            tests/core/test_popgen_precision.py \
+            tests/core/test_alignment_ordering.py \
+            tests/core/test_reproducibility.py \
+            tests/core/test_logging.py \
+            tests/test_documentation_accuracy.py
+
+      - name: Assert the API refuses to start without configuration
+        env:
+          BIOSUITE_API_KEY: ''
+          BIOSUITE_JWT_SECRET: ''
+        run: |
+          python - <<'PY'
+          import sys
+          from biosuite.api.server import ensure_safe_to_serve
+          try:
+              ensure_safe_to_serve()
+          except SystemExit:
+              print("OK: refused to serve without configured secrets")
+              sys.exit(0)
+          print("FAIL: server accepted an unconfigured production start")
+          sys.exit(1)
+          PY
+
+      - name: Assert no secrets are tracked in git
+        run: |
+          if git ls-files | grep -E '(^|/)(\.env|biosuite_config\.json|.*\.pem|.*\.key)$'; then
+            echo "::error::a secret-bearing file is tracked in git"
+            exit 1
+          fi
+
   lint:
     name: Lint (ruff)
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,12 +233,49 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      # Hard gate: syntax errors and undefined names must never merge.
-      - name: Fatal checks (E9, F821)
-        run: ruff check biosuite/ --select E9,F821
+      # Hard gate: syntax errors, undefined names and the bug-prone patterns
+      # that actually caused defects in this codebase.
+      - name: Fatal checks
+        run: ruff check biosuite/ --select E9,F,B
 
-      # Advisory: full configured rule set; reported but not blocking
-      # until the remaining style debt is paid down.
-      - name: Full checks (advisory)
+      - name: Style checks (advisory)
         continue-on-error: true
         run: ruff check biosuite/ --output-format=github
+
+  build:
+    name: Package build
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+
+      # The version is declared in four places; they must agree.
+      - name: Check version consistency
+        run: |
+          pip install -e .
+          python - <<'PY'
+          import pathlib, re, sys
+          import biosuite
+
+          pyproject = pathlib.Path("pyproject.toml").read_text()
+          declared = re.search(r'^version = "([^"]+)"', pyproject, re.M).group(1)
+          citation = pathlib.Path("CITATION.cff").read_text()
+          cited = re.search(r'^version:\s*"?([^"\s]+)"?', citation, re.M).group(1)
+
+          problems = []
+          if biosuite.__version__ != declared:
+              problems.append(f"biosuite.__version__={biosuite.__version__} != pyproject {declared}")
+          if cited != declared:
+              problems.append(f"CITATION.cff={cited} != pyproject {declared}")
+          if problems:
+              print("\n".join(problems))
+              sys.exit(1)
+          print(f"version {declared} consistent everywhere")
+          PY

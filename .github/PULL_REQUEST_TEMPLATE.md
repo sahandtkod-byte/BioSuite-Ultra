@@ -18,7 +18,7 @@
 - [ ] No breaking changes (or documented in CHANGELOG.md)
 - [ ] Docstrings updated for public functions
 - [ ] Type hints added for new functions
-- [ ] `docs/FIXES.md` updated if fixing a tracked bug
+- [ ] `docs/internal/FIXES.md` updated if fixing a tracked bug
 
 ## Testing
 ```bash

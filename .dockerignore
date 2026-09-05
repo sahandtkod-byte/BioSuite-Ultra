@@ -56,9 +56,12 @@ data/
 output/
 notebooks/
 
-# Configuration (user-specific)
-bioplatter_config.json
-bioplatter_session.json
+# Configuration and secrets (must never enter an image layer)
+biosuite_config.json
+biosuite_session.json
+.env
+*.pem
+*.key
 *.db
 
 # OS files
@@ -67,3 +70,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Tests and CI (not needed at runtime)
+tests/
+.github/

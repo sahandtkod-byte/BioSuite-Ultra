@@ -1,12 +1,20 @@
 {
     "name": "BioSuite Ultra",
-    "description": "Comprehensive open-source bioinformatics platform with 53 analysis modules, parallel processing, molecular cloning, plasmid maps, and virtual gel electrophoresis",
-    "homepage": "https://github.com/sahandtouri/BioSuite-Ultra",
-    "repository": "https://github.com/sahandtouri/BioSuite-Ultra",
+    "description": "Integrated pure-Python bioinformatics platform with 47 analysis modules, 105 public plotting functions, molecular cloning with 169 restriction enzymes, and reproducible workflows, usable as a Python library, CLI, desktop GUI and REST API.",
+    "homepage": "https://github.com/sahandtkod-byte/BioSuite-Ultra",
+    "repository": "https://github.com/sahandtkod-byte/BioSuite-Ultra",
     "license": "MIT",
-    "languages": ["Python"],
-    "programmingLanguage": ["Python"],
-    "operatingSystem": ["Linux", "Windows", "macOS"],
+    "languages": [
+        "Python"
+    ],
+    "programmingLanguage": [
+        "Python"
+    ],
+    "operatingSystem": [
+        "Linux",
+        "Windows",
+        "macOS"
+    ],
     "categories": [
         {
             "name": "Sequence analysis",
@@ -34,7 +42,7 @@
         },
         {
             "name": "Molecular cloning",
-            "description": "Restriction digestion, PCR, ligation, Gibson assembly"
+            "description": "Restriction digestion, PCR, ligation, virtual gel electrophoresis"
         },
         {
             "name": "CRISPR",
@@ -50,7 +58,7 @@
         },
         {
             "name": "Visualization",
-            "description": "36+ plot types for bioinformatics data"
+            "description": "40 plot types for bioinformatics data"
         },
         {
             "name": "Single-cell analysis",
@@ -79,9 +87,9 @@
         "Metabolomics analysis",
         "Machine learning (RF, SVM, SHAP)",
         "Parallel processing",
+        "Desktop GUI",
         "REST API",
-        "Cyberpunk GUI",
-        "CLI with 99+ options"
+        "CLI with 99 menu options"
     ],
     "isAbout": [
         {
@@ -115,20 +123,23 @@
             "url": "https://matplotlib.org"
         }
     ],
-    "version": "4.1.0",
+    "version": "5.5.0",
     "dateCreated": "2026-01-01",
-    "dateModified": "2026-07-07",
+    "dateModified": "2026-09-05",
     "isSourceCode": true,
-    "codeRepository": "https://github.com/sahandtouri/BioSuite-Ultra",
+    "codeRepository": "https://github.com/sahandtkod-byte/BioSuite-Ultra",
     "downloadUrl": "https://pypi.org/project/biosuite-ultra/",
     "documentation": "https://biosuite.readthedocs.io",
     "identifier": "biosuite-ultra",
-    "alternateName": ["BioSuite", "BioSuite Ultra"],
+    "alternateName": [
+        "BioSuite",
+        "BioSuite Ultra"
+    ],
     "status": "active",
     "maturityLevel": "production",
-    "issues": "https://github.com/sahandtouri/BioSuite-Ultra/issues",
+    "issues": "https://github.com/sahandtkod-byte/BioSuite-Ultra/issues",
     "contactPoint": {
         "type": "source-code-support",
-        "url": "https://github.com/sahandtouri/BioSuite-Ultra/issues"
+        "url": "https://github.com/sahandtkod-byte/BioSuite-Ultra/issues"
     }
 }

@@ -8,7 +8,9 @@ from biosuite.core.codon_usage import (
 
 
 def test_codon_usage_counts_frame_correctly():
-    seq = "X" + "ATGAAATTT" + "GG"  # frame=2: ATG AAA TTT
+    # A real base as the frame offset: "X" is not a nucleotide and is now
+    # rejected by input validation (BSU-020).
+    seq = "G" + "ATGAAATTT" + "GG"  # frame=2: ATG AAA TTT
     res = codon_usage_table(seq, frame=2)
     assert res['codon_usage'].get('ATG') == pytest.approx(100 / 3, abs=0.01)
     assert res['total_codons'] == 3

@@ -54,9 +54,67 @@ def test_invalid_option_handling(monkeypatch):
     assert _run([]) == 'clean'
 
 
-def test_eof_breaks_session(monkeypatch):
+def test_eof_ends_session_cleanly(monkeypatch, capsys):
+    """Regression guard for BSU-014.
+
+    Ctrl-D at the menu prompt used to escape as an EOFError traceback from
+    menu.py; it must now end the session the same way option 0 does.
+    """
     monkeypatch.setattr(builtins, 'input', _drive([]))
-    assert _run([]) == 'eof-ended'
+    assert _run([]) == 'clean'
+    out = capsys.readouterr().out
+    assert 'Goodbye' in out
+
+
+def test_exception_in_handler_does_not_kill_session(monkeypatch, capsys):
+    """Regression guard for BSU-014: a failing action returns to the menu.
+
+    Option 75 with a malformed Newick string used to raise IndexError out of
+    the loop and terminate the whole session.
+    """
+    monkeypatch.setattr(builtins, 'input', _drive(['75', '((((bad', '0']))
+    assert _run([]) == 'clean'
+    out = capsys.readouterr().out
+    assert 'IndexError' in out                      # reported...
+    assert 'session is still running' in out        # ...but survived
+    assert 'Goodbye' in out                         # and reached the clean exit
+
+
+def test_menu_has_no_code_evaluation(monkeypatch):
+    """Regression guard for BSU-003: no eval()/exec() anywhere in the CLI."""
+    import ast
+    import pathlib
+    tree = ast.parse(pathlib.Path(menu.__file__).read_text(encoding='utf8'))
+    called = {node.func.id for node in ast.walk(tree)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+    assert 'eval' not in called
+    assert 'exec' not in called
+    assert 'compile' not in called
+
+
+def test_batch_builder_rejects_python_expressions(monkeypatch, capsys):
+    """Regression guard for BSU-003: option 93 must not execute user code."""
+    payload = '__import__("os").system("touch /tmp/biosuite-rce-probe")'
+    monkeypatch.setattr(builtins, 'input', _drive(['93', payload, '0']))
+    assert _run([]) == 'clean'
+    out = capsys.readouterr().out
+    assert 'Unknown function' in out
+    import os
+    assert not os.path.exists('/tmp/biosuite-rce-probe')
+
+
+def test_resolve_safe_callable_rejects_non_biosuite_targets():
+    """Only whitelisted names and biosuite.* paths resolve."""
+    with pytest.raises(ValueError):
+        menu.resolve_safe_callable('os:system')
+    with pytest.raises(ValueError):
+        menu.resolve_safe_callable('subprocess:run')
+    with pytest.raises(ValueError):
+        menu.resolve_safe_callable('lambda x: x')
+    with pytest.raises(ValueError):
+        menu.resolve_safe_callable('')
+    assert menu.resolve_safe_callable('gc_content')('ATGC') == 50.0
+    assert menu.resolve_safe_callable('biosuite.core.sequence:gc_content')('ATGC') == 50.0
 
 
 def test_parser_help_non_interactive(monkeypatch, capsys):

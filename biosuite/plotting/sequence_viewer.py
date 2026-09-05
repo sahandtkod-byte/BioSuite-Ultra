@@ -1,7 +1,7 @@
 """
-Interactive Sequence Viewer — SnapGene-style sequence visualization.
+Interactive Sequence Viewer — annotated sequence visualization.
 
-All pure matplotlib; no paid dependencies.
+Implemented with matplotlib only.
 
 Provides:
   • draw_sequence_view       — colour-coded nucleotides + 6-frame translation
@@ -193,7 +193,7 @@ def draw_sequence_view(
     figsize: Tuple[int, int] = (16, 8),
     ax: Optional[plt.Axes] = None,
 ) -> plt.Figure:
-    """SnapGene-style colour-coded nucleotide view with 6-frame translation.
+    """Colour-coded nucleotide view with 6-frame translation.
 
     Parameters
     ----------

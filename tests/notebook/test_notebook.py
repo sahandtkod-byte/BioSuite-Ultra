@@ -13,12 +13,17 @@ Covers:
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-# Ensure the project root is importable
-sys.path.insert(0, "C:/Users/SAHAND/Desktop/python/BioSuite-Ultra")
+# Make the repository root importable when the tests are run from a checkout
+# without the package installed.  Resolved relative to this file so it works on
+# any machine and any operating system.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 import biosuite.notebook as nbmod
 
@@ -124,12 +129,25 @@ class TestQuickTranslate:
         result = quick_translate("ATGAAATTTTAA")
         assert result == "MKF*"
 
-    def test_protein_sequence_passthrough(self):
-        """Non-DNA input should produce X for unknown codons."""
+    def test_protein_sequence_is_rejected(self):
+        """A protein sequence is not translatable DNA and must be refused.
+
+        This previously "passed" with `assert len(result) >= 0`, a tautology,
+        while quick_translate silently returned a string of X's - i.e. a
+        protein handed in by mistake produced a plausible-looking result
+        instead of an error.
+        """
+        import pytest
+
         from biosuite.notebook import quick_translate
-        result = quick_translate("XYZXYZ")
-        # Should not raise, just produce X's
-        assert len(result) >= 0
+        with pytest.raises(ValueError, match="IUPAC"):
+            quick_translate("MKFLVQPWX")
+
+    def test_ambiguity_codes_still_translate_to_x(self):
+        """Legitimate IUPAC ambiguity codes remain acceptable input."""
+        from biosuite.notebook import quick_translate
+        assert quick_translate("ATGNNNTAA") == "MX*"
+
 
     def test_numpy_generated_sequence(self):
         """Translate a numpy-generated DNA sequence."""
