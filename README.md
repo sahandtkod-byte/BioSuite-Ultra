@@ -359,7 +359,7 @@ No part of this project is validated for clinical or diagnostic use.
 ## Project status
 
 The current development version is **5.5.0**, which is **not yet published to PyPI** — the
-latest released version is **5.0.3**. Version 5.5.0 is a correctness, security and
+latest released version is **5.5.0**. Version 5.5.0 is a correctness, security and
 reproducibility release; see [CHANGELOG.md](CHANGELOG.md) for the full list of changes.
 
 ---
