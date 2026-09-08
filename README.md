@@ -1,273 +1,508 @@
 # BioSuite Ultra
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Tests](https://img.shields.io/badge/Tests-1444%20passing-brightgreen)
-![Modules](https://img.shields.io/badge/Modules-47-orange)
-![Lines](https://img.shields.io/badge/Lines-43K%2B-yellow)
-![Version](https://img.shields.io/badge/Version-5.0.0-blueviolet)
+![Version](https://img.shields.io/badge/Version-5.5.0-blueviolet)
+![Modules](https://img.shields.io/badge/Analysis%20Modules-47-orange)
+![Plots](https://img.shields.io/badge/Plotting%20Functions-105-yellow)
+![Enzymes](https://img.shields.io/badge/Restriction%20Enzymes-169-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-2493%20passed-brightgreen)
+![PyPI](https://img.shields.io/pypi/v/biosuite-ultra.svg)
 ![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21256296.svg)
-![Cloning](https://img.shields.io/badge/Molecular%20Cloning-Free-brightgreen)
 ![JOSS](https://img.shields.io/badge/JOSS-Submitted-blue.svg)
 
-**The most comprehensive open-source bioinformatics platform.**
+**BioSuite Ultra is an open-source, pure-Python bioinformatics platform for integrated sequence, genomics, transcriptomics, population genetics, molecular cloning, visualization, and multi-omics analysis.**
 
-BioSuite Ultra is a full-stack bioinformatics platform with 47 analysis modules, 26 visualization types (123 functions), a cyberpunk GUI, a 117-option CLI, and SnapGene-killer molecular cloning tools — all in pure Python. No external bioinformatics tools required. **100% free.**
+BioSuite Ultra provides **47 analysis modules**, **105 public plotting functions**, **169 restriction enzymes**, a desktop GUI, a professional CLI, a REST API, Jupyter integration, reproducible workflows, and provenance tracking.
 
----
+The project is designed as a unified bioinformatics environment that can be used as a **Python library, command-line application, desktop application, REST service, or web application backend**.
 
-## What's New in v5.0.0
-
-- **100% Type Hint Coverage**: All 49 core modules fully typed with comprehensive annotations
-- **Zero Runtime Changes**: Purely static analysis improvements, all existing APIs backward compatible
-- **Python 3.9+ Compatible**: No breaking changes to function signatures or behavior
-- **169 Restriction Enzymes**: full site + cut-position table for accurate digestion
-- **Parallel Processing**: multi-threaded/multi-process execution for all modules
-- **Better Bayesian Phylogeny**: MCMC sampling with the Jukes-Cantor model
-- **Improved MD Simulation**: Velocity Verlet integrator, Berendsen thermostat
+**Free and open source under the MIT License.**
 
 ---
 
-## 🚀 Quick Start
+## Current Release: v5.5.0
 
-```bash
-# Install
-pip install biosuite-ultra
+**BioSuite Ultra v5.5.0 is the current production release.**
 
-# Run GUI
-python -m biosuite
+This release focuses on **stability, API reliability, security hardening, reproducibility, and production readiness** across the Python library, CLI, GUI, and REST API.
 
-# Or use Docker
-docker pull sahandtkod/biosuite-ultra:latest
-docker run -p 8000:8000 sahandtkod/biosuite-ultra
+### Highlights
+
+* **47 bioinformatics analysis modules**
+* **105 public plotting functions**
+* **169 restriction enzymes**
+* **99 CLI menu options**
+* **19 direct CLI subcommands**
+* **11 GUI tabs**
+* **38 documented REST API endpoints**
+* Reproducible workflows and provenance tracking
+* REST API authentication and rate limiting
+* Secure file-path handling within the configured data directory
+* Python 3.10, 3.11, and 3.12 support
+* Comprehensive automated test suite
+* Docker and Docker Compose support
+* Jupyter integration
+* Pure-Python implementations with optional external-tool acceleration where available
+
+### Quality Status
+
+The v5.5.0 development and validation cycle includes:
+
+* **2,493 tests passed**
+* **14 tests skipped**
+* **0 failed tests**
+* Ruff static analysis passing
+* Security regression tests passing
+* Package build and distribution checks passing
+* CodeQL analysis with zero alerts
+
+---
+
+## Why BioSuite Ultra?
+
+BioSuite Ultra brings many common bioinformatics workflows into one consistent Python ecosystem.
+
+Instead of requiring a different interface for every analysis, users can access the same underlying software through:
+
+```text
+Python Library
+      │
+      ├── CLI
+      ├── Desktop GUI
+      ├── REST API
+      └── Jupyter
 ```
 
-**Binder:** [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/sahandtkod-byte/BioSuite-Ultra/main)
+The architecture keeps the scientific analysis layer independent from presentation and transport layers.
+
+This allows the same core functionality to be reused locally, through automation, or as a backend service.
 
 ---
 
-## Features
+# Features
 
-### 47 Analysis Modules
+## 47 Analysis Modules
 
-| Domain | Modules | Coverage |
-|--------|---------|----------|
-| Sequence Analysis | FASTA/FASTQ I/O, GC%, translation, reverse complement, ORF finder, primer design, restriction enzymes, codon usage | 85% |
-| Alignment | Needleman-Wunsch, Smith-Waterman, BLAST (k-mer), MSA (progressive + Clustal/MUSCLE/MAFFT) | 75% |
-| Phylogenetics | p-distance, UPGMA, NJ, ML (RAxML/IQ-TREE), Bayesian (MrBayes + MCMC) | 90% |
-| Transcriptomics | CPM/TPM/DESeq2 normalization, differential expression (NB GLM), GO/KEGG enrichment | 70% |
-| NGS/Genomics | BAM/VCF parsing, read alignment (BWA/Bowtie2), variant calling, SV/CNV detection | 70% |
-| Single-Cell | Scanpy-based scRNA-seq pipeline (QC, normalization, PCA, UMAP, clustering) | 85% |
-| Proteins | PDB analysis, ESMFold structure prediction, molecular docking | 55% |
-| Epigenomics | Bisulfite methylation, DMR detection, ATAC-seq peak analysis | 45% |
-| Metagenomics | K-mer classifier, 16S rRNA pipeline, alpha/beta diversity | 70% |
-| Metabolomics | Peak detection, ANOVA, feature alignment, PCA | 55% |
-| Population Genetics | HWE, FST, Tajima's D, LD, PCA, nucleotide diversity | 75% |
-| CRISPR | Guide RNA design, PAM finding (SpCas9, SaCas9, Cas12a), off-target scoring | 75% |
-| Metabolism | Flux balance analysis (FBA), knockout simulation | 60% |
-| Machine Learning | Random Forest, SVM, SHAP, cross-validation, feature selection | 55% |
-| Workflow | Pipeline builder, batch processor, HTML report generator | 85% |
-| GO/Pathways | GO browser, pathway visualization (KEGG-style maps) | 65% |
-| GWAS | Chi-squared test, Manhattan/QQ plots, lead SNP detection | 75% |
-| Epitope Prediction | T-cell (MHC binding), B-cell (surface propensity), linear epitopes | 75% |
-| **Molecular Cloning** | **Plasmid maps, restriction digest, virtual gel, PCR simulation, ligation, Gibson assembly** | **90%** |
-| **Parallel Processing** | **Multi-threaded execution, batch processing, progress tracking** | **NEW** |
+BioSuite Ultra covers a broad range of computational biology and bioinformatics workflows.
 
-### Molecular Cloning Tools 🧬
+| Domain              | Examples                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| Sequence Analysis   | FASTA/FASTQ processing, GC content, translation, reverse complement, ORF analysis, primer design |
+| Alignment           | Needleman-Wunsch, Smith-Waterman, sequence similarity search, multiple sequence alignment        |
+| Phylogenetics       | Distance matrices, UPGMA, neighbor joining, phylogenetic analysis                                |
+| Transcriptomics     | CPM/TPM normalization, differential expression, enrichment analysis                              |
+| Genomics / NGS      | BAM/VCF processing, variant analysis and sequencing workflows                                    |
+| Single-Cell         | QC, normalization, PCA, dimensionality reduction and clustering workflows                        |
+| Proteomics          | Protein and structural analysis                                                                  |
+| Epigenomics         | Methylation and chromatin-related analysis                                                       |
+| Metagenomics        | K-mer classification, 16S analysis, alpha/beta diversity                                         |
+| Metabolomics        | Peak and feature analysis, statistical analysis, PCA                                             |
+| Population Genetics | HWE, FST, Tajima's D, LD and nucleotide diversity                                                |
+| CRISPR              | Guide design, PAM detection and off-target scoring                                               |
+| Metabolism          | Flux balance analysis and knockout simulation                                                    |
+| Machine Learning    | Random Forest, SVM, feature selection and model evaluation                                       |
+| GWAS                | Association analysis, Manhattan/QQ visualization and lead variant analysis                       |
+| Epitope Prediction  | T-cell and B-cell epitope analysis                                                               |
+| Molecular Cloning   | Restriction digestion, PCR, ligation, Gibson assembly and plasmid analysis                       |
+| Workflow            | Pipeline execution, batch processing and report generation                                       |
+| Databases           | NCBI, UniProt, PDB and KEGG integrations                                                         |
 
-BioSuite includes a complete molecular cloning suite — features that SnapGene charges $350/year for:
+---
 
-| Tool | Description | SnapGene Equivalent |
-|------|-------------|-------------------|
-| **Restriction Digest** | Simulate single/double digests with 100+ enzymes | ✅ Same |
-| **PCR Simulation** | Primer annealing, extension, cycling with Tm calculation | ✅ Same |
-| **Ligation** | Insert:vector ratios, T4 ligase efficiency | ✅ Same |
-| **Gibson Assembly** | Overlap-based cloning design | ✅ Same |
-| **Plasmid Maps** | Circular rendering with annotated features | ✅ Same |
-| **Virtual Gel** | Agarose gel simulation from digest results | ✅ Same |
-| **Sequence Viewer** | Linear display with feature highlighting | ✅ Same |
+# Molecular Cloning
 
-**All FREE. No subscriptions. No trials. No limits.**
+BioSuite Ultra includes an integrated molecular cloning toolkit for computational cloning workflows.
 
-### Parallel Processing ⚡
+### Available tools
 
-Process large datasets faster with built-in parallel execution:
+| Tool                   | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| **Restriction Digest** | Simulate single and double restriction digests         |
+| **PCR Simulation**     | Primer annealing, amplification and product analysis   |
+| **Ligation**           | Computational insert/vector ligation                   |
+| **Gibson Assembly**    | Overlap-based assembly design                          |
+| **Plasmid Maps**       | Circular plasmid visualization                         |
+| **Virtual Gel**        | Simulated agarose gel results                          |
+| **Sequence Viewer**    | Linear sequence visualization and feature highlighting |
+
+The current release includes **169 restriction enzymes** with recognition-site and cut-position information.
+
+---
+
+# Visualization
+
+BioSuite Ultra provides **105 public plotting functions** across scientific and bioinformatics workflows.
+
+Visualization capabilities include:
+
+* Volcano plots
+* PCA
+* Manhattan plots
+* MA plots
+* Heatmaps
+* Clustered heatmaps
+* Boxplots
+* Bar plots
+* Scatter plots
+* Time-series plots
+* QQ plots
+* Venn diagrams
+* Violin plots
+* Raincloud plots
+* Ridge plots
+* Dot plots
+* GSEA visualization
+* Motif logos
+* Sankey diagrams
+* UMAP visualization
+* Network visualization
+* UpSet plots
+* Genome browser visualization
+* Sequence logos
+* Conservation plots
+* Synteny visualization
+* Plasmid maps
+* Virtual gels
+* Alignment visualization
+* Interactive Plotly-based visualization
+
+---
+
+# Parallel Processing
+
+BioSuite Ultra provides built-in parallel processing utilities for supported workloads.
 
 ```python
-from biosuite.core.parallel import parallel_map, parallel_gc_content
-from biosuite.core.sequence import gc_content
+from biosuite.core.parallel import parallel_gc_content
 
-# Process 10,000 sequences in parallel
-sequences = ["ATCG...", "GCTA...", ...]  # 10,000 sequences
-gc_values = parallel_gc_content(sequences, workers=8)
+sequences = ["ATCG...", "GCTA...", "..."]
 
-# Or use the batch processor for large datasets
-from biosuite.core.parallel import ParallelBatchProcessor
-processor = ParallelBatchProcessor(workers=4)
-results = processor.process(gc_content, sequences, batch_size=1000)
-print(f"Processed {processor.stats['completed']} sequences in {processor.stats['time']:.1f}s")
+gc_values = parallel_gc_content(
+    sequences,
+    workers=8,
+)
 ```
 
-### 169 Restriction Enzymes 🧪
+Batch processing can also be used for large collections of sequences or analysis jobs.
 
-Full database of Type II restriction enzymes used in molecular biology:
+---
+
+# 169 Restriction Enzymes
+
+The molecular cloning subsystem includes a database of **169 restriction enzymes**.
 
 ```python
-from biosuite.core.utils import RESTRICTION_ENZYMES, RESTRICTION_ENZYMES_SITES
+from biosuite.core.utils import (
+    RESTRICTION_ENZYMES,
+    RESTRICTION_ENZYMES_SITES,
+)
 
-# List all available enzymes
-print(f"Available enzymes: {len(RESTRICTION_ENZYMES)}")
+print(len(RESTRICTION_ENZYMES))
 
-# Get enzyme recognition site
-site = RESTRICTION_ENZYMES_SITES['EcoRI']  # 'GAATTC'
+site = RESTRICTION_ENZYMES_SITES["EcoRI"]
+print(site)
+```
 
-# Use in restriction digest
+Restriction enzymes can be used directly with computational digestion workflows:
+
+```python
 from biosuite.core.cloning import simulate_digestion
-result = simulate_digestion(plasmid_seq, enzyme='EcoRI')
+
+result = simulate_digestion(
+    plasmid_seq,
+    enzyme="EcoRI",
+)
 ```
 
-### 36+ Visualization Types
+---
 
-Volcano, PCA, Manhattan, MA, Venn, Barplot, Boxplot, Heatmap, Scatter, Time Series, QQ-plot, Clustered Heatmap, Circos, Alignment Viewer, Violin, Raincloud, Ridge, Dot Plot, GSEA, Motif Logo, Sankey, UMAP, Network (PPI/Regulatory/Metabolic), UpSet, Genome Browser, Interactive (Plotly), Sequence Logo, Conservation, Synteny Dotplot, Plasmid Map, Virtual Gel, and more.
+# Dual-Mode Architecture
 
-### Dual-Mode Architecture
+BioSuite Ultra is designed to support a consistent analysis interface while allowing optional acceleration through external bioinformatics software.
 
-Every module follows a consistent pattern:
+Conceptually:
+
 ```python
 def analyze(input, ...):
-    # Try external tool first (fast)
-    if _has_external_tool():
-        return _run_external(input, ...), {"engine": "external"}
-    # Fall back to pure Python (always works)
-    return _run_builtin(input, ...), {"engine": "builtin"}
+    if external_tool_available():
+        return run_external(input, ...)
+
+    return run_builtin(input, ...)
 ```
 
-### Cyberpunk GUI
+Where an external implementation is available and configured, it can be used for acceleration or specialized workflows.
 
-- 29 analysis tabs with scrollable sidebar
-- 3 themes: Dark-Green-Cyber, Dark-Purple-Cyber, Light-Blue-Cyber
-- Keyboard shortcuts (Ctrl+S, Ctrl+Q, F1, F5, Escape)
-- Progress bars for long operations
-- Plot history (last 10 plots)
-- API key configuration panel
-- 15 built-in help guides
-- Molecular cloning tab with plasmid viewer
+The built-in Python implementations provide a self-contained computational path for supported functionality.
 
-### CLI with 117 Options
-
-Professional CLI menu with organized sections for every analysis type.
+This architecture keeps the core analysis layer independent from the GUI, CLI, API, and deployment environment.
 
 ---
 
-## Installation
+# Interfaces
 
-### Via PyPI (recommended)
-```bash
-pip install biosuite-ultra
-```
+## Python Library
 
-### Install with all optional features
-```bash
-pip install "biosuite-ultra[full]"
-```
+BioSuite Ultra can be used directly from Python.
 
-### Windows Users — If `pip install` fails on pysam
+```python
+from biosuite.core.sequence import (
+    gc_content,
+    reverse_complement,
+    translate,
+)
 
-pysam needs C build tools. Two options:
+gc = gc_content("ATCGATCG")
+rc = reverse_complement("ATCG")
+protein = translate("ATGAAATTTTAA")
 
-**Option A: Visual Studio Build Tools**
-1. Download: https://visualstudio.microsoft.com/visual-cpp-build-tools/
-2. Run installer → select **"Desktop development with C++"** → Install
-3. Open **"x64 Native Tools Command Prompt for VS"** (search in Start Menu)
-4. Run: `pip install pysam`
-
-**Option B: Use Conda (easier)**
-1. Install Anaconda: https://anaconda.com/download
-2. Run: `conda install -c bioconda pysam`
-
-### From source
-```bash
-git clone https://github.com/sahandtkod-byte/BioSuite-Ultra.git
-cd BioSuite-Ultra
-pip install -r requirements.txt
+print(gc)
+print(rc)
+print(protein)
 ```
 
 ---
 
-## Quick Start
+## Command-Line Interface
 
-### CLI Mode
+BioSuite Ultra provides:
+
+* **99 CLI menu options**
+* **19 direct CLI subcommands**
+
+The CLI covers sequence analysis, alignment, genomics, statistics, visualization, molecular cloning, workflows, and other supported modules.
+
+Run:
+
+```bash
+biosuite
+```
+
+or:
+
 ```bash
 python run.py
 ```
 
-### GUI Mode
+---
+
+## Desktop GUI
+
+The desktop interface currently contains **11 GUI tabs** covering major BioSuite workflows.
+
+Features include:
+
+* Dark and light themes
+* Keyboard shortcuts
+* Progress indicators
+* Plot history
+* API configuration
+* Molecular cloning workflows
+* Interactive analysis controls
+* Built-in help
+
+Launch the GUI with:
+
+```bash
+python -m biosuite
+```
+
+or:
+
 ```bash
 python run.py --gui
 ```
 
-### REST API
+---
+
+## REST API
+
+BioSuite Ultra includes a FastAPI-based REST interface with **38 documented API endpoints** covering major analysis and workflow operations.
+
+API groups include:
+
+* Sequence
+* Alignment
+* BLAST
+* Expression
+* Population Genetics
+* GWAS
+* CRISPR
+* Epitope Prediction
+* Metagenomics
+* Databases
+* File Operations
+* Plotting
+* Provenance
+* Workflows
+* Modules
+* Administration
+
+Start the API locally:
+
 ```bash
 python -m biosuite.api.server
-# Open http://localhost:8000/docs for Swagger UI
 ```
 
-**Authentication:** All endpoints require an `X-API-Key` header. Admin endpoints (`/api/v1/admin/*`) additionally require a JWT `Authorization: Bearer <token>` obtained from `/api/v1/admin/login`. Requests are rate-limited to 100/minute. See [API_GUIDE.md](API_GUIDE.md#rest-api-server-authentication) for setup and env vars.
+Then open:
 
-### Programmatic API
+```text
+http://localhost:8000/docs
+```
 
-#### Basic Sequence Analysis
+for the interactive Swagger/OpenAPI documentation.
+
+### API Security
+
+API endpoints require an `X-API-Key`.
+
+Administrative endpoints additionally require JWT authentication.
+
+File operations are restricted to the configured BioSuite data directory.
+
+API requests are rate-limited.
+
+See [`API_GUIDE.md`](API_GUIDE.md) for configuration and authentication details.
+
+---
+
+# Reproducibility and Provenance
+
+BioSuite Ultra includes workflow and provenance capabilities designed to make computational analyses easier to reproduce.
+
+Provenance information can be recorded and queried through the platform's provenance subsystem and REST API.
+
+This enables workflows to retain information about analysis operations and computational history rather than treating each execution as an isolated command.
+
+---
+
+# Installation
+
+## PyPI
+
+The recommended installation method is PyPI:
+
+```bash
+pip install biosuite-ultra
+```
+
+Install the current release explicitly:
+
+```bash
+pip install biosuite-ultra==5.5.0
+```
+
+Optional features:
+
+```bash
+pip install "biosuite-ultra[full]"
+```
+
+---
+
+## From Source
+
+```bash
+git clone https://github.com/sahandtkod-byte/BioSuite-Ultra.git
+
+cd BioSuite-Ultra
+
+pip install -e .
+```
+
+---
+
+## Docker
+
+Pull the latest container:
+
+```bash
+docker pull sahandtkod/biosuite-ultra:latest
+```
+
+Run the REST API:
+
+```bash
+docker run -p 8000:8000 sahandtkod/biosuite-ultra
+```
+
+Docker Compose configurations are also included in the repository.
+
+---
+
+# Jupyter
+
+BioSuite Ultra includes Jupyter integration for notebook-based workflows and computational exploration.
+
+The repository contains example notebooks demonstrating selected analysis workflows.
+
+---
+
+# Quick Examples
+
+## GC Content
+
 ```python
-from biosuite.core.sequence import gc_content, reverse_complement, translate
+from biosuite.core.sequence import gc_content
 
-gc = gc_content("ATCGATCG")  # 50.0
-rc = reverse_complement("ATCG")  # "CGAT"
-protein = translate("ATGAAATTTTAA")  # "MKF"
+print(gc_content("ATCGATCG"))
 ```
 
-#### Parallel Processing
+## Reverse Complement
+
 ```python
-from biosuite.core.parallel import parallel_align_pairs
+from biosuite.core.sequence import reverse_complement
 
-# Align 1000 sequence pairs in parallel
-pairs = [("ATCG", "ATCG"), ("GCTA", "GCTA"), ...]  # 1000 pairs
-results = parallel_align_pairs(pairs, algorithm='needleman_wunsch', workers=8)
+print(reverse_complement("ATCG"))
 ```
 
-#### Molecular Cloning
+## Translation
+
 ```python
-from biosuite.core.cloning import simulate_digestion, simulate_pcr
+from biosuite.core.sequence import translate
 
-# Restriction digest with 100+ enzymes
-result = simulate_digestion(plasmid_seq, enzyme="EcoRI")
-print(f"Generated {len(result['fragments'])} fragments")
-
-# PCR simulation
-pcr_result = simulate_pcr(template, forward_primer, reverse_primer, cycles=30)
-print(f"PCR product: {pcr_result['product_size']} bp")
+print(translate("ATGAAATTTTAA"))
 ```
 
-#### CRISPR Guide Design
+## CRISPR Guide Design
+
 ```python
 from biosuite.core.crispr import design_guides
 
-result = design_guides(target_sequence, pam_type='SpCas9', guide_length=20)
+result = design_guides(
+    target_sequence,
+    pam_type="SpCas9",
+    guide_length=20,
+)
+
 for guide in result.guides[:5]:
-    print(f"{guide.sequence} (score={guide.score:.3f})")
+    print(
+        guide.sequence,
+        guide.score,
+    )
 ```
 
-#### Differential Expression
+## Differential Expression
+
 ```python
 from biosuite.core.expression import differential_expression
 
-result = differential_expression(counts_df, conditions=['ctrl', 'ctrl', 'treat', 'treat'])
-print(f"Up-regulated: {result['num_upregulated']}")
-print(f"Down-regulated: {result['num_downregulated']}")
+result = differential_expression(
+    counts_df,
+    conditions=["ctrl", "ctrl", "treat", "treat"],
+)
+
+print(result["num_upregulated"])
+print(result["num_downregulated"])
 ```
 
-#### Plasmid Maps
+## Plasmid Visualization
+
 ```python
-from biosuite.plotting.plasmid_map import create_sample_plasmid, draw_plasmid
+from biosuite.plotting.plasmid_map import (
+    create_sample_plasmid,
+    draw_plasmid,
+)
 
 fig = create_sample_plasmid()
 fig.savefig("pUC19_map.png", dpi=150)
@@ -275,143 +510,214 @@ fig.savefig("pUC19_map.png", dpi=150)
 
 ---
 
-## Architecture
+# Architecture
 
-```
+```text
 BioSuite-Ultra/
-├── biosuite/                  # Main package (84 files, 26,000+ lines)
-│   ├── core/                    # 45 analysis modules
-│   │   ├── parallel.py          # Parallel processing utilities
-│   │   ├── sequence.py          # FASTA/FASTQ I/O, GC%, translation
-│   │   ├── alignment.py         # NW/SW alignment, MSA
-│   │   ├── blast.py             # Sequence similarity search
-│   │   ├── assembly.py          # Genome assembly
-│   │   ├── ngs.py               # NGS analysis (BAM/VCF)
-│   │   ├── crispr.py            # CRISPR guide design
-│   │   ├── cloning.py           # Molecular cloning
-│   │   ├── expression.py        # Differential expression
-│   │   ├── databases.py         # Database searches
-│   │   ├── ...                  # 35+ more modules
-│   │   └── utils.py             # Shared utilities (169 enzymes)
-│   ├── plotting/                # 12 visualization modules
-│   ├── gui/                     # Cyberpunk GUI (11 tabs)
-│   ├── cli/                     # CLI menu (117 options)
-│   ├── api/                     # REST API (40 endpoints)
-│   └── notebook/                # Jupyter integration
-├── tests/                       # 1,444 tests
-├── examples/                    # 8 tutorials + 5 notebooks
-├── docs/                        # Sphinx documentation
-├── run.py                       # Entry point
-├── pyproject.toml               # Package configuration
-├── Dockerfile                   # Multi-stage Docker build
-├── docker-compose.yml           # Multi-service Docker Compose
-└── CHANGELOG.md                 # Version history
+│
+├── biosuite/
+│   ├── core/          # Scientific analysis layer
+│   ├── plotting/      # Visualization functions
+│   ├── gui/           # Desktop GUI
+│   ├── cli/           # Command-line interface
+│   ├── api/           # REST API
+│   └── notebook/      # Jupyter integration
+│
+├── tests/             # Automated test suite
+├── examples/          # Tutorials and notebooks
+├── docs/              # Documentation
+│
+├── run.py             # Application entry point
+├── pyproject.toml     # Package configuration
+├── Dockerfile         # Container definition
+├── docker-compose.yml # Docker Compose configuration
+└── CHANGELOG.md       # Release history
 ```
+
+### Dependency Direction
+
+The architecture is intentionally layered:
+
+```text
+Core
+ ↓
+Plotting
+ ↓
+Interfaces
+ ├── CLI
+ ├── GUI
+ ├── REST API
+ └── Notebook
+```
+
+Scientific analysis modules do not depend on GUI, CLI, or API layers.
+
+This separation allows the same computational functionality to be reused across different interfaces.
 
 ---
 
-## Dependencies
+# Dependencies
 
-### Core (required)
-```
-numpy>=1.24, pandas>=2.0, matplotlib>=3.7, seaborn>=0.12
-scipy>=1.10, scikit-learn>=1.3, customtkinter>=5.2
-tqdm>=4.65, biopython>=1.81, networkx>=3.0, plotly>=5.0
+## Core Dependencies
+
+BioSuite Ultra uses scientific Python libraries including:
+
+```text
+numpy
+pandas
+matplotlib
+scipy
+scikit-learn
+biopython
+networkx
+plotly
+tqdm
 ```
 
-### Optional (for specific modules)
-```
-goatools>=1.3, gseapy>=1.0, cutadapt>=4.0
-scanpy>=1.9, anndata>=0.9, scikit-bio>=0.5
-shap>=0.42, statsmodels>=0.14, umap-learn>=0.5
-fastapi>=0.100, uvicorn>=0.23
+Additional dependencies are used by optional functionality.
+
+## Optional Bioinformatics Tools
+
+Some specialized workflows can integrate with external tools when installed, including:
+
+```text
+BLAST+
+Clustal Omega
+MUSCLE
+MAFFT
+BWA
+Bowtie2
+FreeBayes
+MACS2
+RAxML
+IQ-TREE
+MrBayes
+SPAdes
+MEGAHIT
+Kraken2
+AutoDock Vina
+OpenMM
 ```
 
-### External Tools (optional, for speed)
-```
-BLAST+, Clustal Omega, MUSCLE, MAFFT
-BWA, Bowtie2, FreeBayes, MACS2
-RAxML, IQ-TREE, MrBayes
-SPAdes, MEGAHIT, Kraken2
-AutoDock Vina, OpenMM
-```
+External tools are optional and are not required for the platform's built-in Python functionality where a built-in implementation is available.
 
 ---
 
-## Testing
+# Testing
+
+Run the complete test suite:
 
 ```bash
-# Run all tests
 python -m pytest tests/ -v
+```
 
-# Run with coverage
-python -m pytest tests/ --cov=biosuite --cov-report=html
+Coverage:
 
-# Run parallel tests
+```bash
+python -m pytest tests/ \
+    --cov=biosuite \
+    --cov-report=html
+```
+
+Parallel test execution:
+
+```bash
 python -m pytest tests/ -n auto
 ```
 
----
+Current v5.5.0 validation status:
 
-## Docker
-
-```bash
-# Build and run CLI
-docker-compose up biosuite
-
-# Build and run REST API
-docker-compose up biosuite-api
-
-# Build and run Jupyter
-docker-compose up jupyter
+```text
+2,493 passed
+14 skipped
+0 failed
 ```
 
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Additional validation includes static analysis, security regression testing, package build checks, and CodeQL analysis.
 
 ---
 
-## License
+# Documentation
 
-MIT License - see [LICENSE](LICENSE) for details.
+Project documentation and API documentation are available in the repository.
+
+Key resources include:
+
+* [`API_GUIDE.md`](API_GUIDE.md)
+* [`DEVELOPMENT.md`](DEVELOPMENT.md)
+* [`CONTRIBUTING.md`](CONTRIBUTING.md)
+* [`CHANGELOG.md`](CHANGELOG.md)
+* [`docs/`](docs/)
 
 ---
 
-## Citation
+# Contributing
 
-If you use BioSuite Ultra in your research, please cite:
+Contributions, bug reports, feature requests, documentation improvements, and scientific feedback are welcome.
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21256296.svg)](https://doi.org/10.5281/zenodo.21256296)
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines.
+
+---
+
+# License
+
+BioSuite Ultra is released under the **MIT License**.
+
+See [`LICENSE`](LICENSE) for the complete license text.
+
+---
+
+# Citation
+
+If you use BioSuite Ultra in research, please cite the software release:
 
 ```bibtex
 @software{biosuite2026,
-  author = {Sahand Touri},
+  author = {Touri, Sahand},
   title = {BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform},
   year = {2026},
-  version = {5.0.0},
+  version = {5.5.0},
   doi = {10.5281/zenodo.21256296},
   url = {https://github.com/sahandtkod-byte/BioSuite-Ultra}
 }
 ```
 
----
+DOI:
 
-## Links
-
-- **GitHub**: https://github.com/sahandtkod-byte/BioSuite-Ultra
-- **DOI**: https://doi.org/10.5281/zenodo.21256296
-- **PyPI**: https://pypi.org/project/biosuite-ultra/
-- **Issues**: https://github.com/sahandtkod-byte/BioSuite-Ultra/issues
-- **JOSSPaper**: https://joss.theoj.org/papers/6efd11d9995ddc82d5d76403c32a4a2d
+https://doi.org/10.5281/zenodo.21256296
 
 ---
 
-## Contributors
+# Project Links
 
-We thank the following people for their contributions to BioSuite Ultra:
+* **GitHub:** https://github.com/sahandtkod-byte/BioSuite-Ultra
+* **PyPI:** https://pypi.org/project/biosuite-ultra/
+* **PyPI v5.5.0:** https://pypi.org/project/biosuite-ultra/5.5.0/
+* **DOI:** https://doi.org/10.5281/zenodo.21256296
+* **Issues:** https://github.com/sahandtkod-byte/BioSuite-Ultra/issues
+* **JOSS Paper:** https://joss.theoj.org/papers/6efd11d9995ddc82d5d76403c32a4a2d
 
-- **Faiz Mulla** ([@faizmullaa](https://github.com/faizmullaa)) — India — REST API authentication and rate limiting
+---
 
+# Contributors
+
+We thank the contributors and community members who have helped improve BioSuite Ultra.
+
+* **Faiz Mulla** — REST API authentication and rate limiting
+
+---
+
+## Project Status
+
+**BioSuite Ultra v5.5.0 is the current production release.**
+
+The project is under active development, with ongoing work focused on:
+
+* Scientific validation
+* Reproducible research workflows
+* API and web integration
+* Documentation
+* Performance
+* Security
+* Community contributions
+* Research use cases
