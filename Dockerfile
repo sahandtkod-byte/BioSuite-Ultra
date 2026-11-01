@@ -6,7 +6,7 @@
 # not silently exposed to the network with default credentials.
 
 # ── Stage 1: build a wheel ──────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.15-slim AS builder
 
 WORKDIR /src
 
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir build \
     && python -m build --wheel --outdir /dist
 
 # ── Stage 2: runtime ────────────────────────────────────────────────────────
-FROM python:3.11-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 # Unprivileged runtime account. Running the API as root meant any RCE in a
 # dependency was immediately root inside the container.
