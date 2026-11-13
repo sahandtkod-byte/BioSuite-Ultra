@@ -37,7 +37,7 @@ keywords:
   - scientific-computing
 license: MIT
 version: 6.0.0
-date-released: "2026-08-09"
+date-released: "2026-11-13"
 preferred-citation:
   type: software
   title: "BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform"

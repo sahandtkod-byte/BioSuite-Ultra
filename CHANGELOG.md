@@ -122,13 +122,26 @@ content, Benjamini-Hochberg against `statsmodels` to 1e-12, Needleman-Wunsch and
 Smith-Waterman scores against `Bio.Align.PairwiseAligner`, and every enzyme's recognition
 positions against an independent scanner. `tests/api` is now collectable and passing
 locally (126 tests) once the API extras are installed; six `tests/cli` tests that had never
-run to completion on Windows pass now. Suite state: 1650 passed / 4 environment-only failed
-/ 16 skipped in `tests/core` plus the two root modules, 75/0 in `tests/cli`, 719 in
-integration + notebook + GUI.
+run to completion on Windows pass now. A line-by-line review of all 90 source modules
+strengthened 107 weak tests, removed unused imports, and wired the sam/bcf/newick/bigwig
+readers. Final measured gate: **9,068 passed / 17 skipped / 0 failed**, with **100% branch
+coverage** of `biosuite/` (21,711 statements / 7,022 branches, 0 missing or partial),
+doc-accuracy tests 35/35 and the security smoke suite 4/4. The 17 skips are optional
+scientific extras and platform-specific tests, each reported by `pytest -rs`.
+
+### Added - features (Tier 1 & Tier 2)
+
+Deferred core capabilities are now exposed on the existing CLI and GUI surfaces (Tier 1
+and the 10-item Tier 2), with no new top-level interfaces: the interactive menu keeps
+117 options and gains a search affordance, the GUI gains a robust search, and sectioning
+uses the real module names. The same core functions back the library, CLI, GUI and REST
+API, so results are identical across interfaces.
 
 ### Known and still open
 
-Code coverage is still not measured or gated in CI; `ruff check .` could not be installed in
+Branch coverage of `biosuite/` is measured on every CI run, reported to Codecov, and stands
+at 100% in the verified local run; CI does not yet enforce a hard `--cov-fail-under` gate.
+`ruff check .` could not be installed in
 this environment (network), so only `pyflakes` ran — 153 findings, none an undefined name;
 `cli/menu.py` and `api/__init__.py` remain large; `peak_calling.py` keeps a third copy of
 Benjamini-Hochberg; `bio_ml.select_features` selects on the full matrix; multi-allelic sites

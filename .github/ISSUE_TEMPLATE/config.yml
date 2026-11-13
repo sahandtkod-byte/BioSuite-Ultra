@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: mailto:sahandtkod@gmail.com
+    about: >-
+      Report vulnerabilities privately by email with subject "[SECURITY] BioSuite Ultra",
+      or via the repository's Security tab when private reporting is enabled.
+      Never open a public issue for a vulnerability. See SECURITY.md.

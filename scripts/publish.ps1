@@ -10,9 +10,9 @@ Write-Host "Current version: $version" -ForegroundColor Yellow
 
 # Clean old builds
 Write-Host "Cleaning old builds..." -ForegroundColor Cyan
-Remove-Item "dist\biosuite-ultra*" -Force -ErrorAction SilentlyContinue
+Remove-Item "dist\*" -Force -ErrorAction SilentlyContinue
 Remove-Item "build" -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item "biosuite-ultra.egg-info" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "biosuite*.egg-info" -Recurse -Force -ErrorAction SilentlyContinue
 
 # Build
 Write-Host "Building package..." -ForegroundColor Cyan
@@ -22,9 +22,18 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Upload
+# Validate metadata before anything leaves the machine.
+Write-Host "Checking package metadata..." -ForegroundColor Cyan
+twine check dist/*
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "twine check failed!" -ForegroundColor Red
+    exit 1
+}
+
+# Upload. Distribution filenames normalize the project name to underscores
+# (PEP 427/625), so the glob must use biosuite_ultra, not biosuite-ultra.
 Write-Host "Uploading to PyPI..." -ForegroundColor Cyan
-twine upload dist/biosuite-ultra-$version*
+twine upload dist/biosuite_ultra-$version*
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Upload failed!" -ForegroundColor Red
     exit 1

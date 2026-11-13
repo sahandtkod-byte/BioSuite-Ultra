@@ -20,7 +20,9 @@ services:
     environment:
       BIOSUITE_API_KEY: ${BIOSUITE_API_KEY:?set BIOSUITE_API_KEY in .env}
       BIOSUITE_JWT_SECRET: ${BIOSUITE_JWT_SECRET:?set BIOSUITE_JWT_SECRET in .env}
-      # Optional: leaving this empty keeps admin login disabled.
+      # Required in production: the server refuses to start without an admin
+      # credential. A pre-hashed BIOSUITE_ADMIN_PASSWORD_HASH overrides it if set.
+      BIOSUITE_ADMIN_PASSWORD: ${BIOSUITE_ADMIN_PASSWORD:?set BIOSUITE_ADMIN_PASSWORD in .env}
       BIOSUITE_ADMIN_PASSWORD_HASH: ${BIOSUITE_ADMIN_PASSWORD_HASH:-}
       BIOSUITE_CORS_ORIGINS: ${BIOSUITE_CORS_ORIGINS:-http://localhost:3000}
       BIOSUITE_DATA_DIR: /data

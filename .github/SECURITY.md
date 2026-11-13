@@ -52,10 +52,14 @@ fallback JWT signing secret.
 | --- | --- | --- |
 | `BIOSUITE_API_KEY` | Shared key required by every `/api/*` endpoint via the `X-API-Key` header | Yes |
 | `BIOSUITE_JWT_SECRET` | Signing secret for admin bearer tokens | Yes |
-| `BIOSUITE_ADMIN_PASSWORD` | Password for `/api/v1/admin/login` | Yes |
+| `BIOSUITE_ADMIN_PASSWORD` | Password for `/api/v1/admin/login`, hashed at startup | One of two† |
+| `BIOSUITE_ADMIN_PASSWORD_HASH` | Pre-hashed admin password; preferred over the plaintext form | One of two† |
 | `BIOSUITE_DATA_DIR` | Directory that file endpoints may read from | Recommended |
 | `BIOSUITE_CORS_ORIGINS` | Comma-separated allowed origins | Recommended |
 | `BIOSUITE_DEV_MODE` | Set to `1` to expose `/docs` and `/openapi.json` unauthenticated | Development only |
+
+† Set **either** `BIOSUITE_ADMIN_PASSWORD` **or** `BIOSUITE_ADMIN_PASSWORD_HASH`. In production the
+server refuses to start when neither is present; there is no default admin password.
 
 Copy [`.env.example`](../.env.example) as a starting point. Never commit real credentials;
 `.env` is git-ignored while `.env.example` is tracked deliberately.

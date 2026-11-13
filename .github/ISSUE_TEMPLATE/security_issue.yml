@@ -1,60 +1,33 @@
-name: 🔒 Security Issue
-description: Report a security vulnerability in BioSuite Ultra
+name: Security question / hardening
+description: Non-sensitive security discussion. Do NOT report vulnerabilities here.
 labels: ["security"]
 body:
   - type: markdown
     attributes:
       value: |
-        ⚠️ **For critical vulnerabilities, please email sahandtkod@gmail.com instead of opening a public issue.**
+        ⚠️ **Do not disclose vulnerability details, exploits, or proof-of-concept code in this public form.**
 
-        For non-critical security issues, please fill out this form.
+        To report an actual vulnerability, use the private channel instead:
+        email **sahandtkod@gmail.com** with subject `[SECURITY] BioSuite Ultra`, or
+        **Security → Report a vulnerability** when private reporting is enabled.
+        See [SECURITY.md](../SECURITY.md).
 
-  - type: dropdown
-    id: severity
-    attributes:
-      label: Severity
-      options:
-        - Critical (RCE, auth bypass, data leak)
-        - High (privilege escalation, injection)
-        - Medium (information disclosure, DoS)
-        - Low (hardcoded values, minor issues)
-    validations:
-      required: true
-
-  - type: input
-    id: component
-    attributes:
-      label: Affected Component
-      description: Module, file, or endpoint
-      placeholder: e.g., biosuite/core/alignment.py or /api/v1/admin/login
-    validations:
-      required: true
+        This form is only for non-sensitive hardening suggestions or general security questions.
 
   - type: textarea
-    id: description
+    id: topic
     attributes:
-      label: Description
-      description: Detailed description of the vulnerability
+      label: Topic
+      description: A non-sensitive hardening suggestion or general security question. No exploit details.
     validations:
       required: true
-
-  - type: textarea
-    id: poc
-    attributes:
-      label: Proof of Concept
-      description: Steps or code to reproduce (sanitize sensitive data!)
-      render: python
-
-  - type: textarea
-    id: fix
-    attributes:
-      label: Suggested Fix
-      description: Optional proposed solution
 
   - type: checkboxes
     id: disclosure
     attributes:
       label: Disclosure
       options:
-        - label: I understand critical vulns should be reported via email
+        - label: >-
+            I confirm this contains no vulnerability details or exploit code, and that
+            actual vulnerabilities are reported through the private channel.
           required: true
