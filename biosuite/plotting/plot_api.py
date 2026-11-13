@@ -816,7 +816,7 @@ def scatter(x, y, labels=None, title="Scatter Plot", xlabel="X", ylabel="Y",
 
     if interactive and _plotly_available(interactive):
         fig = go.Figure()
-        hover = labels if labels else [f"x={xi:.2f}, y={yi:.2f}" for xi, yi in zip(x, y)]
+        hover = labels if labels else [f"x={xi:.2f}, y={yi:.2f}" for xi, yi in zip(x, y, strict=False)]
         fig.add_trace(go.Scatter(
             x=x, y=y, mode='markers', text=hover, hoverinfo='text',
             marker=dict(size=8, color='#00ff88')

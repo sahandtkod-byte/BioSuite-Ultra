@@ -268,7 +268,7 @@ def compute_conservation_scores(sequences, alphabet='ACGT'):
     alphabet = _checked_alphabet(alphabet)
     positions, _heights, total_h = compute_logo_heights(sequences, alphabet)
     max_bits = np.log2(len(alphabet))
-    return list(zip(positions, total_h / max_bits))
+    return list(zip(positions, total_h / max_bits, strict=False))
 
 
 def plot_motif_enrichment(sequences, motifs, alphabet='ACGT', title="Motif Enrichment",

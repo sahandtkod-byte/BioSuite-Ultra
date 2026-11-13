@@ -249,7 +249,7 @@ class SequenceAnalysisTabMixin:
             return
         self.align_result.delete("1.0", "end")
         self.align_result.insert("end", f"Multiple alignment ({len(aligned)} sequences):\n\n")
-        for name, row in zip(names, aligned):
+        for name, row in zip(names, aligned, strict=False):
             self.align_result.insert("end", f"{name}: {row}\n")
         self._set_status(f"MSA: {len(aligned)} sequences aligned")
 

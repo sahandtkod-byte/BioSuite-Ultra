@@ -276,7 +276,7 @@ def _parse_cigar_length(cigar):
     nums = re.findall(r'\d+', cigar)
     ops = re.findall(r'[MIDNSHP=X]', cigar)
     length = 0
-    for n, op in zip(nums, ops):
+    for n, op in zip(nums, ops, strict=False):
         n = int(n)
         # N (spliced/skipped region) consumes reference exactly like D —
         # old code under-spanned spliced reads by the intron length.
@@ -313,7 +313,7 @@ def plot_genome_tracks(tracks, region=None, title="Genome Browser",
     if n_tracks == 1:
         axes = [axes]
 
-    for i, (ax, track) in enumerate(zip(axes, tracks)):
+    for i, (ax, track) in enumerate(zip(axes, tracks, strict=False)):
         track_type = track.get('type', 'coverage')
         name = track.get('name', f'Track {i+1}')
         color = track.get('color', '#00ff88')

@@ -47,7 +47,7 @@ def normalise_search_text(text):
 def _one_letter_off(a, b):
     if len(a) != len(b):
         return False
-    return sum(1 for x, y in zip(a, b) if x != y) <= 1
+    return sum(1 for x, y in zip(a, b, strict=False) if x != y) <= 1
 
 
 def search_score(query, haystack):

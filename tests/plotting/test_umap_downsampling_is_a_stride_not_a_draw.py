@@ -50,7 +50,8 @@ def recorded(monkeypatch):
             seen.append([tuple(row) for row in data])
             return np.array([[float(i), 0.0] for i in range(len(data))])
 
-    monkeypatch.setattr(sp, "umap", types.SimpleNamespace(UMAP=Recording))
+    monkeypatch.setattr(sp, "umap", types.SimpleNamespace(UMAP=Recording), raising=False)
+    monkeypatch.setattr(sp, "HAS_UMAP", True)
     monkeypatch.setitem(sp.config, "downsample_threshold", 20)
     return seen
 

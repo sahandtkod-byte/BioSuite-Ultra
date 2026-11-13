@@ -592,7 +592,7 @@ def _mrbayes_run(alignment_file: str, n_generations: int = 10000,
             # that does not exist produced "mb exited with 1" — a verdict on the tool,
             # not on the real reason.
             warnings.warn(f"{nexus_file} was not written; MrBayes cannot be started "
-                          f"without Biopython", RuntimeWarning)
+                          f"without Biopython", RuntimeWarning, stacklevel=2)
             return None
 
         # The path is quoted: `execute` takes one filename, and the unquoted
@@ -618,17 +618,17 @@ quit
             )
         except (OSError, subprocess.SubprocessError) as exc:
             # A missing/blocked binary is a reason the caller deserves, not a `pass`.
-            warnings.warn(f"mb could not be executed: {exc}", RuntimeWarning)
+            warnings.warn(f"mb could not be executed: {exc}", RuntimeWarning, stacklevel=2)
             return None
         # MrBayes reports a rejected script with a non-zero exit status; ignoring it used
         # to turn a failed external run into an unexplained fall-back to the built-in MCMC.
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout or '').strip().splitlines()[-1:]
             warnings.warn(f"mb exited with {proc.returncode}: "
-                          f"{tail[0] if tail else 'no output'}", RuntimeWarning)
+                          f"{tail[0] if tail else 'no output'}", RuntimeWarning, stacklevel=2)
             return None
         if not os.path.exists(tree_file):
-            warnings.warn(f"mb succeeded but {tree_file} was not produced", RuntimeWarning)
+            warnings.warn(f"mb succeeded but {tree_file} was not produced", RuntimeWarning, stacklevel=2)
             return None
         with open(tree_file, encoding="utf-8") as f:
             newick = f.read().strip()

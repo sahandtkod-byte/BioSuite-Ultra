@@ -658,7 +658,7 @@ class BioSuiteApp(
             if score > 0:
                 scored.append((score, key, label))
         scored.sort(key=lambda t: (-t[0], t[2].lower()))
-        for score, key, label in scored[:8]:
+        for _score, key, label in scored[:8]:
             btn = ctk.CTkButton(self._search_results, text=f"  {label}", anchor='w',
                                 font=(FONT_FAMILY, 11), height=26, corner_radius=6,
                                 fg_color='transparent',

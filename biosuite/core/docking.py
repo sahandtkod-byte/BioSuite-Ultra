@@ -270,7 +270,7 @@ def _builtin_dock(receptor_file, ligand_file, center=None, num_poses=5,
     offsets = (rng.random((n_trials, 3)) - 0.5) * box
 
     scored = []
-    for rot, offset in zip(rotations, offsets):
+    for rot, offset in zip(rotations, offsets, strict=False):
         placed = lig_local @ rot.T + center + offset
         scored.append((_score_contacts(rec_coords, placed), center + offset))
     scored.sort(key=lambda item: item[0])

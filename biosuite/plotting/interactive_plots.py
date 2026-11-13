@@ -131,7 +131,7 @@ def _fallback_scatter(x, y, labels, color_col, title, x_label, y_label, figsize)
     if color_col is not None:
         categories = _categories(color_col)
         colors = plt.cm.tab10(np.linspace(0, 1, len(categories)))
-        for cat, color in zip(categories, colors):
+        for cat, color in zip(categories, colors, strict=False):
             mask = [c == cat for c in color_col]
             ax.scatter(np.array(x)[mask], np.array(y)[mask], label=str(cat),
                        color=color, s=40, edgecolors='black')
@@ -543,7 +543,7 @@ def interactive_pca(coords, variance_explained=None, labels=None,
         if color_col is not None:
             categories = _categories(color_col)
             colors = plt.cm.tab10(np.linspace(0, 1, len(categories)))
-            for cat, color in zip(categories, colors):
+            for cat, color in zip(categories, colors, strict=False):
                 mask = np.array([c == cat for c in color_col])
                 ax.scatter(coords[mask, 0], coords[mask, 1], label=str(cat), color=color)
             ax.legend()
@@ -818,7 +818,7 @@ def interactive_dotplot(categories, genes, values, sizes=None,
                 colorbar=dict(title="Expression")
             ),
             text=[f"{cat}: {gene}<br>Expr: {v:.2f}<br>%: {s:.0f}%"
-                  for cat, gene, v, s in zip(categories, genes, values, _sizes)],
+                  for cat, gene, v, s in zip(categories, genes, values, _sizes, strict=False)],
             hoverinfo='text'
         ))
         fig.update_layout(title=title, template='plotly_dark')

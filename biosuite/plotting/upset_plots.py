@@ -230,7 +230,7 @@ def upset_from_sets(*sets, names=None):
     if len(set(names)) != len(names):
         repeated = sorted({n for n in names if names.count(n) > 1})
         raise ValueError(f"set names repeat: {repeated}")
-    d = {n: set(s) for n, s in zip(names, sets)}
+    d = {n: set(s) for n, s in zip(names, sets, strict=False)}
     return plot_upset(d)
 
 

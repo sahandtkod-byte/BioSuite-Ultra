@@ -406,7 +406,7 @@ def _progressive_msa(sequences: list) -> list :
         active.discard(j)
 
     root = next(iter(active))
-    return list(zip(aligned_names[root], aligned[root]))
+    return list(zip(aligned_names[root], aligned[root], strict=False))
 
 
 

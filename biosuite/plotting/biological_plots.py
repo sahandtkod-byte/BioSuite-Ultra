@@ -248,7 +248,7 @@ def draw_sankey(labels, sources, targets, values, ax=None):
         rect = Rectangle((target_x-0.05, y-0.03), 0.1, 0.06, facecolor='lightgreen', edgecolor='black')
         ax.add_patch(rect)
         ax.text(target_x+0.05, y, node, ha='left', va='center', fontsize=8)
-    for s_idx, t_idx, val in zip(sources, targets, values):
+    for s_idx, t_idx, val in zip(sources, targets, values, strict=False):
         src_node = labels[s_idx]
         tgt_node = labels[t_idx]
         # Both node lists were built from these very indices above, so a link can
@@ -859,7 +859,7 @@ def circos_plot(pdf=None):
         start = 0
         colors = plt.cm.tab20(np.linspace(0,1,len(sectors)))
         sector_names = list(sectors.keys())
-        for (name, size), color in zip(sectors.items(), colors):
+        for (name, size), color in zip(sectors.items(), colors, strict=False):
             end = start + 2*np.pi * size/total
             ax.bar(x=start, height=0.5, width=end-start, bottom=0.2,
                    color=color, edgecolor='black', alpha=0.7, align='edge')

@@ -233,7 +233,7 @@ def _draw_map(plasmid_map: PlasmidMap, ax, annotated: bool):
         arcs.append((start_angle, end_angle, (start_angle + end_angle) / 2.0))
     radii = _label_radii([arc[2] for arc in arcs], r_backbone + style['label_r'])
 
-    for (start_angle, end_angle, mid_angle), feat, label_r in zip(arcs, features, radii):
+    for (start_angle, end_angle, mid_angle), feat, label_r in zip(arcs, features, radii, strict=False):
         outer_r = r_backbone + style['band_outer']
         inner_r = r_backbone - style['band_inner']
         n_pts = max(int((end_angle - start_angle) / style['arc_step']),

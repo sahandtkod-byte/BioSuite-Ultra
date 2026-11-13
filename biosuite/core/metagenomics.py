@@ -421,7 +421,7 @@ def compute_beta_diversity(sample_tables):
     for table in present:
         vec = np.zeros(len(ordered_taxa))
         if table is not None:
-            for taxon, count in zip(table['taxon'].values, table['count'].values):
+            for taxon, count in zip(table['taxon'].values, table['count'].values, strict=False):
                 vec[taxon_index[taxon]] += count
         aligned.append(vec)
 
@@ -682,7 +682,7 @@ def _compute_identity(seq1, seq2, window=IDENTITY_WINDOW):
         min_len = min(len(seq1), len(seq2))
         if min_len == 0:
             return 0
-        matches = sum(1 for a, b in zip(seq1[:min_len], seq2[:min_len]) if a == b)
+        matches = sum(1 for a, b in zip(seq1[:min_len], seq2[:min_len], strict=False) if a == b)
         return matches / min_len
 
     best = 0
@@ -690,7 +690,7 @@ def _compute_identity(seq1, seq2, window=IDENTITY_WINDOW):
         chunk = seq1[i:i + window]
         # Find best alignment in seq2
         for j in range(len(seq2) - window + 1):
-            matches = sum(1 for a, b in zip(chunk, seq2[j:j + window]) if a == b)
+            matches = sum(1 for a, b in zip(chunk, seq2[j:j + window], strict=False) if a == b)
             identity = matches / window
             if identity > best:
                 best = identity

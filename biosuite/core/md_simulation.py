@@ -1124,7 +1124,7 @@ def _fit(text: str, width: int, field: str, label: str) -> str:
 
 def _checked_position(position: np.ndarray, label: str) -> None:
     """Reject a position that has no PDB representation."""
-    for name, value in zip(("x", "y", "z"), position):
+    for name, value in zip(("x", "y", "z"), position, strict=False):
         if not np.isfinite(value):
             raise ValueError(
                 f"PDB {name} coordinate of {label} is {float(value)!r}; a nan or "

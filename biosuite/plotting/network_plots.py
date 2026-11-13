@@ -152,7 +152,7 @@ def plot_network(G, title="Network", node_color='#00ff88', edge_color='gray',
         else:
             edge_styles.append((edge_color, '-', 1.0))
 
-    for (u, v), (color, style, width) in zip(G.edges(), edge_styles):
+    for (u, v), (color, style, width) in zip(G.edges(), edge_styles, strict=False):
         nx.draw_networkx_edges(G, pos, edgelist=[(u, v)], ax=ax,
                                edge_color=color, style=style, width=width, alpha=0.6)
 

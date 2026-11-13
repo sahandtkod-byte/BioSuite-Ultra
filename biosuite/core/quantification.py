@@ -476,7 +476,7 @@ def merge_quantification_results(results_list):
         df = r.to_dataframe()
         if df.empty:
             continue
-        bad = [(tid, val) for tid, val in zip(r.transcript_ids, df['tpm'])
+        bad = [(tid, val) for tid, val in zip(r.transcript_ids, df['tpm'], strict=False)
                if isinstance(val, bool)
                or not isinstance(val, (int, float, np.integer, np.floating))]
         if bad:

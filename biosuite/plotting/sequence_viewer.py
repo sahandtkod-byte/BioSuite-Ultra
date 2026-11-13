@@ -456,8 +456,9 @@ def draw_sequence_view(
             a_end = min(seq_len, ann.end - offset)
             if a_start >= seq_len or a_end <= 0:
                 continue
-            for row, placed in enumerate(rows):
+            for _row, placed in enumerate(rows):
                 if all(a_end <= ps or a_start >= pe for ps, pe in placed):
+                    row = _row
                     break
             else:
                 rows.append([])
@@ -630,7 +631,7 @@ def draw_translation_view(
     font_dna = min(6, max(3, 600 / max(1, shown)))
     font_aa = min(9, max(5, 800 / max(1, shown)))
 
-    for ci, (codon, aa) in enumerate(zip(codons, amino)):
+    for ci, (codon, aa) in enumerate(zip(codons, amino, strict=False)):
         # DNA — colour per nucleotide
         for ni, nt in enumerate(codon):
             x = ci + ni * 0.33 + 0.17

@@ -163,7 +163,7 @@ def plot_dotplot(seq1, seq2, word_size=10, title="Dotplot",
                   "when an axes is supplied.")
 
     if hits:
-        xs, ys = zip(*hits)
+        xs, ys = zip(*hits, strict=False)
         ax.scatter(xs, ys, s=dot_size, c=dot_color, alpha=0.6, edgecolors='none')
 
     ax.set_xlim(0, len(seq1))

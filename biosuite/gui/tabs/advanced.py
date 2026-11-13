@@ -392,7 +392,7 @@ class AdvancedTabMixin:
                 f"Curve points: {len(roc['fpr'])}",
                 "FPR / TPR / threshold:",
             ]
-            for fpr, tpr, thr in zip(roc['fpr'], roc['tpr'], roc['thresholds']):
+            for fpr, tpr, thr in zip(roc['fpr'], roc['tpr'], roc['thresholds'], strict=False):
                 lines.append(f"  {fpr:.3f} / {tpr:.3f} / {thr:.3f}")
             self.ml_result.delete("1.0", "end")
             self.ml_result.insert("end", "\n".join(lines))

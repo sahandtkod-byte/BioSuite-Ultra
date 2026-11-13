@@ -257,9 +257,9 @@ def _banded_align_score(seq1: str, seq2: str, start1: int, start2: int, match: i
                 # making percent_identity essentially random).
                 qal, tal = best.aligned
                 matches = 0
-                for (qs, qe), (ts, te) in zip(qal, tal):
+                for (qs, qe), (ts, te) in zip(qal, tal, strict=False):
                     matches += sum(1 for a, b in zip(
-                        s1[qs:qe], s2[ts:te]) if a == b)
+                        s1[qs:qe], s2[ts:te], strict=False) if a == b)
                 aln_len = sum(qe - qs for qs, qe in qal)
                 q_start = start1 + qal[0][0]
                 q_end = start1 + qal[-1][1]

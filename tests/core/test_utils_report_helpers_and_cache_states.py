@@ -65,9 +65,9 @@ def test_two_groups_get_the_pairwise_test():
 
     ut.add_ttest_to_boxplot(frame, "group", "value", ax)
 
-    assert [t.get_text() for t in ax.texts] == [
-        f"t-test p = {sp_stats.ttest_ind(frame[frame.group == 'a']['value'],
-                                         frame[frame.group == 'b']['value']).pvalue:.4f}"]
+    p_value = sp_stats.ttest_ind(frame[frame.group == "a"]["value"],
+                                 frame[frame.group == "b"]["value"]).pvalue
+    assert [t.get_text() for t in ax.texts] == [f"t-test p = {p_value:.4f}"]
     plt.close(fig)
 
 

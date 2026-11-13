@@ -268,7 +268,7 @@ def _find_peaks_from_coverage(positions, min_score=5, min_distance=200,
     peaks = _merge_close_peaks(peaks, min_distance)
     if peaks:
         q_values = _benjamini_hochberg([p.p_value for p in peaks])
-        for peak, q in zip(peaks, q_values):
+        for peak, q in zip(peaks, q_values, strict=False):
             peak.q_value = float(q)
     peaks.sort(key=lambda p: p.score, reverse=True)
     return peaks
@@ -422,8 +422,8 @@ def call_peaks(input_file, output_bed=None, genome='hs', tool='auto'):
         if tool == 'macs2':
             return PeakReport(
                 engine='none',
-                message=f"MACS2 was requested but its run failed; see the "
-                        f"biosuite.core.peak_calling log for its stderr.")
+                message="MACS2 was requested but its run failed; see the "
+                        "biosuite.core.peak_calling log for its stderr.")
 
     if output_bed is None:
         output_bed = secure_temp_path(suffix='.bed')

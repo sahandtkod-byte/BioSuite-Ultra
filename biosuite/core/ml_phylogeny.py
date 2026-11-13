@@ -226,14 +226,14 @@ def _raxml_run(alignment_file, output_dir, model='GTRGAMMA', bootstrap=100):
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
     except (OSError, subprocess.SubprocessError) as exc:
-        warnings.warn(f"raxml-ng could not be executed: {exc}", RuntimeWarning)
+        warnings.warn(f"raxml-ng could not be executed: {exc}", RuntimeWarning, stacklevel=2)
         return None
     # RAxML-NG reports usage errors with a non-zero exit status; ignoring it used
     # to turn a failed ML run into a silent NJ result.
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or '').strip().splitlines()[-1:]
         warnings.warn(f"raxml-ng exited with {proc.returncode}: "
-                      f"{tail[0] if tail else 'no output'}", RuntimeWarning)
+                      f"{tail[0] if tail else 'no output'}", RuntimeWarning, stacklevel=2)
         return None
     tree_file = prefix + '.raxml.bestTree'
     if os.path.exists(tree_file):
@@ -244,7 +244,7 @@ def _raxml_run(alignment_file, output_dir, model='GTRGAMMA', bootstrap=100):
         # "measured as zero".
         return PhyloResult(engine='raxml', newick_tree=newick,
                           message="RAxML-NG maximum likelihood tree")
-    warnings.warn(f"raxml-ng succeeded but {tree_file} was not produced", RuntimeWarning)
+    warnings.warn(f"raxml-ng succeeded but {tree_file} was not produced", RuntimeWarning, stacklevel=2)
     return None
 
 
@@ -262,18 +262,18 @@ def _iqtree_run(alignment_file, output_dir, model='GTR+G', bootstrap=100):
         if os.path.abspath(work_aln) != os.path.abspath(alignment_file):
             shutil.copyfile(alignment_file, work_aln)
     except OSError as exc:
-        warnings.warn(f"IQ-TREE alignment could not be staged: {exc}", RuntimeWarning)
+        warnings.warn(f"IQ-TREE alignment could not be staged: {exc}", RuntimeWarning, stacklevel=2)
         return None
     cmd = ['iqtree', '-s', work_aln, '-m', model, '-bb', str(bootstrap), '-nt', '1']
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
     except (OSError, subprocess.SubprocessError) as exc:
-        warnings.warn(f"iqtree could not be executed: {exc}", RuntimeWarning)
+        warnings.warn(f"iqtree could not be executed: {exc}", RuntimeWarning, stacklevel=2)
         return None
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or '').strip().splitlines()[-1:]
         warnings.warn(f"iqtree exited with {proc.returncode}: "
-                      f"{tail[0] if tail else 'no output'}", RuntimeWarning)
+                      f"{tail[0] if tail else 'no output'}", RuntimeWarning, stacklevel=2)
         return None
     tree_file = work_aln + '.treefile'
     if os.path.exists(tree_file):
@@ -281,7 +281,7 @@ def _iqtree_run(alignment_file, output_dir, model='GTR+G', bootstrap=100):
             newick = f.read().strip()
         return PhyloResult(engine='iqtree', newick_tree=newick,
                           message="IQ-TREE maximum likelihood tree")
-    warnings.warn(f"iqtree succeeded but {tree_file} was not produced", RuntimeWarning)
+    warnings.warn(f"iqtree succeeded but {tree_file} was not produced", RuntimeWarning, stacklevel=2)
     return None
 
 
