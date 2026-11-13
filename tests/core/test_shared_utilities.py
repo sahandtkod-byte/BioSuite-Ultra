@@ -180,6 +180,7 @@ class TestRestrictionEnzymesSites:
 
     def test_values_are_strings(self):
         """All values in RESTRICTION_ENZYMES_SITES must be plain strings."""
+        assert len(self.sites) == 169  # non-empty: the loop below is not vacuous
         for name, value in self.sites.items():
             assert isinstance(value, str), (
                 f"{name} value is {type(value).__name__}, expected str"
@@ -271,6 +272,7 @@ class TestCloningUsesSharedEnzymes:
         """Cloning's RESTRICTION_ENZYMES values should be tuples
         (recognition_site, cut_position) for accurate digestion."""
         from biosuite.core.cloning import RESTRICTION_ENZYMES
+        assert len(RESTRICTION_ENZYMES) == 169  # non-empty: the loop below is not vacuous
         for name, value in RESTRICTION_ENZYMES.items():
             assert isinstance(value, tuple), (
                 f"cloning.{name} is {type(value).__name__}, expected tuple"

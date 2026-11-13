@@ -124,6 +124,14 @@ class GenomicsTabMixin:
         self.mg_result = self._text_box(inner, height=250)
         self.mg_result.pack(fill='both', expand=True)
 
+        div_row = ctk.CTkFrame(inner, fg_color='transparent')
+        div_row.pack(fill='x', pady=(8, 0))
+        self.mg_div_paths = self._input_entry(
+            div_row, "Abundance CSVs (taxon,count), comma-separated paths...")
+        self.mg_div_paths.pack(side='left', fill='x', expand=True, padx=(0, 8))
+        self._action_button(div_row, "Analyze Diversity",
+                            self._run_diversity).pack(side='right')
+
     def _run_meta(self):
         path = self.mg_path.get().strip()
         if not path:
@@ -134,9 +142,47 @@ class GenomicsTabMixin:
             result = classify_reads(path)
             self.mg_result.delete("1.0", "end")
             self.mg_result.insert("end", format_metagenomics_report(result))
-            self._set_status(f"Metagenomics: {len(result.classifications)} reads classified")
+            # 'classified' was the count of reads that were read: a FASTQ of
+            # ambiguous reads showed '3 reads classified' with nothing classified.
+            self._set_status(
+                f"Metagenomics: {len(result.classifications)} reads processed")
         except Exception as e:
             self._msg_error("Error", str(e))
+
+    def _run_diversity(self):
+        import pandas as pd
+
+        from ...core.metagenomics import analyze_diversity
+        raw = self.mg_div_paths.get().strip()
+        paths = [p.strip() for p in raw.split(',') if p.strip()]
+        if not paths:
+            self._msg_warning("No files", "Enter abundance CSV paths (comma-separated).")
+            return
+        tables = []
+        for path in paths:
+            try:
+                tables.append(pd.read_csv(path))
+            except (OSError, ValueError) as e:
+                self._msg_error("Error", f"Could not read {path}: {e}")
+                return
+        try:
+            result = analyze_diversity(tables)
+        except ValueError as e:
+            self._msg_error("Error", str(e))
+            return
+        self.mg_result.delete("1.0", "end")
+        self.mg_result.insert("end", f"{result.message}\n\n")
+        for alpha in result.alpha_diversity:
+            self.mg_result.insert(
+                "end",
+                f"{alpha['sample']}: observed={alpha['observed_taxa']}  "
+                f"shannon={alpha['shannon']}  simpson={alpha['simpson']}  "
+                f"chao1={alpha['chao1']}\n")
+        if result.beta_diversity is not None:
+            self.mg_result.insert("end", "\nBeta diversity (Bray-Curtis):\n")
+            self.mg_result.insert("end", result.beta_diversity.to_string())
+            self.mg_result.insert("end", "\n")
+        self._set_status(f"Diversity: {len(tables)} sample(s) analyzed")
 
     # ─── 16S rRNA Pipeline Tab ──────────────────────────────────────────────
 
@@ -217,10 +263,23 @@ class GenomicsTabMixin:
         if not path:
             return
         try:
-            self._svcnv_data = np.loadtxt(path, delimiter=',')
+            # atleast_1d: a CSV holding one number makes loadtxt return a 0-d array,
+            # and the len() a few lines below sits outside this try, so its
+            # TypeError escaped the handler instead of reaching the user.
+            data = np.atleast_1d(np.loadtxt(path, delimiter=','))
         except (OSError, ValueError) as e:
             self._msg_error("Error", f"Could not load coverage CSV: {e}")
             return
+        if data.size == 0:
+            self._msg_error("Error", "The coverage file holds no values.")
+            return
+        bad = ~np.isfinite(data)
+        if bad.any():
+            self._msg_error(
+                "Error",
+                f"The coverage file holds {int(bad.sum())} missing or non-finite value(s).")
+            return
+        self._svcnv_data = data
         self.svcnv_results.delete("1.0", "end")
         self.svcnv_results.insert("end",
                                   f"Loaded {len(self._svcnv_data)} coverage values\n\n")
@@ -252,8 +311,8 @@ class GenomicsTabMixin:
             format_cnv_report,
             format_sv_report,
         )
-        np.random.seed(42)
-        cov = np.random.poisson(30, 5000).astype(float)
+        rng = np.random.default_rng(42)
+        cov = rng.poisson(30, 5000).astype(float)
         cov[1500:2000] *= 0.3
         cov[3000:3500] *= 2.5
         ref = np.ones(5000) * 30

@@ -15,6 +15,7 @@ import os
 import numpy as np
 
 from .log import get_logger
+from .utils import smart_open
 
 logger = get_logger(__name__)
 
@@ -29,8 +30,12 @@ except ImportError:
 def read_fasta(filepath: str) -> list[tuple[str, str]] | None:
     """Parse a FASTA file into (header, sequence) tuples.
 
-    Handles multi-line sequences and multiple records. The header
-    includes everything after the '>' up to the first whitespace.
+    Handles multi-line sequences and multiple records.  The header is the whole
+    text following '>' up to the end of the line; ``utils.read_fasta_simple`` is
+    the variant that yields only the first token as an identifier.
+
+    Compressed input (``.gz``/``.bz2``) is decompressed transparently and a
+    UTF-8 BOM is consumed rather than swallowing the first record.
 
     Args:
         filepath: Path to a .fasta or .fa file.
@@ -42,7 +47,7 @@ def read_fasta(filepath: str) -> list[tuple[str, str]] | None:
     if not os.path.exists(filepath):
         return None
     try:
-        with open(filepath, 'r') as f:
+        with smart_open(filepath) as f:
             name = None
             seq = []
             for line in f:
@@ -50,13 +55,13 @@ def read_fasta(filepath: str) -> list[tuple[str, str]] | None:
                 if not line:
                     continue
                 if line.startswith('>'):
-                    if name:
+                    if name is not None:
                         sequences.append((name, ''.join(seq)))
                     name = line[1:].strip()
                     seq = []
                 else:
                     seq.append(line)
-            if name:
+            if name is not None:
                 sequences.append((name, ''.join(seq)))
         return sequences
     except Exception as e:
@@ -67,14 +72,18 @@ def read_fasta(filepath: str) -> list[tuple[str, str]] | None:
 def read_fastq(filepath: str) -> list[tuple[str, str, str]] | None:
     """Parse a FASTQ file into (name, sequence, quality) tuples.
 
-    Reads line-by-line (memory efficient for large files). Each FASTQ
-    record has 4 lines: header (@), sequence, +, quality string.
+    Reads record-by-record (four lines each) and rejects records that violate the
+    format instead of returning them as data: a header that does not start with
+    '@', a separator line that is not '+', or a quality string whose length
+    differs from the sequence.  Rejected records are counted and reported in one
+    warning, so a truncated final record cannot masquerade as an empty read.
 
-    Quality scores are Phred+33 encoded (Sanger/Illumina 1.8+).
+    Quality scores are Phred+33 encoded (Sanger/Illumina 1.8+); there is no
+    Phred+64 detection, so a '+64' file will read as implausibly high quality.
     To convert to numeric: score = ord(char) - 33.
 
     Args:
-        filepath: Path to a .fastq or .fq file.
+        filepath: Path to a .fastq or .fq file (.gz and .bz2 accepted).
 
     Returns:
         List of (name, sequence, quality) tuples, or None on error.
@@ -82,8 +91,10 @@ def read_fastq(filepath: str) -> list[tuple[str, str, str]] | None:
     sequences = []
     if not os.path.exists(filepath):
         return None
+    rejected = []
     try:
-        with open(filepath, 'r') as f:
+        with smart_open(filepath) as f:
+            record_start = 0
             while True:
                 header = f.readline()
                 if not header:
@@ -91,11 +102,27 @@ def read_fastq(filepath: str) -> list[tuple[str, str, str]] | None:
                 header = header.strip()
                 if not header:
                     continue
+                record_start += 1
                 seq = f.readline().strip()
-                f.readline()  # + line
+                plus = f.readline().strip()
                 qual = f.readline().strip()
-                name = header[1:] if header.startswith('@') else header
-                sequences.append((name, seq, qual))
+
+                if not header.startswith('@'):
+                    rejected.append(f"record {record_start}: header does not start with '@'")
+                    continue
+                if not plus.startswith('+'):
+                    rejected.append(f"record {record_start}: separator line is {plus[:12]!r}, expected '+'")
+                    continue
+                if len(seq) != len(qual):
+                    rejected.append(
+                        f"record {record_start}: sequence length {len(seq)} != "
+                        f"quality length {len(qual)}")
+                    continue
+                sequences.append((header[1:], seq, qual))
+        if rejected:
+            logger.warning(
+                f"read_fastq: skipped {len(rejected)} malformed record(s) in {filepath}; "
+                f"first: {rejected[0]}")
         return sequences
     except Exception as e:
         logger.error(f"Error reading FASTQ: {e}")
@@ -292,24 +319,42 @@ def sequence_stats(seq: str) -> dict:
     Returns:
         Dict with keys: length, A, T, G, C, N, AT (%), GC (%), other (%).
         Empty sequence returns all zeros.
+
+        ``other`` is what is neither A/T/G/C/N: the IUPAC ambiguity codes
+        (R, Y, S, W, K, M, B, D, H, V) and the gap characters ``-``, ``.``,
+        ``*``. It is not a bin for text that was never a sequence.
+
+    Raises:
+        TypeError: if *seq* is not a string. ``None`` included — a missing
+            sequence used to come back as a full dict of zeros, a measurement of
+            nothing.
+        ValueError: if *seq* contains non-nucleotide characters, the rule
+            :func:`gc_content` and :func:`reverse_complement` already enforce.
     """
+    seq = validate_nucleotide_sequence(seq, name="seq")
     if not seq:
         return {'length': 0, 'A': 0, 'T': 0, 'G': 0, 'C': 0, 'N': 0,
                 'AT': 0.0, 'GC': 0.0, 'other': 0.0}
     arr = np.array(list(seq.upper()), dtype='U1')
     length = len(arr)
+    # Gaps and alignment padding are not bases, so they stay out of the
+    # denominator exactly as gc_content() does them. Measured before: 'AC-GT.*N'
+    # answered GC 25.0 here and 40.0 from gc_content() on the same string.
+    gap = np.isin(arr, np.array(['-', '.', '*'], dtype='U1'))
+    counted = int((~gap).sum())
     a = int((arr == 'A').sum())
     t = int((arr == 'T').sum())
     g = int((arr == 'G').sum())
     c = int((arr == 'C').sum())
     n = int((arr == 'N').sum())
     known = a + t + g + c + n
+    pct = (lambda k: k / counted * 100 if counted else 0.0)
     return {
         'length': length,
         'A': a, 'T': t, 'G': g, 'C': c, 'N': n,
-        'AT': (a + t) / length * 100,
-        'GC': (g + c) / length * 100,
-        'other': (length - known) / length * 100
+        'AT': pct(a + t),
+        'GC': pct(g + c),
+        'other': pct(counted - known)
     }
 
 
@@ -331,9 +376,28 @@ def quality_stats(qual_string: str) -> dict:
 
     Returns:
         Dict with: mean, min, max quality scores, and per-position scores.
+
+    Raises:
+        TypeError: if *qual_string* is not a string. It used to die inside
+            ``ord()`` with a message about an int, or answer a dict of zeros for
+            ``None``.
+        ValueError: if a character is outside the Phred+33 range (``'!'`` to
+            ``'~'``). A space decoded as Q-1 and a tab as Q-51, and the
+            interpretation table in this docstring presents every score as a
+            confidence, not as garbage.
     """
+    if qual_string is None or not isinstance(qual_string, str):
+        raise TypeError(
+            f"qual_string must be a FASTQ quality string, got "
+            f"{type(qual_string).__name__}")
     if not qual_string:
         return {'mean': 0.0, 'min': 0, 'max': 0, 'positions': [], 'scores': []}
+    bad = sorted({ch for ch in qual_string if not 33 <= ord(ch) <= 126})
+    if bad:
+        preview = ", ".join(f"{ch!r} (Q{ord(ch) - 33})" for ch in bad[:5])
+        raise ValueError(
+            f"qual_string contains characters outside the Phred+33 range "
+            f"('!' to '~'): {preview}. Decode the FASTQ before measuring it.")
     scores = np.array([ord(ch) - 33 for ch in qual_string], dtype=np.int32)
     return {
         'mean': float(np.mean(scores)),

@@ -10,6 +10,7 @@ import pytest
 from scipy import stats
 
 from biosuite.core.expression import (
+    _welch_ttest_rows,
     calculate_fold_change, differential_expression,
 )
 
@@ -59,17 +60,35 @@ def test_single_group_is_rejected():
 # ── scientific correctness against scipy ────────────────────────────────────
 
 def test_p_values_match_scipy_welch_t_test():
+    """FIX-4: the shipped path tests log1p(counts), so scipy is called the same way.
+
+    This test used to recompute scipy's Welch t-test on the raw counts and assert
+    equality, which pinned the pre-FIX-4 behaviour.  It still checks the shipped
+    p-values against scipy alone — never against the module's own output.
+    """
     counts = _counts(seed=3)
     conditions = ["A"] * 4 + ["B"] * 4
     result = differential_expression(counts, conditions, method='ttest',
                                      correction='none')
-    group_a = counts.iloc[:, :4].to_numpy(dtype=float)
-    group_b = counts.iloc[:, 4:].to_numpy(dtype=float)
+    group_a = np.log1p(counts.iloc[:, :4].to_numpy(dtype=float))
+    group_b = np.log1p(counts.iloc[:, 4:].to_numpy(dtype=float))
     expected = stats.ttest_ind(group_a, group_b, axis=1, equal_var=False).pvalue
 
     p_column = 'pvalue' 
     assert np.allclose(np.asarray(result[p_column], dtype=float), expected,
                        rtol=1e-9, atol=1e-12, equal_nan=True)
+
+
+def test_welch_rows_still_match_scipy_on_untransformed_arrays():
+    """The raw math stays verified, so the transform is the only thing that changed."""
+    counts = _counts(seed=11)
+    group_a = counts.iloc[:, :4].to_numpy(dtype=float)
+    group_b = counts.iloc[:, 4:].to_numpy(dtype=float)
+    expected = stats.ttest_ind(group_a, group_b, axis=1, equal_var=False)
+
+    t_stat, p_vals = _welch_ttest_rows(group_a, group_b)
+    assert np.allclose(p_vals, expected.pvalue, rtol=1e-9, atol=1e-12)
+    assert np.allclose(t_stat, expected.statistic, rtol=1e-9, atol=1e-12)
 
 
 def test_benjamini_hochberg_matches_the_closed_form_definition():

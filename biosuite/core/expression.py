@@ -20,18 +20,37 @@ logger = get_logger(__name__)
 def read_counts_matrix(filepath: str) -> pd.DataFrame | None:
     """Read a gene count matrix (featureCounts/HTSeq output).
 
-    Parses tab- or comma-separated files where the first column is gene IDs
-    and subsequent columns are sample counts. Handles commented header lines.
+    Parses tab-, comma- or space-separated files where the first column is gene
+    IDs and subsequent columns are sample counts. Handles commented header lines.
 
     Args:
         filepath: Path to CSV, TSV, or space-separated count file.
     Returns:
-        DataFrame with 'gene' column and sample count columns, or None on error.
+        DataFrame with 'gene' column and sample count columns, or None when the
+        file is missing, unparsable, or carries no count column at all.
     """
     try:
         df = pd.read_csv(filepath, sep=None, engine='python', comment='#')
         if df.shape[1] < 2:
             df = pd.read_csv(filepath, sep='\t', comment='#', header=None)
+
+        names = list(df.columns)
+        # A header that starts with the separator while the data rows carry no
+        # row-name field — write.table(col.names = NA, row.names = FALSE) writes
+        # exactly that — shifts every column name one place right and pads an
+        # all-NaN sample at the end, so a gene length would be analysed as
+        # expression. Dropping the phantom column restores the alignment.
+        if (len(names) > 1 and str(names[0]).startswith('Unnamed: 0')
+                and df.iloc[:, -1].isna().all()):
+            df = df.iloc[:, :-1].copy()
+
+        # A column of only NaN is float64, so dtypes alone cannot tell a count
+        # matrix from a bare gene list; require a sample column holding a number.
+        if df.empty or not df.iloc[:, 1:].select_dtypes(
+                include='number').notna().any().any():
+            logger.error(f"No count columns found in {filepath}")
+            return None
+
         df.columns = ['gene'] + [f'Sample_{i}' for i in range(1, df.shape[1])]
         return df
     except Exception as e:
@@ -198,7 +217,12 @@ def _welch_ttest_rows(vals1: np.ndarray, vals2: np.ndarray) -> tuple[np.ndarray,
 
 
 def _negative_binomial_test(vals1: np.ndarray, vals2: np.ndarray) -> np.ndarray:
-    """Negative Binomial test for differential expression (DESeq2-equivalent).
+    """Negative Binomial test for differential expression (approximate, not DESeq2).
+
+    A reduced stand-in for DESeq2 rather than an equivalent of it: dispersion is
+    estimated per gene from the observed counts, with no shrinkage toward a fitted
+    mean-dispersion trend and no size-factor normalisation inside the test.  The
+    labels in the output therefore should not be read as DESeq2 results.
 
     Implements a simplified version of the DESeq2 approach:
     1. Estimate size parameter (dispersion) from the data
@@ -229,10 +253,6 @@ def _negative_binomial_test(vals1: np.ndarray, vals2: np.ndarray) -> np.ndarray:
         mean_val = counts.mean()
         var_val = counts.var()
 
-        if mean_val == 0:
-            pvals[i] = 1.0
-            continue
-
         if var_val <= mean_val:
             # Under-dispersed or equi-dispersed: use Fisher's exact test
             # which is the appropriate test for Poisson-like count data
@@ -246,11 +266,13 @@ def _negative_binomial_test(vals1: np.ndarray, vals2: np.ndarray) -> np.ndarray:
             g2_below = n2 - g2_above
             table = [[max(g1_above, 1), max(g1_below, 1)],
                      [max(g2_above, 1), max(g2_below, 1)]]
-            try:
-                _, p = fisher_exact(table)
-                pvals[i] = p
-            except (ValueError, ZeroDivisionError):
-                pvals[i] = 1.0
+            # Every cell is floored at 1 above, so the contingency table is always
+            # a valid 2x2 of positive integers and fisher_exact cannot raise on it.
+            # (A zero total was skipped with the sum check, and a zero mean is
+            # impossible once the sum is non-zero, so the guards that used to sit
+            # around this call were unreachable.)
+            _, p = fisher_exact(table)
+            pvals[i] = p
             continue
 
         # Method of moments dispersion estimate
@@ -301,13 +323,11 @@ def deseq2_normalization(counts_df: pd.DataFrame) -> pd.DataFrame:
     # Only use genes where all samples have positive counts
     positive_mask = (counts > 0).all(axis=1)
 
-    if positive_mask.sum() == 0:
-        # Fallback: use simple library size normalization (edge case)
-        lib_sizes = counts.sum(axis=0)
-        lib_sizes = np.where(lib_sizes == 0, 1.0, lib_sizes)
-        size_factors = lib_sizes / lib_sizes.mean()
-    elif positive_mask.sum() < 5:
-        # Too few fully-positive genes; fall back to library size
+    if positive_mask.sum() < 5:
+        # Too few (or no) fully-positive genes to build a geometric-mean
+        # reference, so fall back to library size normalization.  The
+        # separate `== 0` branch this replaces ran byte-for-byte the same
+        # statements, because 0 < 5 already covers it.
         lib_sizes = counts.sum(axis=0)
         lib_sizes = np.where(lib_sizes == 0, 1.0, lib_sizes)
         size_factors = lib_sizes / lib_sizes.mean()
@@ -341,7 +361,7 @@ def variance_stabilizing_transformation(
 
     Stabilizes variance across the dynamic range, similar to DESeq2's vst().
     Supports two methods:
-    - 'vst': asinht transform: log2(sqrt(x) + sqrt(x+1))
+    - 'vst': asinh transform: log2(sqrt(x) + sqrt(x+1))
     - 'log': shifted log: log2(x + 0.5)
 
     Args:
@@ -350,7 +370,13 @@ def variance_stabilizing_transformation(
         method: 'vst' for variance-stabilizing, 'log' for shifted log2.
     Returns:
         DataFrame of transformed values.
+    Raises:
+        ValueError: If ``method`` is neither 'vst' nor 'log'.  An unknown label
+            used to be transformed as 'vst' without saying so.
     """
+    if method not in ('vst', 'log'):
+        raise ValueError(f"Unknown method: {method}. Use 'vst' or 'log'.")
+
     numeric_cols = counts_df.select_dtypes(include=[np.number]).columns
     counts = counts_df[numeric_cols].values.astype(float)
 
@@ -393,13 +419,12 @@ def calculate_fold_change(
     conditions: list[str],
     method: str = 'mean',
     pseudocount: float = 1.0,
-    shrinkage: bool = False,
-    alpha: float = 0.05
+    shrinkage: bool = False
 ) -> pd.DataFrame:
     """Calculate log2 fold-change between two groups.
 
     Supports multiple methods for computing fold change, with optional
-   ape-style shrinkage for reduced noise in low-count genes.
+    apeglm-style shrinkage for reduced noise in low-count genes.
 
     Args:
         counts_df: DataFrame with 'gene' column and numeric count columns.
@@ -407,9 +432,14 @@ def calculate_fold_change(
         method: 'mean' (arithmetic mean of group), 'median', or 'trimmed'.
         pseudocount: Added to means before log to avoid log(0).
         shrinkage: If True, apply apeglm-style posterior shrinkage.
-        alpha: Significance threshold for flagging DE genes.
     Returns:
-        DataFrame with columns: gene, log2FC, baseMean, significant.
+        DataFrame with columns: gene, log2FC, baseMean, significant.  The flag is
+        the conventional |log2FC| > 1 cut; this function computes no p-value, so
+        there is nothing for a significance level to threshold.
+    Raises:
+        ValueError: If the groups are not exactly two, if the label count does
+            not match the numeric column count, if there is no numeric data, or
+            if ``method`` is not one of 'mean', 'median', 'trimmed'.
     """
     if len(set(conditions)) != 2:
         raise ValueError("Exactly two groups required for fold change calculation.")
@@ -422,6 +452,12 @@ def calculate_fold_change(
             f"conditions has {len(conditions)} labels but the counts matrix has "
             f"{len(numeric_cols)} numeric columns ({numeric_cols}); they must match "
             "one-to-one.")
+    if method not in ('mean', 'median', 'trimmed'):
+        # An unrecognised label used to fall through to the arithmetic mean, so
+        # method='geometric' quietly reported a different statistic than the one
+        # the caller asked for.
+        raise ValueError(
+            f"Unknown method: {method}. Use 'mean', 'median' or 'trimmed'.")
 
     group1 = [i for i, c in enumerate(conditions) if c == conditions[0]]
     group2 = [i for i, c in enumerate(conditions) if c != conditions[0]]
@@ -446,15 +482,15 @@ def calculate_fold_change(
     log2fc = np.log2((g2 + pseudocount) / (g1 + pseudocount))
 
     if shrinkage:
-        # Simple apeglm-inspired shrinkage:
-        # Shrink toward zero proportionally to 1/baseMean
-        # Genes with low counts get more shrinkage
-        prior_var = 1.0
-        with np.errstate(divide='ignore', invalid='ignore'):
-            posterior_var = 1.0 / (1.0 / prior_var + base_mean / 2.0)
-            shrinkage_factor = posterior_var / prior_var
-            log2fc = log2fc * np.clip(shrinkage_factor, 0.01, 1.0)
-        log2fc = np.where(np.isfinite(log2fc), log2fc, 0.0)
+        # apeglm-inspired posterior mean under a Normal prior of variance 1.0 on
+        # log2FC with observation variance 2.0/baseMean (delta method): the weight
+        # kept is prior/(prior+var) = baseMean/(baseMean+2), so the noisier
+        # low-count estimate is pulled toward zero and a well-measured gene keeps
+        # its fold-change.  baseMean was used as the *precision* here before,
+        # which did the opposite: a 7000-count gene was shrunk to 1% of its
+        # log2FC while a 5-count gene kept 29%.
+        shrinkage_factor = np.clip(base_mean / (base_mean + 2.0), 0.01, 1.0)
+        log2fc = np.where(np.isfinite(log2fc), log2fc * shrinkage_factor, 0.0)
 
     # Flag significant genes (|log2FC| > 1)
     significant = np.abs(log2fc) > 1.0
@@ -480,7 +516,15 @@ def calculate_effect_size(
         conditions: List of group labels, one per numeric column.
         method: 'cohens_d' (standardized mean difference) or 'rank_biserial'.
     Returns:
-        DataFrame with columns: gene, effect_size, interpretation.
+        DataFrame with columns: gene, effect_size, interpretation.  Both methods
+        share one sign convention: positive means the second group is higher.
+        A gene whose pooled standard deviation is zero while its group means
+        differ has no defined standardized effect, so it is reported as NaN with
+        interpretation 'undefined'.
+    Raises:
+        ValueError: If the groups are not exactly two, if there is no numeric
+            data, if ``method`` is unrecognised, or if ``method='cohens_d'`` is
+            asked of a group with fewer than two replicates.
     """
     if len(set(conditions)) != 2:
         raise ValueError("Exactly two groups required.")
@@ -488,6 +532,17 @@ def calculate_effect_size(
     numeric_cols = counts_df.select_dtypes(include=[np.number]).columns.tolist()
     if len(numeric_cols) == 0:
         raise ValueError("No numeric columns found.")
+    if len(conditions) != len(numeric_cols):
+        # Too few labels used to analyse only the leading columns and too many
+        # raised inside pandas, both without saying which input was wrong.
+        raise ValueError(
+            f"conditions has {len(conditions)} labels but the counts matrix has "
+            f"{len(numeric_cols)} numeric columns ({numeric_cols}); they must match "
+            "one-to-one.")
+    if method not in ('cohens_d', 'rank_biserial'):
+        # Checked here rather than in a trailing else-branch so the replicate
+        # check below cannot mask it.
+        raise ValueError(f"Unknown method: {method}. Use 'cohens_d' or 'rank_biserial'.")
 
     group1 = [i for i, c in enumerate(conditions) if c == conditions[0]]
     group2 = [i for i, c in enumerate(conditions) if c != conditions[0]]
@@ -499,6 +554,15 @@ def calculate_effect_size(
     n_genes = vals1.shape[0]
 
     if method == 'cohens_d':
+        if n1 < 2 or n2 < 2:
+            # ddof=1 variance needs two observations per group, and below N=4 the
+            # Hedges factor leaves its own domain: 1 - 3/(4N - 9) measures 4.0 at
+            # N=2 (inflating a real difference fourfold) and 0.0 at N=3 (reporting
+            # every gene as having no effect at all).
+            raise ValueError(
+                "Cohen's d needs at least two replicates per group, got "
+                f"{n1} vs {n2}.")
+
         mean1 = vals1.mean(axis=1)
         mean2 = vals2.mean(axis=1)
         var1 = vals1.var(axis=1, ddof=1)
@@ -506,21 +570,33 @@ def calculate_effect_size(
 
         # Pooled standard deviation (Hedges' correction)
         pooled_var = ((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2)
-        pooled_std = np.sqrt(np.where(pooled_var > 0, pooled_var, 1.0))
-        cohens_d = (mean2 - mean1) / pooled_std
+        pooled_std = np.sqrt(pooled_var)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            raw_d = (mean2 - mean1) / pooled_std
+        # A zero pooled standard deviation means both groups are constant.  The
+        # old fallback of std=1.0 then reported the raw count difference as if it
+        # were a standardized effect (10 vs 100 became d=360).  Equal constant
+        # groups really do have no effect; unequal ones have no finite one.
+        cohens_d = np.where(pooled_std > 0, raw_d,
+                            np.where(mean1 == mean2, 0.0, np.nan))
 
-        # Hedges' g correction factor
+        # Hedges' g correction factor (Hedges & Olkin 1985), valid for N >= 4,
+        # which the replicate check above now guarantees.
         correction = 1 - 3 / (4 * (n1 + n2) - 9)
         effect_sizes = cohens_d * correction
 
         # Interpretation thresholds (Cohen's conventions)
         abs_d = np.abs(effect_sizes)
-        interpretation = np.where(abs_d < 0.2, 'negligible',
+        interpretation = np.where(np.isnan(effect_sizes), 'undefined',
+                         np.where(abs_d < 0.2, 'negligible',
                          np.where(abs_d < 0.5, 'small',
-                         np.where(abs_d < 0.8, 'medium', 'large')))
+                         np.where(abs_d < 0.8, 'medium', 'large'))))
 
-    elif method == 'rank_biserial':
-        # Rank-biserial correlation for non-parametric effect size
+    else:
+        # rank_biserial — the only remaining validated method.  Written as an
+        # else rather than `elif method == 'rank_biserial'` because the check at
+        # the top of the function already rules anything else out, so the elif's
+        # false edge could never be taken.
         n_total = n1 + n2
         all_vals = np.concatenate([vals1, vals2], axis=1)
         effect_sizes = np.zeros(n_genes)
@@ -528,16 +604,16 @@ def calculate_effect_size(
         for i in range(n_genes):
             ranks = sp_stats.rankdata(all_vals[i])
             r1_sum = ranks[:n1].sum()
-            # Rank-biserial: r = 2*(R1/n1 - R2/n2) / n_total
+            # r = 2*(E[R1] - R1)/(n1*n2) with E[R1] = n1*(N+1)/2, which equals
+            # 2*U1/(n1*n2) - 1 for group 2.  Flipped from group 1's ranks so an
+            # up-regulated gene is positive here exactly as it is in 'cohens_d'.
             expected_r1 = n1 * (n_total + 1) / 2
-            effect_sizes[i] = 2 * (r1_sum - expected_r1) / (n1 * n2)
+            effect_sizes[i] = 2 * (expected_r1 - r1_sum) / (n1 * n2)
 
         abs_r = np.abs(effect_sizes)
         interpretation = np.where(abs_r < 0.1, 'negligible',
                          np.where(abs_r < 0.3, 'small',
                          np.where(abs_r < 0.5, 'medium', 'large')))
-    else:
-        raise ValueError(f"Unknown method: {method}. Use 'cohens_d' or 'rank_biserial'.")
 
     genes = _gene_labels(counts_df)
     return pd.DataFrame({
@@ -558,6 +634,10 @@ def differential_expression(
     Computes log2 fold-change and p-values for each gene comparing
     two experimental conditions (e.g., control vs treated). Optionally
     applies Benjamini-Hochberg multiple testing correction.
+
+    The 'ttest' method compares log1p(counts) rather than raw counts, because
+    count variance grows with the mean and a raw-scale t-test discards most of
+    its power on highly expressed genes.
 
     The fold-change uses pseudocount +1 to avoid log(0):
         log2FC = log2(mean(treat+1) / mean(control+1))
@@ -605,7 +685,10 @@ def differential_expression(
 
     # Statistical test
     if method == 'ttest':
-        _, pvals = _welch_ttest_rows(vals1, vals2)
+        # Raw counts carry mean-dependent variance, so a t-test on them loses most of
+        # its power on highly expressed genes; the audit report's Pass 5 experiment
+        # measured 56/100 planted genes recovered raw versus ~100/100 on log1p.
+        _, pvals = _welch_ttest_rows(np.log1p(vals1), np.log1p(vals2))
     elif method == 'nb':
         pvals = _negative_binomial_test(vals1, vals2)
     else:

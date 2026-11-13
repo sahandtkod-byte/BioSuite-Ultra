@@ -1,7 +1,18 @@
-"""ORA/GSEA with local synthetic OBO + associations (no network, real goatools statistics)."""
+"""ORA/GSEA with local synthetic OBO + associations (no network, real goatools statistics).
+
+The tests that assert on real statistics are skipped when goatools is absent
+(N18): without the engine ``run_ora`` returns an empty report and these
+assertions would fail for an environmental reason, not a code reason.
+"""
+import importlib.util
+
 import pytest
 
 from biosuite.core import enrichment as en
+
+requires_goatools = pytest.mark.skipif(
+    importlib.util.find_spec("goatools") is None,
+    reason="goatools is an optional extra; these tests need the real engine")
 
 
 OBO = """format-version: 1.2
@@ -56,6 +67,7 @@ def assoc(tmp_path):
     return str(p)
 
 
+@requires_goatools
 def test_ora_finds_enriched_deep_term(obo, assoc):
     rep = en.run_ora(['G1', 'G2', 'G3'], obo_file=obo,
                      associations_file=assoc, cutoff=0.05)
@@ -66,12 +78,14 @@ def test_ora_finds_enriched_deep_term(obo, assoc):
     assert rep.analysis_type == 'ORA'
 
 
+@requires_goatools
 def test_ora_empty_list():
     rep = en.run_ora([], organism='human')
     assert rep.num_significant == 0
     assert 'empty' in rep.message.lower()
 
 
+@requires_goatools
 def test_ora_genes_not_in_background(obo, assoc):
     rep = en.run_ora(['X', 'Y'], obo_file=obo, associations_file=assoc)
     assert rep.num_significant == 0
@@ -83,6 +97,7 @@ def test_ora_bad_associations_file(obo):
     assert rep.num_significant == 0
 
 
+@requires_goatools
 def test_format_enrichment_report_filled(obo, assoc):
     rep = en.run_ora(['G1', 'G2', 'G3'], obo_file=obo, associations_file=assoc)
     txt = en.format_enrichment_report(rep)

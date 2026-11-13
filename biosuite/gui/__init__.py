@@ -21,7 +21,7 @@ def __getattr__(name: str) -> Any:
     if name == "BioSuiteApp":
         try:
             from .main_window import BioSuiteApp
-        except ImportError as exc:  # pragma: no cover - depends on environment
+        except ImportError as exc:
             raise ImportError(
                 "The BioSuite GUI requires tkinter and customtkinter. "
                 "Install the Tk bindings for your Python (e.g. "

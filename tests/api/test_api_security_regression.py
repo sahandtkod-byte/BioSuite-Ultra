@@ -225,6 +225,61 @@ def test_docs_are_available_to_an_authenticated_caller(client):
     assert response.json()["info"]["title"] == "BioSuite Ultra API"
 
 
+@pytest.fixture()
+def public_docs_module(monkeypatch):
+    """Import the API a second time with ``BIOSUITE_PUBLIC_DOCS=1``, then restore it.
+
+    ``_DOCS_PUBLIC`` is decided while the module body runs, so the only way to
+    reach the other side of that branch is to re-import the module.  ``server`` is
+    re-imported with it because it binds ``app`` at import time — reloading only
+    the package would leave ``server.app`` pointing at the previous application
+    and break ``test_documented_asgi_target_resolves`` for the rest of the
+    session.  The teardown import matters just as much: without it every later
+    test would be talking to a server that had published its documentation.
+    """
+    def both():
+        importlib.reload(api_module)
+        importlib.reload(importlib.import_module("biosuite.api.server"))
+        return api_module
+
+    monkeypatch.setenv("BIOSUITE_PUBLIC_DOCS", "1")
+    try:
+        yield both()
+    finally:
+        monkeypatch.undo()
+        both()
+
+
+def test_public_docs_are_anonymous_but_the_api_stays_keyed(public_docs_module):
+    """The dev-mode branch is the only configuration that mounts docs anonymously.
+
+    FastAPI's own ``/docs``, ``/redoc`` and ``/openapi.json`` bypass the
+    app-level ``verify_api_key`` dependency, so this is the one place where the
+    endpoint surface is exposed without a credential — and the counterpart of
+    ``test_docs_are_not_served_without_the_api_key``.
+    """
+    anonymous = TestClient(public_docs_module.app)
+
+    assert public_docs_module._DOCS_PUBLIC is True
+    assert "swagger" in anonymous.get("/docs").text.lower()
+    assert anonymous.get("/redoc").status_code == 200
+    schema = anonymous.get("/openapi.json")
+    assert schema.status_code == 200
+    assert schema.json()["info"]["title"] == "BioSuite Ultra API"
+
+    # Documentation public, analysis endpoints not: publishing the schema must
+    # not turn the server itself into an open service.
+    assert anonymous.post("/api/v1/sequence/gc-content",
+                          json={"sequence": "ACGT"}).status_code == 401
+
+    # The protected re-registrations at import time are the alternative to these
+    # routes, never an addition to them: a duplicate path would shadow one of
+    # the two behaviours.
+    doc_paths = [route.path for route in public_docs_module.app.routes
+                 if getattr(route, "path", "") in ("/docs", "/openapi.json", "/redoc")]
+    assert sorted(doc_paths) == ["/docs", "/openapi.json", "/redoc"]
+
+
 # ── general authentication ──────────────────────────────────────────────────
 
 def test_every_analysis_endpoint_requires_the_api_key(client):

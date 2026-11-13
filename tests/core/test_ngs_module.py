@@ -147,9 +147,16 @@ def test_intersect_missing_inputs(vcf_file):
 
 def test_vcf_summary(vcf_file):
     summ = ngs.vcf_summary(vcf_file)
-    assert summ is not None
-    # vcf_summary returns a dict of stats — exact keys verified against impl
     assert isinstance(summ, dict)
+    assert summ['total_variants'] == 5
+    assert summ['snp_count'] == 5
+    assert summ['indel_count'] == 1
+    assert summ['ti_tv_ratio'] == 1.5
+    assert summ['qual_gt_20_count'] == 4
+    # total_variants counts records (a multi-allelic site is one variant), so
+    # it equals the per-chrom sum while snp/indel count alternate alleles.
+    assert summ['per_chrom'] == {'chr1': 4, 'chr2': 1}
+    assert summ['total_variants'] == sum(summ['per_chrom'].values())
 
 
 def test_ts_tv_snp_classification(vcf_file):

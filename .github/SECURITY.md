@@ -71,6 +71,7 @@ configuration. Removing a secret from the working tree does not remove it from h
 
 The CI pipeline runs a dedicated security-regression suite covering authentication bypass,
 JWT forgery, default credentials, path traversal and arbitrary file read, CORS reflection and
-unsafe CLI evaluation, alongside CodeQL static analysis for both the Python code and the
-GitHub Actions workflows. These are engineering controls, not a guarantee: the project has not
+unsafe CLI evaluation, together with Ruff linting (`E9,F,B` as a blocking gate) and a
+least-privilege `permissions:` block on the workflow and every job. These are engineering
+controls, not a guarantee: the project has not
 had an external security audit and is not validated for regulated or clinical data.

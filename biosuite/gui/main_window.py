@@ -11,6 +11,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 
 from .. import __version__
+from ..core.log import get_logger, log_exception
 from ..core.utils import config, save_config, set_theme
 from .dialogs import (
     BioConfirmDialog,
@@ -47,6 +48,8 @@ from .themes import FONT_MONO as FONT_MONO  # noqa: F401
 # Re-exported for tests and external consumers (imported from here by tests):
 from .themes import PLOT_CATEGORIES as PLOT_CATEGORIES  # noqa: F401
 from .widgets import attach_tooltip
+
+logger = get_logger(__name__)
 
 # Heavy imports deferred to _finish_startup for faster GUI launch
 pd = None
@@ -123,7 +126,13 @@ class BioSuiteApp(
         import matplotlib
         import numpy as np
         import pandas as pd
-        matplotlib.use('TkAgg')
+        # Agg for the whole process, chosen here on the main thread before any
+        # figure exists.  The app attaches its own Tk canvases with
+        # FigureCanvasTkAgg, which works whatever the pyplot backend is; asking for
+        # 'TkAgg' instead made every figure — including the ones the plot workers
+        # build off the main thread — construct a Tk widget outside the thread that
+        # owns it, which is what froze the interface.
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         self._build_plot_funcs()
         self._build_sidebar()
@@ -275,14 +284,7 @@ class BioSuiteApp(
     def _rebuild_ui(self):
         # Stash user-typed content before destroying all widgets, so
         # switching theme does not wipe the user's input.
-        stash = {}
-        for attr in self._PRESERVE_ON_REBUILD:
-            widget = getattr(self, attr, None)
-            if widget is not None:
-                try:
-                    stash[attr] = widget.get("1.0", "end-1c")
-                except Exception:
-                    pass
+        stash = self._stash_preserved_text()
         for widget in self.winfo_children():
             widget.destroy()
         self.all_cards = []
@@ -291,12 +293,27 @@ class BioSuiteApp(
         self._build_content()
         self._show_frame(self._current_frame if hasattr(self, '_current_frame') else 'plots')
         self._apply_plot_search()
+        self._restore_preserved_text(stash)
+
+    def _stash_preserved_text(self):
+        """The preserved entries' text, skipping a widget that is already gone."""
+        stash = {}
+        for attr in self._PRESERVE_ON_REBUILD:
+            widget = getattr(self, attr, None)
+            if widget is not None:
+                try:
+                    stash[attr] = widget.get("1.0", "end-1c")
+                except tk.TclError:
+                    pass
+        return stash
+
+    def _restore_preserved_text(self, stash):
         for attr, content in stash.items():
             widget = getattr(self, attr, None)
             if widget is not None and content.strip():
                 try:
                     widget.insert("1.0", content)
-                except Exception:
+                except tk.TclError:
                     pass
 
     def _on_close(self):
@@ -347,7 +364,7 @@ class BioSuiteApp(
             px = mx + max(0, (mw - pw) // 2)
             py = my + max(0, (mh - ph) // 2)
             win.geometry(f"{pw}x{ph}+{px}+{py}")
-        except Exception:
+        except tk.TclError:
             win.geometry(f"{pw}x{ph}")
         win.minsize(640, 480)
         win.configure(fg_color=T.get('bg', '#0a0f0a'))
@@ -376,25 +393,39 @@ class BioSuiteApp(
         except Exception:
             embedded = False
 
-        if not embedded:
-            self._show_plot_static(win, fig)
+        try:
+            if not embedded:
+                self._show_plot_static(win, fig)
 
-        hint = ctk.CTkLabel(
-            win, text="Toolbar: 🏠 reset  ·  ←→ history  ·  🔍 zoom  ·  ✋ pan  ·  💾 save  ·  Esc/Ctrl+W close",
-            font=FONT_SMALL, text_color=T.get('text_muted', '#3d6b4a'))
-        hint.pack(side='bottom', pady=(0, 6))
+            hint = ctk.CTkLabel(
+                win, text="Toolbar: 🏠 reset  ·  ←→ history  ·  🔍 zoom  ·  ✋ pan  ·  💾 save  ·  Esc/Ctrl+W close",
+                font=FONT_SMALL, text_color=T.get('text_muted', '#3d6b4a'))
+            hint.pack(side='bottom', pady=(0, 6))
 
-        def on_close():
+            def on_close():
+                try:
+                    plt.close(fig)
+                except Exception:
+                    pass
+                win.destroy()
+
+            win.bind('<Escape>', lambda e: on_close())
+            win.bind('<Control-w>', lambda e: on_close())
+            win.bind('<Control-W>', lambda e: on_close())
+            win.protocol("WM_DELETE_WINDOW", on_close)
+        except Exception:
+            # A failed display owns both resources until they are released.
             try:
-                plt.close(fig)
+                win.destroy()
             except Exception:
                 pass
-            win.destroy()
-
-        win.bind('<Escape>', lambda e: on_close())
-        win.bind('<Control-w>', lambda e: on_close())
-        win.bind('<Control-W>', lambda e: on_close())
-        win.protocol("WM_DELETE_WINDOW", on_close)
+            # A local plt import would shadow the close callback's global plt.
+            import matplotlib.pyplot as pyplot
+            try:
+                pyplot.close(fig)
+            except Exception:
+                pass
+            raise
         win.lift()
         return win
 
@@ -424,7 +455,7 @@ class BioSuiteApp(
             msg = getattr(toolbar, '_message_label', None)
             if msg is not None:
                 msg.configure(background=card, foreground=accent)
-        except Exception:
+        except tk.TclError:
             pass
 
     def _show_plot_static(self, win, fig):
@@ -436,9 +467,12 @@ class BioSuiteApp(
         fig.savefig(tmp, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
         photo_ref = [None]
         try:
-            img = Image.open(tmp)
-            img.thumbnail((900, 650), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
+            # PIL loads pixels lazily, so the file must stay open until
+            # PhotoImage has copied them; the context manager releases the
+            # handle at that point instead of for the life of the window.
+            with Image.open(tmp) as img:
+                img.thumbnail((900, 650), Image.LANCZOS)
+                photo = ImageTk.PhotoImage(img)
             photo_ref[0] = photo
             label = ctk.CTkLabel(win, image=photo, text="")
             label._photo_ref = photo_ref  # prevent GC
@@ -479,6 +513,15 @@ class BioSuiteApp(
 
         ctk.CTkFrame(self.sidebar_scroll, height=1, fg_color=T['border']).pack(fill='x', padx=10, pady=(8, 6))
 
+        self.sidebar_search = ctk.CTkEntry(self.sidebar_scroll,
+                                           placeholder_text="Find a module…")
+        self.sidebar_search.pack(fill='x', padx=10, pady=(0, 2))
+        self.sidebar_search.bind('<KeyRelease>', self._on_module_search)
+        self.sidebar_search.bind('<Return>', self._open_best_match)
+        self._search_results = ctk.CTkFrame(self.sidebar_scroll, fg_color='transparent')
+        self._search_results.pack(fill='x', padx=8)
+        self._search_result_buttons = []
+
         self.sidebar_buttons = {}
 
         def _sidebar_category(title):
@@ -489,12 +532,14 @@ class BioSuiteApp(
             'plots': "40+ plot types: volcano, PCA, Manhattan, circos, UMAP...",
             'sequence': "GC%, reverse complement, translation, composition stats",
             'alignment': "Needleman-Wunsch & Smith-Waterman pairwise alignment",
-            'phylogeny': "Distance matrices, UPGMA and Neighbor-Joining trees",
-            'expression': "CPM/TPM/DESeq2 normalization & differential expression",
-            'cloning': "Restriction digest, PCR, ligation and virtual gel electrophoresis",
-            'crispr': "Guide RNA design with PAM finding and off-target scoring",
+            'phylogeny': "Distance matrices and UPGMA trees",
+            'expression': "Differential expression with BH correction and a volcano plot",
+            'cloning': "Restriction digest, PCR and virtual gel electrophoresis",
+            'crispr': "Guide RNA design with PAM finding and scoring",
             'help': "Built-in guides for every module (or press F1)",
         }
+
+        self._module_index = []
 
         def _sidebar_item(key, label):
             btn = ctk.CTkButton(self.sidebar_scroll, text=f"  {label}", anchor='w',
@@ -507,6 +552,7 @@ class BioSuiteApp(
             if tip:
                 attach_tooltip(btn, f"{label.split(' ', 1)[-1]} — {tip}", T)
             self.sidebar_buttons[key] = btn
+            self._module_index.append((key, label, tip or ""))
 
         _sidebar_category("VISUALIZATION")
         _sidebar_item('plots', '\U0001F4CA Plots Gallery')
@@ -597,6 +643,35 @@ class BioSuiteApp(
         if not hasattr(self, '_current_frame'):
             self._current_frame = 'plots'
 
+    def _on_module_search(self, _event=None):
+        """Show the sidebar items that match the search box, best first."""
+        from .text_parsing import search_score
+        query = self.sidebar_search.get().strip()
+        for btn in self._search_result_buttons:
+            btn.destroy()
+        self._search_result_buttons = []
+        if not query:
+            return
+        scored = []
+        for key, label, tip in self._module_index:
+            score = search_score(query, f"{label} {key} {tip}")
+            if score > 0:
+                scored.append((score, key, label))
+        scored.sort(key=lambda t: (-t[0], t[2].lower()))
+        for score, key, label in scored[:8]:
+            btn = ctk.CTkButton(self._search_results, text=f"  {label}", anchor='w',
+                                font=(FONT_FAMILY, 11), height=26, corner_radius=6,
+                                fg_color='transparent',
+                                text_color=self.T['sidebar_text'],
+                                hover_color=self.T['sidebar_hover'],
+                                command=lambda k=key: self._show_frame(k))
+            btn.pack(fill='x', pady=1)
+            self._search_result_buttons.append(btn)
+
+    def _open_best_match(self, _event=None):
+        if self._search_result_buttons:
+            self._search_result_buttons[0].invoke()
+
     # ─── Content Area ─────────────────────────────────────────────────────────
 
     def _build_content(self):
@@ -664,14 +739,14 @@ class BioSuiteApp(
             msg += f"   ·   {elapsed:,.1f}s"
         try:
             self.status_bar.configure(text=msg)
-        except Exception:
+        except tk.TclError:
             pass
 
     def _refresh_status_right(self):
         try:
             self.status_right.configure(
                 text=f"theme: {self.T.get('name', self.current_theme_key)}  ")
-        except Exception:
+        except tk.TclError:
             pass
 
     # ─── Keyboard Shortcuts ─────────────────────────────────────────────────
@@ -752,6 +827,7 @@ class BioSuiteApp(
                 if on_error is not None:
                     self.after(0, lambda e=exc: on_error(e))
                 else:
+                    log_exception(logger, "Background task failed")
                     self.after(0, lambda e=exc:
                                self._msg_error("Error", str(e)))
             else:
@@ -767,7 +843,7 @@ class BioSuiteApp(
         """Show a 'working' mouse cursor while a background op runs."""
         try:
             self.configure(cursor="watch" if on else "")
-        except Exception:
+        except tk.TclError:
             pass
 
     def _busy_cursor_off(self):
@@ -837,7 +913,11 @@ class BioSuiteApp(
         if files:
             widget.delete("1.0", "end")
             widget.insert("end", files[0])
-            self._set_status(f"Loaded: {os.path.basename(files[0])}")
+            loaded = os.path.basename(files[0])
+            if len(files) > 1:
+                self._set_status(f"Loaded: {loaded} (1 of {len(files)} files)")
+            else:
+                self._set_status(f"Loaded: {loaded}")
 
     def _show_frame(self, key):
         if key not in self.frames:
@@ -856,7 +936,7 @@ class BioSuiteApp(
         try:
             label = self.sidebar_buttons[key].cget('text').strip()
             self.title(f"BioSuite Ultra  ·  {label}")
-        except Exception:
+        except tk.TclError:
             pass
 
     # ─── UI Helpers ───────────────────────────────────────────────────────────
@@ -961,10 +1041,10 @@ class BioSuiteApp(
             from biosuite.plotting.plot_api import volcano
 
             # Demo with sample data
-            np.random.seed(42)
-            fc = np.random.normal(0, 1.5, 500)
-            pvals = np.random.uniform(0, 1, 500)
-            pvals[:30] = np.random.uniform(1e-6, 0.05, 30)
+            rng = np.random.default_rng(42)
+            fc = rng.normal(0, 1.5, 500)
+            pvals = rng.uniform(0, 1, 500)
+            pvals[:30] = rng.uniform(1e-6, 0.05, 30)
 
             fig = volcano(fc, pvals, interactive=True, title="Demo Volcano Plot")
             self._show_interactive_plot(fig, "Volcano Plot")

@@ -2037,12 +2037,12 @@ biosuite-gui          <span class="comment"></span>># اجرای رابط گرا
                 <tr><td><span class="en-name"></span>>test_file_formats.py</td><td>تست پارسرهای BED، GFF، Newick</td></tr>
                 <tr><td><span class="en-name"></span>>test_assembly_trimming.py</td><td>تست مونتاژ و خواندن QC</td></tr>
                 <tr><td><span class="en-name"></span>>test_orf_finder.py</td><td>تست ORF، آنزیم‌ها و پرایمر</td></tr>
-                <tr><td><span class="en-name"></span>>test_phase3_integration.py</td><td>تست یکپارچه Phase 3</td></tr>
-                <tr><td><span class="en-name"></span>>test_phase3_plotting.py</td><td>تست نمودارها</td></tr>
-                <tr><td><span class="en-name"></span>>test_phase4.py</td><td>تست Workflow، GO Browser، GWAS، Epitope</td></tr>
-                <tr><td><span class="en-name"></span>>test_phase5.py</td><td>تست‌های پایانی Phase 5</td></tr>
+                <tr><td><span class="en-name"></span>>test_plot_cli_gui_wiring.py</td><td>تست اتصال نمودار به منوی CLI و پنجره GUI</td></tr>
+                <tr><td><span class="en-name"></span>>test_omics_and_interactive_plots.py</td><td>تست UpSet و ژنوم براوزر و سینتنی</td></tr>
+                <tr><td><span class="en-name"></span>>test_workflow_gwas_epitope.py</td><td>تست Workflow و GO Browser و GWAS و اپی‌توپ</td></tr>
+                <tr><td><span class="en-name"></span>>test_gui_affordances_and_imports.py</td><td>تست آیکون و نوار پیشرفت و تاریخچه در GUI</td></tr>
                 <tr><td><span class="en-name"></span>>test_gui_all_modules.py</td><td>تست GUI (بدون نمایش)</td></tr>
-                <tr><td><span class="en-name"></span>>test_utils_shared.py</td><td>تست ابزارهای مشترک</td></tr>
+                <tr><td><span class="en-name"></span>>test_utils_codon_tables_and_tool_paths.py</td><td>تست جدول کدون‌ها و مسیر ابزارهای خارجی</td></tr>
             </table>
         </div>
 
@@ -2050,7 +2050,7 @@ biosuite-gui          <span class="comment"></span>># اجرای رابط گرا
             <strong> نحوه اجرا:</strong>
             <div class="code-block" style="margin-top:0.5rem">
 python -m pytest tests/ -v
-python -m pytest tests/test_phase4.py -v
+python -m pytest tests/integration/test_workflow_gwas_epitope.py -v
 python -m pytest tests/ -v --tb=short
             </div>
         </div>

@@ -1,12 +1,14 @@
 """
-Molecular Cloning tab: Restriction Digestion, PCR, Virtual Gel, Ligation.
+Molecular Cloning tab: Restriction Digestion, PCR, Virtual Gel.
 
 VIP upgrade: all 169 enzymes from the core database, live enzyme info
 (site / cut position / overhang), sequence stats + inline validation,
-full-length file loading (no silent truncation), clipboard export.
+FASTA/GenBank plasmid loading (oversized inputs are capped with a warning),
+clipboard export.
 """
 import os
 import re
+import tkinter as tk
 from tkinter import filedialog
 
 import customtkinter as ctk
@@ -42,7 +44,7 @@ class CloningTabMixin:
                                          "IUPAC ambiguity codes are accepted.", T)
         load_btn = self._action_button(seq_row, "Load File", self._cloning_load_file)
         load_btn.pack(side='right')
-        attach_tooltip(load_btn, "Load a FASTA/GenBank plasmid — full length, no truncation", T)
+        attach_tooltip(load_btn, "Load a FASTA/GenBank plasmid", T)
 
         # Live sequence stats + validation line
         stat_row = ctk.CTkFrame(inner, fg_color='transparent')
@@ -133,6 +135,20 @@ class CloningTabMixin:
         b_pd.pack(side='right')
         attach_tooltip(b_pd, "Auto-design a primer pair with melting temperatures", T)
 
+        # ── Insert Verification ──
+        ctk.CTkFrame(inner, height=1, fg_color=T['border']).pack(fill='x', pady=(8, 12))
+        self._label(inner, "Insert Verification", "sub").pack(anchor='w', pady=(0, 6))
+
+        insert_row = ctk.CTkFrame(inner, fg_color='transparent')
+        insert_row.pack(fill='x', pady=(0, 6))
+        self.clone_insert = self._input_entry(insert_row, "Expected insert sequence...")
+        self.clone_insert.pack(side='left', fill='x', expand=True, padx=(0, 8))
+        self.clone_backbone = self._input_entry(insert_row, "Vector backbone (optional)...")
+        self.clone_backbone.pack(side='left', fill='x', expand=True)
+        b_vi = self._action_button(insert_row, "Verify Insert", self._verify_insert)
+        b_vi.pack(side='right', padx=(8, 0))
+        attach_tooltip(b_vi, "Check the insert is present and oriented in the product above", T)
+
         # ── Results ──
         ctk.CTkFrame(inner, height=1, fg_color=T['border']).pack(fill='x', pady=(8, 12))
         res_head = ctk.CTkFrame(inner, fg_color='transparent')
@@ -157,7 +173,7 @@ class CloningTabMixin:
         try:
             from ...core.utils import RESTRICTION_ENZYMES_SITES
             return sorted(RESTRICTION_ENZYMES_SITES.keys())
-        except Exception:
+        except ImportError:
             return ["EcoRI", "BamHI", "HindIII", "NotI", "XhoI", "SacI"]
 
     def _cloning_clean_seq(self):
@@ -172,35 +188,40 @@ class CloningTabMixin:
             n = len(seq)
             info = f"{n:,} bp" if n else "0 bp"
             self.cloning_seq_info.configure(text=info)
-            bad = sorted(set(seq) - set("ACGTRYSWKMBDHVN"))
+            bad = sorted(set(seq) - IUPAC_DNA)
             if bad and n:
                 self.cloning_seq_warn.configure(
                     text=f"⚠ invalid characters: {' '.join(bad[:6])}")
             else:
                 self.cloning_seq_warn.configure(text="")
-        except Exception:
+        except tk.TclError:
             pass
 
     def _cloning_refresh_enzyme_info(self):
         """Show recognition site and cut offset for the selected enzyme."""
         try:
+            from ...core.sequence import reverse_complement
             from ...core.utils import RESTRICTION_ENZYMES, RESTRICTION_ENZYMES_SITES
             name = self.cloning_enzyme.get().strip()
             site = RESTRICTION_ENZYMES_SITES.get(name)
             if site is None:
-                self.cloning_enzyme_info.configure(
-                    text=f"'{name}' not in database — {len(RESTRICTION_ENZYMES_SITES)} enzymes available")
-                return
-            data = RESTRICTION_ENZYMES.get(name)
-            parts = [f"site: {site}"]
-            # Values are (site, cut_offset) tuples
-            if isinstance(data, (tuple, list)) and len(data) >= 2:
-                parts.append(f"cut offset: +{data[1]}")
-            if len(site) % 2 == 0:
-                parts.append("palindromic site")
-            self.cloning_enzyme_info.configure(text="   ·   ".join(parts))
-        except Exception:
-            self.cloning_enzyme_info.configure(text="")
+                text = (f"'{name}' not in database — "
+                        f"{len(RESTRICTION_ENZYMES_SITES)} enzymes available")
+            else:
+                data = RESTRICTION_ENZYMES.get(name)
+                parts = [f"site: {site}"]
+                # Values are (site, cut_offset) tuples
+                if isinstance(data, (tuple, list)) and len(data) >= 2:
+                    parts.append(f"cut offset: +{data[1]}")
+                if reverse_complement(site) == site:
+                    parts.append("palindromic site")
+                text = "   ·   ".join(parts)
+        except Exception as exc:
+            text = f"enzyme information unavailable: {exc}"
+        try:
+            self.cloning_enzyme_info.configure(text=text)
+        except tk.TclError:
+            pass
 
     def _cloning_copy_results(self):
         content = self.cloning_result.get("1.0", "end-1c")
@@ -220,13 +241,18 @@ class CloningTabMixin:
             return
 
         def work():
-            from ...core.sequence import read_fasta
-            seqs = read_fasta(path)
+            from ...core.sequence import read_fasta, read_genbank
+            if path.lower().endswith(('.gb', '.genbank')):
+                seqs = [(name, seq) for name, seq, _features in read_genbank(path)]
+            else:
+                seqs = read_fasta(path)
             if not seqs:
                 raise ValueError("No sequences found in file")
-            return seqs[0][1]
+            name, seq = seqs[0]
+            return name, seq, len(seqs)
 
-        def done(seq):
+        def done(payload):
+            name, seq, total = payload
             max_len = 200_000
             if len(seq) > max_len:
                 seq = seq[:max_len]
@@ -234,6 +260,10 @@ class CloningTabMixin:
                     "Sequence Truncated",
                     f"Very long input — only the first {max_len:,} bp were loaded\n"
                     "(GUI limit to keep the entry responsive).")
+            if total > 1:
+                self._msg_warning(
+                    "Multiple Records",
+                    f"Loaded '{name}' (record 1 of {total}).")
             self.cloning_seq.delete(0, 'end')
             self.cloning_seq.insert(0, seq)
             self._cloning_refresh_seq_info()
@@ -285,7 +315,7 @@ class CloningTabMixin:
             result, fig = payload
             self._last_digest_result = result
             self._record_plot(fig, f"Virtual Gel ({enzyme})")
-            self._show_plot_figure(fig)
+            self._show_plot_from_figure(fig, "Cloning Plot")
             if not result['sizes']:
                 self._msg_info("No Fragments",
                                f"{enzyme} does not cut this sequence — uncut lane shown.")
@@ -334,6 +364,31 @@ class CloningTabMixin:
 
         self._run_bg(work, on_result=done, status="Designing primers...")
 
-    def _show_plot_figure(self, fig):
-        """Display a figure via the shared interactive plot window (zoom/pan/save)."""
-        self._show_plot_from_figure(fig, "Cloning Plot")
+    def _verify_insert(self):
+        from ...core.cloning import verify_insert
+        product = self._cloning_clean_seq()
+        insert = re.sub(r"\s+", "", self.clone_insert.get()).upper()
+        backbone = re.sub(r"\s+", "", self.clone_backbone.get()).upper()
+        if not product:
+            self._msg_warning("No sequence", "Enter the ligated product sequence first.")
+            return
+        if not insert:
+            self._msg_warning("No insert", "Enter the expected insert sequence.")
+            return
+        try:
+            result = verify_insert(product, insert, backbone or None)
+        except ValueError as e:
+            self._msg_error("Error", str(e))
+            return
+        self.cloning_result.delete("1.0", "end")
+        self.cloning_result.insert("end", "Insert verification:\n")
+        self.cloning_result.insert("end", f"Insert found: {result['insert_found']}\n")
+        self.cloning_result.insert(
+            "end", f"Forward orientation: {result['forward_orientation']}\n")
+        if result['insert_start'] is not None:
+            self.cloning_result.insert(
+                "end", f"Position: {result['insert_start']}-{result['insert_end']}\n")
+        for warning in result['warnings']:
+            self.cloning_result.insert("end", f"Warning: {warning}\n")
+        self._set_status("Insert verification complete")
+

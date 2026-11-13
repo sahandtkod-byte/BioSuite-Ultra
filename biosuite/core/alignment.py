@@ -38,6 +38,23 @@ def _match_array(
     return np.where(eq, match, mismatch)
 
 
+def _require_single_byte(seq: str, which: str) -> None:
+    """Reject a sequence whose characters are not one byte each.
+
+    The vectorised fill compares the two sequences as S1 byte arrays, so a
+    multi-byte character — a stray accented letter, a full-width character from a
+    label pasted into a FASTA line — makes the byte matrix longer than the
+    ``len()``-based DP grid, and numpy then fails with an opaque
+    "operands could not be broadcast together with shapes (4,) (5,)".
+    """
+    if len(seq.encode('utf-8')) != len(seq):
+        offset = next(i for i, ch in enumerate(seq) if len(ch.encode('utf-8')) != 1)
+        raise ValueError(
+            f"{which} must hold single-byte residue codes, but character "
+            f"{seq[offset]!r} at position {offset} is not one. Remove it or "
+            "replace it with '-' for an unknown position.")
+
+
 def needleman_wunsch(
     seq1: str,
     seq2: str,
@@ -64,7 +81,11 @@ def needleman_wunsch(
     Returns:
         Tuple of (aligned_seq1, aligned_seq2, alignment_score).
         Gaps are represented as '-' characters.
+    Raises:
+        ValueError: If either sequence carries a character wider than one byte.
     """
+    _require_single_byte(seq1, "seq1")
+    _require_single_byte(seq2, "seq2")
     n, m = len(seq1), len(seq2)
     dp = np.zeros((n + 1, m + 1), dtype=np.int64)
     dp[:, 0] = np.arange(n + 1) * gap
@@ -132,7 +153,11 @@ def smith_waterman(
     Returns:
         Tuple of (aligned_seq1, aligned_seq2, alignment_score).
         The aligned sequences contain only the local region with positive score.
+    Raises:
+        ValueError: If either sequence carries a character wider than one byte.
     """
+    _require_single_byte(seq1, "seq1")
+    _require_single_byte(seq2, "seq2")
     n, m = len(seq1), len(seq2)
     dp = np.zeros((n + 1, m + 1), dtype=np.int64)
     max_score = 0

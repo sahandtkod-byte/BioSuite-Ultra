@@ -49,10 +49,11 @@ def test_registry_funcs_resolve():
     """Every COMMAND_REGISTRY module:function path must exist."""
     import importlib
 
-    from biosuite.cli.menu import COMMAND_REGISTRY
+    from biosuite.cli.menu import COMMAND_REGISTRY, _import_func
+    assert len(COMMAND_REGISTRY) == 20
     for name, entry in COMMAND_REGISTRY.items():
         path = entry['func']
         if path.startswith('_'):
             continue
         mod, func = path.rsplit(':', 1)
-        assert hasattr(importlib.import_module(mod), func), name
+        assert getattr(importlib.import_module(mod), func) is _import_func(path), name

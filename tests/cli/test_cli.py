@@ -22,6 +22,7 @@ from biosuite.cli.menu import (
     _change_theme,
     _execute_command,
     _import_func,
+    _read_numbers,
     main_cli,
     print_menu,
 )
@@ -72,8 +73,9 @@ class TestCommandRegistry:
         assert cmd in COMMAND_REGISTRY, f"Missing command '{cmd}' in COMMAND_REGISTRY"
 
     def test_registry_is_dict(self):
-        """COMMAND_REGISTRY should be a plain dictionary."""
+        """COMMAND_REGISTRY should be a plain, non-empty dictionary."""
         assert isinstance(COMMAND_REGISTRY, dict)
+        assert len(COMMAND_REGISTRY) == 20
 
     def test_each_entry_has_required_keys(self):
         """Every registry entry must have at least 'func' and 'args'."""
@@ -95,6 +97,9 @@ class TestBuildParser:
 
     def test_returns_argparse_parser(self, parser):
         assert isinstance(parser, argparse.ArgumentParser)
+        args = parser.parse_args(["gc", "ATCGATCG"])
+        assert args.command == "gc"
+        assert args.cmd_args == ["ATCGATCG"]
 
     def test_has_command_argument(self, parser):
         """Parser should accept an optional positional command."""
@@ -136,9 +141,7 @@ class TestImportFunc:
 
     def test_import_gc_content(self):
         func = _import_func("biosuite.core.sequence:gc_content")
-        assert callable(func)
-        result = func("ATCGATCG")
-        assert isinstance(result, float)
+        assert func("ATCGATCG") == 50.0
 
     def test_import_reverse_complement(self):
         func = _import_func("biosuite.core.sequence:reverse_complement")
@@ -148,7 +151,9 @@ class TestImportFunc:
 
     def test_import_needleman_wunsch(self):
         func = _import_func("biosuite.core.alignment:needleman_wunsch")
-        assert callable(func)
+        a1, a2, score = func("ATCG", "ATCG")
+        assert (a1, a2) == ("ATCG", "ATCG")
+        assert score == 4
 
     def test_import_nonexistent_raises(self):
         with pytest.raises(AttributeError):
@@ -326,3 +331,79 @@ class TestInteractiveMode:
             main_cli(argv=None)
         captured = capsys.readouterr()
         assert "50.0" in captured.out or "GC" in captured.out
+
+    def test_interactive_exits_cleanly_on_eof(self, capsys):
+        """Ctrl-D at the prompt is a normal way to leave the CLI."""
+        with patch("builtins.input", side_effect=EOFError), \
+             patch.object(sys, 'argv', ["biosuite"]):
+            main_cli()
+        captured = capsys.readouterr()
+        assert "Goodbye" in captured.out
+
+    def test_debug_mode_prints_the_traceback_and_keeps_the_session(
+            self, capsys, monkeypatch):
+        """BIOSUITE_DEBUG=1 turns the one-line error into a full traceback, and
+        the session survives the failing option."""
+        monkeypatch.setenv("BIOSUITE_DEBUG", "1")
+        answers = iter(["27", "!!!", ""])
+
+        def scripted(prompt=""):
+            try:
+                return next(answers)
+            except StopIteration:
+                raise EOFError
+
+        with patch("builtins.input", scripted), \
+             patch.object(sys, 'argv', ["biosuite"]):
+            main_cli()
+        captured = capsys.readouterr()
+        assert "Traceback" in captured.err, captured.err
+        assert "session is still running" in captured.out
+
+    def test_a_failing_option_keeps_the_session_running(self, capsys):
+        """Without BIOSUITE_DEBUG the failure prints one line and the menu
+        prompt comes back, so a bad paste cannot end the session."""
+        answers = iter(["27", "!!!", "0"])
+
+        def scripted(prompt=""):
+            try:
+                return next(answers)
+            except StopIteration:
+                raise EOFError
+
+        with patch("builtins.input", scripted), \
+             patch.object(sys, 'argv', ["biosuite"]):
+            main_cli()
+        captured = capsys.readouterr()
+        assert "session is still running" in captured.out
+        assert "Goodbye" in captured.out
+
+
+def test_read_numbers_counts_the_lines_it_skips(capsys, tmp_path):
+    """A header line and a bad data line must both be skipped — and counted, so a
+    volcano over N-1 genes cannot announce itself as N."""
+    import numpy as np
+
+    path = tmp_path / "values.txt"
+    path.write_text("# comment\n1.5\nnot a number\n2.5\n", encoding="utf-8")
+
+    values = _read_numbers(str(path))
+
+    np.testing.assert_allclose(values, [1.5, 2.5])
+    captured = capsys.readouterr()
+    assert "skipped 1 line(s)" in captured.err
+    assert str(path) in captured.err
+
+
+def test_debug_mode_reraises_a_command_failure(monkeypatch):
+    """The non-interactive boundary prints one line and returns 1; with
+    BIOSUITE_DEBUG=1 the original exception propagates for the developer."""
+    from biosuite.core import sequence
+
+    monkeypatch.setenv("BIOSUITE_DEBUG", "1")
+    monkeypatch.setattr(sequence, "gc_content",
+                        lambda seq: (_ for _ in ()).throw(RuntimeError("boom")))
+    args = argparse.Namespace(sequence="ATCG")
+
+    with pytest.raises(RuntimeError):
+        _execute_command("gc", args)

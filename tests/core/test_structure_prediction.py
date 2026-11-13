@@ -62,4 +62,7 @@ def test_format_prediction_report():
                               sequence='AA', num_residues=2, confidence=87.5,
                               message='ok')
     txt = sp.format_prediction_report(res)
-    assert isinstance(txt, str)
+    assert "Engine: esmfold" in txt
+    assert "Residues: 2" in txt
+    assert "Good (>70-90): 2" in txt
+    assert "Note: ok" in txt

@@ -3,6 +3,7 @@ Custom themed dialogs and splash screen for BioSuite GUI.
 No native Windows widgets — all styled with the active theme.
 """
 import customtkinter as ctk
+import tkinter as tk
 
 from .. import __version__
 from .themes import FONT_BODY, FONT_BUTTON, FONT_FAMILY, FONT_MONO, FONT_SMALL
@@ -46,16 +47,26 @@ class _BaseDialog(ctk.CTkToplevel):
     def _do_grab(self):
         try:
             self.grab_set()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
 
     def _on_cancel(self):
         self.result = None
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
+
+    def _fit_to_content(self, width, minimum_height):
+        """Grow the fixed dialog so a long message is not clipped."""
+        self.update_idletasks()
+        height = max(minimum_height, self.winfo_reqheight())
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        height = min(height, sh - 40)
+        self._fitted_height = height
+        self.geometry(f"{width}x{height}+{(sw - width) // 2}+{(sh - height) // 2}")
 
 
 class BioMessageDialog(_BaseDialog):
@@ -87,12 +98,13 @@ class BioMessageDialog(_BaseDialog):
                        hover_color=T['accent_dim'],
                        command=self._on_ok).pack(anchor='e')
         self.bind('<Return>', lambda e: self._on_ok())
+        self._fit_to_content(440, h)
 
     def _on_ok(self):
         self.result = 'ok'
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -124,12 +136,13 @@ class BioConfirmDialog(_BaseDialog):
                        command=self._on_yes).pack(side='right')
         self.bind('<Return>', lambda e: self._on_yes())
         self.bind('<Escape>', lambda e: self._on_no())
+        self._fit_to_content(440, h)
 
     def _on_yes(self):
         self.result = True
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -137,7 +150,7 @@ class BioConfirmDialog(_BaseDialog):
         self.result = False
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -172,12 +185,13 @@ class BioInputDialog(_BaseDialog):
                        text_color='#000000', hover_color=T['accent_dim'],
                        command=self._on_ok).pack(side='right')
         self.bind('<Return>', lambda e: self._on_ok())
+        self._fit_to_content(460, 230)
 
     def _on_ok(self):
         self.result = self._entry.get().strip()
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -185,7 +199,7 @@ class BioInputDialog(_BaseDialog):
         self.result = None
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -224,6 +238,7 @@ class BioFilePickerDialog(_BaseDialog):
                        text_color='#000000', hover_color=T['accent_dim'],
                        command=self._on_ok).pack(side='right')
         self.after(80, lambda: self._entry.focus_force())
+        self._fit_to_content(500, 200)
 
     def _browse(self):
         from tkinter import filedialog
@@ -236,7 +251,7 @@ class BioFilePickerDialog(_BaseDialog):
         self.result = self._entry.get().strip() or None
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -244,7 +259,7 @@ class BioFilePickerDialog(_BaseDialog):
         self.result = None
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -253,12 +268,18 @@ class BioDropdownDialog(_BaseDialog):
     """Themed dropdown selection dialog."""
 
     def __init__(self, parent, T, title="Select", prompt="", options=None, default=None):
+        options = list(options or [])
+        if default and default not in options:
+            raise ValueError(
+                f"dropdown default {default!r} is not among the options {options!r}")
         super().__init__(parent, T, title=title, width=440, height=250)
 
         ctk.CTkLabel(self._body, text=prompt, font=FONT_BODY,
                       text_color=T['text'], wraplength=380, justify='left').pack(anchor='w', pady=(0, 10))
 
-        self._combo = ctk.CTkComboBox(self._body, values=options or [], height=36,
+        self._options = options
+        self._combo = ctk.CTkComboBox(self._body, values=options, height=36,
+                                       state='readonly',
                                        font=(FONT_FAMILY, 12), corner_radius=8,
                                        fg_color=T['input_bg'], border_color=T['border'],
                                        button_color=T['accent'], button_hover_color=T['accent_dim'],
@@ -267,8 +288,8 @@ class BioDropdownDialog(_BaseDialog):
         self._combo.pack(fill='x', pady=(0, 16))
         if default:
             self._combo.set(default)
-        elif options:
-            self._combo.set(options[0])
+        elif self._options:
+            self._combo.set(self._options[0])
 
         btn_row = ctk.CTkFrame(self._body, fg_color='transparent')
         btn_row.pack(fill='x')
@@ -281,12 +302,16 @@ class BioDropdownDialog(_BaseDialog):
                        text_color='#000000', hover_color=T['accent_dim'],
                        command=self._on_ok).pack(side='right')
         self.after(80, lambda: self._combo.focus_force())
+        self._fit_to_content(440, 250)
 
     def _on_ok(self):
-        self.result = self._combo.get()
+        # With no options at all CTkComboBox reports its own placeholder as the
+        # value; that must not reach the caller as if the user chose it.
+        choice = self._combo.get()
+        self.result = choice if choice in self._options else None
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 
@@ -294,7 +319,7 @@ class BioDropdownDialog(_BaseDialog):
         self.result = None
         try:
             self.grab_release()
-        except RuntimeError:
+        except (RuntimeError, tk.TclError):
             pass
         self.destroy()
 

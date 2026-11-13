@@ -41,7 +41,10 @@ class AssemblyResult:
     message: str = ""
 
 
-from .utils import has_tool as _has_tool, secure_temp_path
+from .log import get_logger
+from .utils import has_tool as _has_tool, secure_temp_path, wrote_output as _wrote_output
+
+logger = get_logger(__name__)
 
 
 def check_assembly_tools() -> dict :
@@ -64,7 +67,10 @@ def _compute_assembly_stats(contigs: List[str]) -> AssemblyResult:
     total = sum(lengths)
     n50 = _compute_n50(lengths)
     l50 = _compute_l50(lengths)
-    gc = sum(c.count('G') + c.count('C') for c in contigs) / max(total, 1) * 100
+    # Assemblers mask low-quality regions by writing them in lower case, so the
+    # count is taken on the upper-cased sequence — a case-sensitive count reports
+    # a masked contig as holding no G and no C at all.
+    gc = sum(c.upper().count('G') + c.upper().count('C') for c in contigs) / max(total, 1) * 100
 
     return AssemblyResult(
         engine='builtin',
@@ -108,21 +114,26 @@ def _builtin_assembly(reads_file: str, output_fasta: Optional[str] = None) -> As
     traversal merges reads into contigs, and unitig detection is
     applied to produce the final contig set.
     """
-    if output_fasta is None:
-        output_fasta = secure_temp_path(suffix='.fasta')
-
     reads = _load_reads_fasta(reads_file)
     if not reads:
         return _compute_assembly_stats([])
 
+    # Reserved only now: reserving before the empty-reads return created a
+    # 0-byte biosuite_*.fasta in /tmp that no caller was ever told about.
+    if output_fasta is None:
+        output_fasta = secure_temp_path(suffix='.fasta')
+
     # Build overlap graph
     graph = _build_overlap_graph(reads, min_overlap=15)
 
-    # Merge overlapping reads into contigs
+    # Merge overlapping reads into contigs.  The traversal consumes every read and
+    # follows each tip to its best overlap, so what it returns is already a set of
+    # maximal non-branching contigs.  A separate unitig pass used to run here and
+    # extend each contig by one more read, but its k-mer membership test was
+    # evaluated against the contig set that already contains every read, so the
+    # extension could never fire: the pass spent O(reads x contigs x contig-bases)
+    # on substring scans that provably did nothing (minutes on real read sets).
     contigs = _greedy_traversal_assembly(reads, graph)
-
-    # Detect unitigs (maximal non-branching paths)
-    contigs = _detect_unitigs(reads, contigs, graph)
 
     stats = _compute_assembly_stats(contigs)
     stats.output_fasta = output_fasta
@@ -132,7 +143,7 @@ def _builtin_assembly(reads_file: str, output_fasta: Optional[str] = None) -> As
     )
 
     # Write FASTA
-    with open(output_fasta, 'w') as f:
+    with open(output_fasta, 'w', encoding="utf-8") as f:
         for i, c in enumerate(contigs):
             f.write(f">contig_{i+1} len={len(c)}\n")
             for j in range(0, len(c), 80):
@@ -151,7 +162,7 @@ def _load_reads_fasta(reads_file: str) -> List[str]:
         List of (header, sequence) tuples.
     """
     reads = []
-    with open(reads_file) as f:
+    with open(reads_file, encoding="utf-8") as f:
         first_line = f.readline()
         if not first_line:
             return reads
@@ -184,25 +195,6 @@ def _load_reads_fasta(reads_file: str) -> List[str]:
             if header is not None and buf:
                 reads.append((header, ''.join(buf)))
     return reads
-
-
-def _compute_suffix_prefix_overlap(s1: str, s2: str, min_overlap: int = 15) -> int:
-    """Compute the longest suffix of s1 that is a prefix of s2.
-
-    Args:
-        s1: First sequence.
-        s2: Second sequence.
-        min_overlap: Minimum overlap length to consider.
-
-    Returns:
-        Length of the suffix-prefix overlap, or 0 if below min_overlap.
-    """
-    max_k = min(len(s1), len(s2))
-    # Start from the largest possible overlap and work down
-    for k in range(max_k, min_overlap - 1, -1):
-        if s1[-k:] == s2[:k]:
-            return k
-    return 0
 
 
 def _build_overlap_graph(reads: List[str], min_overlap: int = 15) -> Dict[str, Any]:
@@ -243,28 +235,24 @@ def _build_overlap_graph(reads: List[str], min_overlap: int = 15) -> Dict[str, A
                 if i == j or len(seq_j) < plen:
                     continue
                 key = (i, j)
-                if plen > best_overlaps.get(key, 0):
-                    best_overlaps[key] = plen
+                # plen grows strictly within one target j and each (i, j) key is
+                # only ever written by ever-longer prefixes, so this write already
+                # holds the longest overlap for the pair: the previous
+                # "if plen > best_overlaps.get(key, 0)" guard could never be False
+                # and its untaken branch was unreachable.
+                best_overlaps[key] = plen
 
-    # Build adjacency list (all overlap edges per source)
+    # Build adjacency list.  best_overlaps is keyed by (i, j), so every source
+    # already carries at most one edge per target holding its longest overlap;
+    # the second "trim to best per target" pass was a no-op whose False branch (a
+    # repeated target in one source) could never occur, so it is gone.
     for (i, j), olap in best_overlaps.items():
-        # Keep only the best overlap for each source -> target
         graph[i].append((j, olap))
 
-    # Trim to best overlap per target
-    trimmed = defaultdict(list)
-    for i, targets in graph.items():
-        best = {}
-        for j, olap in targets:
-            if j not in best or olap > best[j]:
-                best[j] = olap
-        for j, olap in best.items():
-            trimmed[i].append((j, olap))
-
-    return dict(trimmed)
+    return dict(graph)
 
 
-def _greedy_traversal_assembly(reads: List[str], graph: Dict[str, Any], min_overlap: int = 15) -> List[str]:
+def _greedy_traversal_assembly(reads: List[str], graph: Dict[str, Any]) -> List[str]:
     """Merge reads into contigs by greedy graph traversal.
 
     Starting from the longest unused read, follow the overlap graph
@@ -274,7 +262,6 @@ def _greedy_traversal_assembly(reads: List[str], graph: Dict[str, Any], min_over
     Args:
         reads: List of (header, sequence) tuples.
         graph: Overlap graph from _build_overlap_graph.
-        min_overlap: Minimum overlap for merging.
 
     Returns:
         List of assembled contig sequences (strings).
@@ -313,48 +300,48 @@ def _greedy_traversal_assembly(reads: List[str], graph: Dict[str, Any], min_over
     return contigs
 
 
-def _detect_unitigs(reads: List[str], contigs: List[str], graph: Dict[str, Any], min_overlap: int = 15) -> List[str]:
-    """Unitig pass-through: the greedy traversal already produces maximal
-    non-branching contigs.
-
-    The former implementation tried to extend each contig by one more read
-    but guarded the extension with a k-mer membership test over the CURRENT
-    contig set.  Because every read is already a substring of some contig
-    after the greedy pass, that guard is always true and the extension could
-    never fire — the function spent O(reads x contigs x contig-bases) on
-    substring scans that provably did nothing (minutes on real read sets),
-    while the signature stays for API compatibility.
-    """
-    return contigs
-
-
 # ── External Tool Wrappers ──────────────────────────────────────────────────
 
 def _spades_assemble(reads_file: str, output_dir: str, threads: int = 4) -> Optional[str]:
-    """Run SPAdes assembler via subprocess (multi-k default)."""
+    """Run SPAdes assembler via subprocess (multi-k default).
+
+    Returns the contigs file the tool wrote, or None if SPAdes did not produce
+    one.
+    """
     cmd = ['spades.py', '-s', reads_file, '-o', output_dir,
            '--only-assembler', '-t', str(threads)]
+    contig_file = os.path.join(output_dir, 'contigs.fasta')
     try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
-        contig_file = os.path.join(output_dir, 'contigs.fasta')
-        if os.path.exists(contig_file):
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
+        # Return code AND a non-empty result: a SPAdes that dies mid-run leaves
+        # an empty contigs.fasta behind, and os.path.exists() called that a
+        # successful assembly.
+        if r.returncode == 0 and _wrote_output(contig_file):
             return contig_file
-    except (OSError, subprocess.SubprocessError):
-        pass
+        logger.warning("SPAdes assembly failed (exit %s): %s",
+                       r.returncode, (r.stderr or '')[:300])
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("SPAdes could not be run: %s", exc)
     return None
 
 
 def _megahit_assemble(reads_file: str, output_dir: str, threads: int = 4) -> Optional[str]:
-    """Run MEGAHIT assembler via subprocess (metagenomic mode)."""
+    """Run MEGAHIT assembler via subprocess (metagenomic mode).
+
+    Returns the contigs file the tool wrote, or None if MEGAHIT did not produce
+    one.
+    """
     cmd = ['megahit-core', '-1', reads_file, '-o', output_dir,
            '--min-contig-len', '200', '-t', str(threads)]
+    contig_file = os.path.join(output_dir, 'final.contigs.fa')
     try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
-        contig_file = os.path.join(output_dir, 'final.contigs.fa')
-        if os.path.exists(contig_file):
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=14400)
+        if r.returncode == 0 and _wrote_output(contig_file):
             return contig_file
-    except (OSError, subprocess.SubprocessError):
-        pass
+        logger.warning("MEGAHIT assembly failed (exit %s): %s",
+                       r.returncode, (r.stderr or '')[:300])
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("MEGAHIT could not be run: %s", exc)
     return None
 
 
@@ -363,44 +350,65 @@ def _megahit_assemble(reads_file: str, output_dir: str, threads: int = 4) -> Opt
 def assemble(reads_file: str, output_fasta: Optional[str] = None, tool: str = 'auto', threads: int = 4) -> AssemblyResult:
     """Assemble reads auto-selecting engine; built-in greedy overlap
     fallback requires no external tools.
+
+    Args:
+        tool: 'auto', 'spades', 'megahit' or 'builtin'.  Anything else is a
+            refusal: an unrecognised name used to fall through to the built-in
+            assembler, so tool='spdes' quietly produced a built-in assembly.
+    Raises:
+        ValueError: If ``tool`` names no known engine.
     """
+    if tool not in ('auto', 'spades', 'megahit', 'builtin'):
+        raise ValueError(
+            f"Unknown tool: {tool}. Use 'auto', 'spades', 'megahit' or 'builtin'.")
+
     if not os.path.exists(reads_file):
         return AssemblyResult(engine='none', message=f"Reads file not found: {reads_file}")
 
     tools = check_assembly_tools()
 
     if tool in ('spades', 'auto') and tools['spades']:
-        out_dir = tempfile.mkdtemp()
-        contig_file = _spades_assemble(reads_file, out_dir, threads)
-        if contig_file:
-            return _parse_assembly_fasta(contig_file, 'spades')
+        # TemporaryDirectory, not mkdtemp(): every attempted external assembly
+        # used to leave a full SPAdes/MEGAHIT output tree in /tmp.  The contig
+        # file is parsed before the directory goes away.
+        with tempfile.TemporaryDirectory(prefix='biosuite_spades_') as out_dir:
+            contig_file = _spades_assemble(reads_file, out_dir, threads)
+            if contig_file:
+                return _parse_assembly_fasta(contig_file, 'spades')
 
     if tool in ('megahit', 'auto') and tools['megahit']:
-        out_dir = tempfile.mkdtemp()
-        contig_file = _megahit_assemble(reads_file, out_dir, threads)
-        if contig_file:
-            return _parse_assembly_fasta(contig_file, 'megahit')
+        with tempfile.TemporaryDirectory(prefix='biosuite_megahit_') as out_dir:
+            contig_file = _megahit_assemble(reads_file, out_dir, threads)
+            if contig_file:
+                return _parse_assembly_fasta(contig_file, 'megahit')
 
-    if output_fasta is None:
-        output_fasta = secure_temp_path(suffix='.fasta')
+    # output_fasta is deliberately not reserved here any more:
+    # _builtin_assembly() reserves it after it knows there are reads to write,
+    # so an empty/garbage read file no longer leaves a 0-byte biosuite_*.fasta
+    # behind whose path was never reported to the caller.
     return _builtin_assembly(reads_file, output_fasta)
 
 
 def _parse_assembly_fasta(fasta_file: str, engine: str) -> AssemblyResult:
-    """Parse assembled contigs from FASTA and compute AssemblyResult stats."""
+    """Parse assembled contigs from FASTA and compute AssemblyResult stats.
+
+    A header with no sequence lines is not a contig: counting it added a
+    zero-length entry that inflated ``num_contigs``, set ``min_contig`` to 0 and
+    pulled the N50/L50 arithmetic down.
+    """
     contigs = []
     name, buf = None, []
-    with open(fasta_file) as f:
+    with open(fasta_file, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line.startswith('>'):
-                if name:
+                if name and buf:
                     contigs.append(''.join(buf))
                 name = line[1:].split()[0]
                 buf = []
             elif line:
                 buf.append(line)
-    if name:
+    if name and buf:
         contigs.append(''.join(buf))
 
     stats = _compute_assembly_stats(contigs)

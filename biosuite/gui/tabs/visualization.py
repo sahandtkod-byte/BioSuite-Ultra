@@ -4,6 +4,7 @@ Visualization tabs: Plots Gallery, UpSet, Genome Browser, Conservation, Synteny,
 import builtins
 import re
 import threading
+import tkinter as tk
 from tkinter import filedialog
 
 import customtkinter as ctk
@@ -13,6 +14,15 @@ from ..widgets import attach_tooltip
 
 # Thread lock for matplotlib/builtins monkey-patching
 _plot_lock = threading.Lock()
+
+# Only these three read the table the user loaded; every other entry of the combo
+# renders arrays built here.  The info box has to say so, or the tab announces
+# "Saved" over a plot of data the user never supplied.
+DATA_TABLE_PLOT_TYPES = frozenset({'scatter', 'bar', 'heatmap'})
+INTERACTIVE_PLOT_TYPES = ('Scatter', 'Bar', 'Heatmap', 'Volcano', 'Line', 'Pie',
+                          'PCA', 'Manhattan', 'Boxplot', 'Violin', 'QQ-Plot')
+DEMO_SAMPLE_NOTE = ("\n\nSample data: this plot type draws on BioSuite's own arrays "
+                    "and does not read the loaded table.")
 
 
 class VisualizationTabMixin:
@@ -98,19 +108,22 @@ class VisualizationTabMixin:
 
     def _on_search_key(self, event=None):
         if self._search_after_id:
-            self.after_cancel(self._search_after_id)
+            try:
+                self.after_cancel(self._search_after_id)
+            except tk.TclError:
+                pass
         self._search_after_id = self.after(150, self._apply_plot_search)
 
     def _clear_plot_search(self):
         """Clear the gallery search box and refresh the list."""
         try:
             self.plot_search.delete(0, 'end')
-        except Exception:
+        except tk.TclError:
             pass
         if self._search_after_id:
             try:
                 self.after_cancel(self._search_after_id)
-            except Exception:
+            except tk.TclError:
                 pass
             self._search_after_id = None
         self._apply_plot_search()
@@ -161,33 +174,53 @@ class VisualizationTabMixin:
         self._set_status(f"Generating {plot_id}...")
         self._show_progress(f"Generating {plot_id}...")
         def run():
-            import matplotlib
-            matplotlib.use('Agg')  # Non-interactive backend for thread safety
             import matplotlib.pyplot as plt
-            # Monkey-patch plt.show to be a no-op in background thread
-            _original_show = plt.show
-            plt.show = lambda *a, **k: None
-            original_input = builtins.input
-            builtins.input = self._gui_input
-            try:
-                func = PLOT_FUNCS.get(plot_id)
-                if func:
-                    func()
-                    # Hand the live figure to the main thread so it can be
-                    # embedded with real zoom/pan/save (no static PNG loss).
-                    if plt.get_fignums():
-                        fig = plt.gcf()
-                        name = self._plot_name_for(plot_id)
-                        self.after(0, lambda f=fig, n=name: self._show_plot_from_figure(f, n))
-                else:
-                    self.after(0, lambda: self._msg_error("Error", f"Plot '{plot_id}' not found."))
-            except Exception as e:
-                self.after(0, lambda e=e: self._msg_error("Plot Error", str(e)))
-            finally:
-                builtins.input = original_input
-                plt.show = _original_show
-                self.after(0, self._hide_progress)
-                self.after(0, lambda: self._set_status("Ready"))
+
+            from ...plotting import biological_plots, math_plots, specialized_plots
+            with _plot_lock:
+                # The backend was chosen once, on the main thread, at startup;
+                # switching it here would change it under the window that is
+                # already drawing.  Everything below is process-global, so it is
+                # taken under the same lock the batch renderers use.
+                _original_show = plt.show
+                plt.show = lambda *a, **k: None
+                original_input = builtins.input
+                builtins.input = self._gui_input
+                # Each demo ends by saving its figure to disk and closing it —
+                # correct for the CLI, which never shows a window (F2-3), but it
+                # leaves the gallery nothing to embed.  The viewer's own toolbar
+                # saves, and _record_plot / the window close handler release the
+                # figure, so keep it open and hand it over here instead.
+                drawn = []
+
+                def keep_figure_for_viewer(default_name, save_format, dpi,
+                                           pdf=None, story=None):
+                    drawn.append(plt.gcf())
+                    return None
+
+                held = [(mod, mod.ask_save_plot) for mod in
+                        (biological_plots, math_plots, specialized_plots)]
+                for mod, _original in held:
+                    mod.ask_save_plot = keep_figure_for_viewer
+                try:
+                    func = PLOT_FUNCS.get(plot_id)
+                    if func:
+                        func()
+                        if drawn:
+                            fig = drawn[-1]
+                            name = self._plot_name_for(plot_id)
+                            self.after(0, lambda f=fig, n=name: self._show_plot_from_figure(f, n))
+                    else:
+                        self.after(0, lambda: self._msg_error("Error", f"Plot '{plot_id}' not found."))
+                except Exception as e:
+                    self.after(0, lambda e=e: self._msg_error("Plot Error", str(e)))
+                finally:
+                    builtins.input = original_input
+                    plt.show = _original_show
+                    for mod, original in held:
+                        mod.ask_save_plot = original
+                    self.after(0, self._hide_progress)
+                    self.after(0, lambda: self._set_status("Ready"))
         threading.Thread(target=run, daemon=True).start()
 
     def _plot_name_for(self, plot_id):
@@ -285,8 +318,6 @@ class VisualizationTabMixin:
         self.upset_stats.pack(fill='both', expand=True, padx=10, pady=(0, 6))
 
     def _run_upset(self):
-        import matplotlib.pyplot as plt
-
         from ...plotting.upset_plots import compute_set_statistics, plot_upset
         text = self.upset_text.get("1.0", "end").strip()
         if not text:
@@ -311,7 +342,6 @@ class VisualizationTabMixin:
             fig = plot_upset(sets_dict, title="UpSet Plot")
             if fig is not None:
                 self.after(0, lambda f=fig: self._show_plot_from_figure(f, "UpSet Plot"))
-            plt.close()
         except Exception as e:
             self._msg_error("Error", str(e))
 
@@ -367,6 +397,7 @@ class VisualizationTabMixin:
             self._msg_warning("No tracks", "Add BED or VCF files first.")
             return
         tracks = []
+        problems = []
         for line in text.split('\n'):
             line = line.strip()
             if ':' not in line:
@@ -378,14 +409,23 @@ class VisualizationTabMixin:
                 elif ttype == 'vcf':
                     tracks.append(create_variant_track(path))
             except Exception as e:
-                self.gb_info.insert("end", f"Error loading {path}: {e}\n")
+                problems.append(f"Error loading {path}: {e}")
+        self.gb_info.delete("1.0", "end")
         if tracks:
-            fig = plot_genome_tracks(tracks, title="Genome Browser")
-            self.after(0, lambda f=fig: self._show_plot_from_figure(f, "Genome Browser"))
-            self.gb_info.delete("1.0", "end")
-            self.gb_info.insert("end", f"Loaded {len(tracks)} tracks\n")
+            try:
+                fig = plot_genome_tracks(tracks, title="Genome Browser")
+            except Exception as e:
+                self._msg_error("Error", str(e))
+                fig = None
+            if fig is not None:
+                self.after(0, lambda f=fig: self._show_plot_from_figure(f, "Genome Browser"))
+                self.gb_info.insert("end", f"Loaded {len(tracks)} tracks\n")
         else:
             self._msg_warning("No tracks", "No valid tracks found.")
+        # Written after the summary: erasing the box here used to hide the failed
+        # tracks whenever at least one other file loaded.
+        for problem in problems:
+            self.gb_info.insert("end", problem + "\n")
 
     def _gui_genome_browser(self):
         self._show_frame('genomebrowser')
@@ -441,6 +481,9 @@ class VisualizationTabMixin:
     def _run_motif(self):
         from ...plotting.conservation_plots import plot_motif_enrichment
         text = self.cons_text.get("1.0", "end").strip()
+        if not text:
+            self._msg_warning("No sequences", "Enter aligned sequences first.")
+            return
         motifs = self._ask_input("Motifs", "Enter motifs (comma-sep):", "ATG,CG,GCG")
         if not motifs:
             return
@@ -527,9 +570,9 @@ class VisualizationTabMixin:
         left = self._card(body)
         left.pack(side='left', fill='both', expand=True, padx=(0, 6))
         self._label(left, 'Plot Type', 'sub').pack(padx=14, pady=(14, 4), anchor='w')
-        self.inter_type = ctk.CTkComboBox(left, values=['Scatter', 'Bar', 'Heatmap', 'Volcano', 'Line', 'Pie',
-                                                          'PCA', 'Manhattan', 'Boxplot', 'Violin', 'QQ-Plot'],
+        self.inter_type = ctk.CTkComboBox(left, values=list(INTERACTIVE_PLOT_TYPES),
                                             height=36, font=FONT_BODY, corner_radius=8,
+                                            state='readonly',
                                             fg_color=T['input_bg'], border_color=T['border'],
                                             button_color=T['accent'], button_hover_color=T['accent_dim'],
                                             dropdown_fg_color=T['card'], dropdown_hover_color=T['border'],
@@ -556,48 +599,62 @@ class VisualizationTabMixin:
         path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv"), ("All", "*.*")])
         if path:
             import pandas as pd
-            df = pd.read_csv(path)
+            try:
+                df = pd.read_csv(path)
+            except Exception as e:
+                self._msg_error("Error", f"Could not load CSV: {e}")
+                return
             self._inter_data = df
             self.inter_info.delete("1.0", "end")
             self.inter_info.insert("end", f"Loaded: {path}\nColumns: {list(df.columns)}\nShape: {df.shape}\n")
 
     def _inter_demo(self):
         import numpy as np
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
         n = 100
-        self._inter_data = {'x': np.random.randn(n), 'y': np.random.randn(n),
-                            'label': np.random.choice(['A', 'B', 'C'], n)}
+        self._inter_data = {'x': rng.standard_normal(n), 'y': rng.standard_normal(n),
+                            'label': rng.choice(['A', 'B', 'C'], n)}
         self.inter_info.delete("1.0", "end")
         self.inter_info.insert("end", "Demo data loaded: 100 points, 3 groups\n")
 
     def _inter_generate(self):
         import numpy as np
         plot_type = self.inter_type.get().lower()
+        if plot_type not in {t.lower() for t in INTERACTIVE_PLOT_TYPES}:
+            self._msg_error(
+                "Error",
+                f"Unknown plot type: {self.inter_type.get().strip()!r}. "
+                "Choose Scatter, Bar, Heatmap, Volcano, Line, Pie, PCA, "
+                "Manhattan, Boxplot, Violin or QQ-Plot.")
+            return
         if self._inter_data is None:
             self._msg_warning("No data", "Load CSV or use Demo Data first.")
             return
         try:
+            rng = np.random.default_rng(42)
             output = "interactive_output.html"
 
             # Try new plot_api first for new plot types
             if plot_type in ('pca', 'manhattan', 'boxplot', 'violin', 'qq-plot'):
                 from ...plotting.plot_api import boxplot, manhattan, pca, qqplot, violin
                 if plot_type == 'pca':
-                    data = np.random.randn(30, 50) if not isinstance(self._inter_data, dict) else self._inter_data.get('x', np.random.randn(30, 50))
-                    pca(data, labels=['Ctrl']*15 + ['Treat']*15, interactive=True, output_html=output)
+                    pca(rng.standard_normal((30, 50)), labels=['Ctrl'] * 15 + ['Treat'] * 15,
+                        interactive=True, output_html=output)
                 elif plot_type == 'manhattan':
-                    chroms = np.random.choice(['chr1', 'chr2', 'chr3'], 200)
-                    positions = np.random.randint(1, 1000000, 200)
-                    pvals = np.random.uniform(0, 1, 200)
+                    chroms = rng.choice(['chr1', 'chr2', 'chr3'], 200)
+                    positions = rng.integers(1, 1000000, 200)
+                    pvals = rng.uniform(0, 1, 200)
                     manhattan(chroms, positions, pvals, interactive=True, output_html=output)
                 elif plot_type == 'boxplot':
-                    data = {'Ctrl': np.random.randn(30).tolist(), 'Treat': (np.random.randn(30) + 1).tolist()}
+                    data = {'Ctrl': rng.standard_normal(30).tolist(),
+                            'Treat': (rng.standard_normal(30) + 1).tolist()}
                     boxplot(data, interactive=True, output_html=output)
                 elif plot_type == 'violin':
-                    data = {'Ctrl': np.random.randn(30).tolist(), 'Treat': (np.random.randn(30) + 1).tolist()}
+                    data = {'Ctrl': rng.standard_normal(30).tolist(),
+                            'Treat': (rng.standard_normal(30) + 1).tolist()}
                     violin(data, interactive=True, output_html=output)
-                elif plot_type == 'qq-plot':
-                    pvals = np.random.uniform(0, 1, 100)
+                else:
+                    pvals = rng.uniform(0, 1, 100)
                     qqplot(pvals, interactive=True, output_html=output)
             else:
                 # Use existing interactive_plots for legacy types
@@ -616,9 +673,14 @@ class VisualizationTabMixin:
                         interactive_scatter(x, y, color_col=labels, output_html=output)
                     else:
                         cols = list(self._inter_data.select_dtypes(include=[np.number]).columns)
-                        if len(cols) >= 2:
-                            interactive_scatter(self._inter_data[cols[0]].values,
-                                                      self._inter_data[cols[1]].values, output_html=output)
+                        # An earlier version drew nothing and still announced
+                        # "Saved: interactive_output.html".
+                        if len(cols) < 2:
+                            self._msg_warning("Not enough data",
+                                              "A scatter needs at least two numeric columns.")
+                            return
+                        interactive_scatter(self._inter_data[cols[0]].values,
+                                            self._inter_data[cols[1]].values, output_html=output)
                 elif plot_type == 'bar':
                     if isinstance(self._inter_data, dict):
                         vals = list(self._inter_data.get('y', [1, 2, 3]))
@@ -637,18 +699,22 @@ class VisualizationTabMixin:
                     num = df_heat.select_dtypes(include=[np.number])
                     interactive_heatmap(num.values[:10, :10], output_html=output)
                 elif plot_type == 'volcano':
-                    interactive_volcano(np.random.randn(200), np.random.uniform(0, 1, 200), output_html=output)
+                    interactive_volcano(rng.standard_normal(200), rng.uniform(0, 1, 200), output_html=output)
                 elif plot_type == 'line':
                     x = list(range(20))
                     ys = [np.sin(np.array(x)), np.cos(np.array(x))]
                     interactive_line(x, ys, names=['sin', 'cos'], output_html=output)
-                elif plot_type == 'pie':
-                    interactive_pie(['A', 'B', 'C', 'D'], [30, 25, 20, 25], output_html=output)
                 else:
-                    interactive_scatter(np.random.randn(50), np.random.randn(50), output_html=output)
+                    interactive_pie(['A', 'B', 'C', 'D'], [30, 25, 20, 25], output_html=output)
 
             self.inter_info.delete("1.0", "end")
-            self.inter_info.insert("end", f"Saved: {output}\nOpen in a browser to interact.\n\nPlot type: {plot_type}")
+            self.inter_info.insert("end",
+                                   f"Saved: {output}\nOpen in a browser to interact.\n\n"
+                                   f"Plot type: {plot_type}" + (
+                                       DEMO_SAMPLE_NOTE
+                                       if (isinstance(self._inter_data, dict)
+                                           or plot_type not in DATA_TABLE_PLOT_TYPES)
+                                       else ""))
             self._msg_success("Done", f"Interactive plot saved to:\n{output}")
         except Exception as e:
             self._msg_error("Error", str(e))

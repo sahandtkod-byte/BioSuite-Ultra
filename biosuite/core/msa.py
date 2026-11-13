@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -96,7 +96,7 @@ def _write_fasta(sequences: list, filepath: str) -> None:
     Accepts plain strings OR (name, sequence) tuples — plain strings used
     to be silently unpacked into ('A', 'C') char pairs.
     """
-    with open(filepath, 'w') as f:
+    with open(filepath, 'w', encoding="utf-8") as f:
         for name, seq in _normalize_sequences(list(sequences)):
             f.write(f">{name}\n{seq}\n")
 
@@ -334,7 +334,13 @@ def _make_profile(aligned_seqs: List[str]) -> Dict[str, Any]:
     if not aligned_seqs:
         return {}
     length = len(aligned_seqs[0])
-    chars = set('ACGTUNacgtun')
+    # The letters scored are the ones actually present, not a hard-coded
+    # nucleotide alphabet: with set('ACGTUNacgtun') every amino acid got a
+    # frequency of 0, so each protein column scored 0 against every other and
+    # the profile DP placed gaps by tie-break accident - _merge_alignments
+    # (['MKVLAG'], ['MKLAG']) returned '-MKLAG' (3 matching columns) instead of
+    # 'MK-LAG' (5). Gaps stay excluded because '-' is scored separately below.
+    chars = set(''.join(aligned_seqs)) - {'-'}
     profiles = []
     for i in range(length):
         col = [s[i] if i < len(s) else '-' for s in aligned_seqs]
@@ -432,7 +438,7 @@ def _restore_input_order(aligned: List[Tuple[str, str]],
 
 def _run_clustal_omega(sequences: List[str]) -> MSA:
     """Run Clustal Omega on the given sequences via subprocess."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False, encoding="utf-8") as f:
         inp = f.name
     out = secure_temp_path(suffix='.fasta')
     try:
@@ -460,7 +466,7 @@ def _run_clustal_omega(sequences: List[str]) -> MSA:
 
 def _run_muscle(sequences: List[str]) -> MSA:
     """Run MUSCLE on the given sequences via subprocess."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False, encoding="utf-8") as f:
         inp = f.name
     out = secure_temp_path(suffix='.fasta')
     try:
@@ -486,7 +492,7 @@ def _run_muscle(sequences: List[str]) -> MSA:
 
 def _run_mafft(sequences: List[str]) -> MSA:
     """Run MAFFT on the given sequences via subprocess."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False, encoding="utf-8") as f:
         inp = f.name
     out = secure_temp_path(suffix='.fasta')
     try:
@@ -496,7 +502,7 @@ def _run_mafft(sequences: List[str]) -> MSA:
         # MAFFT writes the alignment to stdout, so exit 0 with empty stdout
         # is a failure; without this guard an empty file reached the parser.
         if r.returncode == 0 and r.stdout.strip():
-            with open(out, 'w') as f:
+            with open(out, 'w', encoding="utf-8") as f:
                 f.write(r.stdout)
             return _load_bio_alignment(out, 'mafft')
     except (OSError, subprocess.SubprocessError) as exc:
@@ -566,12 +572,43 @@ def _normalize_sequences(sequences: list) -> List[Tuple[str, str]]:
     return norm
 
 
-def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
-    """Align sequences automatically choosing the best available engine.
+_ALIGNER_LABELS = {
+    'clustal_omega': "Using Clustal Omega (external)",
+    'muscle': "Using MUSCLE (external)",
+    'mafft': "Using MAFFT (external)",
+}
 
-    Uses external tools when installed; falls back to the built-in
-    progressive aligner otherwise.
+
+def _run_external_aligner(name: str, sequences: List[Tuple[str, str]]) -> Optional[MSA]:
+    """Dispatch by engine name, resolving the runner at call time so a test or a
+    caller can replace one without reaching into a captured reference."""
+    runners = {'clustal_omega': _run_clustal_omega, 'muscle': _run_muscle,
+               'mafft': _run_mafft}
+    return runners[name](sequences)
+
+
+def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
+    """Align sequences, choosing the engine ``method`` asks for.
+
+    Args:
+        sequences: (name, sequence) pairs or bare sequence strings.
+        method: 'auto' tries the installed external aligners in the order
+            Clustal Omega, MUSCLE, MAFFT and falls back to the built-in
+            progressive aligner.  'builtin' asks for the progressive aligner
+            directly.  Any of 'clustal_omega', 'muscle' or 'mafft' demands that
+            engine: when it is missing or its run yields nothing, this raises
+            instead of quietly returning another engine's answer.
+
+    Raises:
+        ValueError: If ``method`` names no known engine.
+        RuntimeError: If a specifically requested external engine is not
+            installed or produced no alignment.
     """
+    if method not in ('auto', 'builtin', *_ALIGNER_LABELS):
+        raise ValueError(
+            f"Unknown method: {method}. Use 'auto', 'builtin' or one of "
+            f"{', '.join(_ALIGNER_LABELS)}.")
+
     if not sequences or len(sequences) < 2:
         # An alignment of fewer than two sequences is not defined.  Return an
         # explicit no-op result that still carries the input (it used to be
@@ -588,26 +625,28 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     sequences = _normalize_sequences(sequences)
 
     tools = check_tools()
-    if tools.get('clustal_omega'):
-        result = _run_clustal_omega(sequences)
+    # `method` used to be accepted and ignored: run_muscle() on a machine that
+    # only had Clustal Omega returned a Clustal Omega alignment, and with no
+    # external tool at all it returned the built-in one, while the wrapper's
+    # docstring promised it raised when the engine was missing.
+    wanted = list(_ALIGNER_LABELS) if method == 'auto' else (
+        [] if method == 'builtin' else [method])
+    for name in wanted:
+        if not tools.get(name):
+            if method == 'auto':
+                continue
+            raise RuntimeError(
+                f"{name} is not installed; it was requested explicitly. "
+                f"Detected engines: {[t for t in _ALIGNER_LABELS if tools.get(t)] or 'none'}.")
+        result = _run_external_aligner(name, sequences)
         if result:
             result.sequences = _restore_input_order(result.sequences, sequences)
-            result.message = "Using Clustal Omega (external)"
+            result.message = _ALIGNER_LABELS[name]
             return result
-
-    if tools.get('muscle'):
-        result = _run_muscle(sequences)
-        if result:
-            result.sequences = _restore_input_order(result.sequences, sequences)
-            result.message = "Using MUSCLE (external)"
-            return result
-
-    if tools.get('mafft'):
-        result = _run_mafft(sequences)
-        if result:
-            result.sequences = _restore_input_order(result.sequences, sequences)
-            result.message = "Using MAFFT (external)"
-            return result
+        if method != 'auto':
+            raise RuntimeError(
+                f"{name} is installed but produced no alignment; see the "
+                "'biosuite.core.msa' log for the tool's stderr.")
 
     # Pure Python fallback
     aligned_seqs = _restore_input_order(_progressive_msa(sequences), sequences)
@@ -631,17 +670,17 @@ def auto_align(sequences: List[str], method: str = 'auto') -> MSA:
     return result
 
 
-def run_clustal_omega(sequences: List[str], **kwargs: Any) -> MSA:
-    """Explicit Clustal Omega wrapper (raises if not installed)."""
-    return auto_align(sequences)
+def run_clustal_omega(sequences: List[str]) -> MSA:
+    """Explicit Clustal Omega wrapper (raises if it is not installed)."""
+    return auto_align(sequences, method='clustal_omega')
 
-def run_muscle(sequences: List[str], **kwargs: Any) -> MSA:
-    """Explicit MUSCLE wrapper (raises if not installed)."""
-    return auto_align(sequences)
+def run_muscle(sequences: List[str]) -> MSA:
+    """Explicit MUSCLE wrapper (raises if it is not installed)."""
+    return auto_align(sequences, method='muscle')
 
-def run_mafft(sequences: List[str], **kwargs: Any) -> MSA:
-    """Explicit MAFFT wrapper (raises if not installed)."""
-    return auto_align(sequences)
+def run_mafft(sequences: List[str]) -> MSA:
+    """Explicit MAFFT wrapper (raises if it is not installed)."""
+    return auto_align(sequences, method='mafft')
 
 
 def compute_conservation(alignment: MSA) -> List[float]:
@@ -735,7 +774,11 @@ def format_alignment(msa_result: MSA, max_width: int = 80, show_conservation: bo
              f"Sequences: {msa_result.num_sequences}",
              f"Length: {msa_result.alignment_length}", ""]
     max_name = max(len(n) for n, _ in msa_result.sequences)
-    seq_width = max_width - max_name - 4
+    # A name at least as long as the block width used to make seq_width zero
+    # (ValueError from range(step=0)) or negative (empty range, so the whole
+    # alignment silently vanished and only the header was printed). One residue
+    # per block is the most that can still be rendered.
+    seq_width = max(max_width - max_name - 4, 1)
     for start in range(0, msa_result.alignment_length, seq_width):
         end = min(start + seq_width, msa_result.alignment_length)
         for name, seq in msa_result.sequences:
@@ -757,7 +800,7 @@ def read_fasta_for_msa(filepath: str) -> list :
     if not HAS_BIO:
         seqs = []
         name, buf = None, []
-        with open(filepath) as f:
+        with open(filepath, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line.startswith('>'):

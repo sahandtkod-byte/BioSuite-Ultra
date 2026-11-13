@@ -47,17 +47,21 @@ def test_concurrent_record_keeps_every_step_and_assigns_unique_ids(tracker):
 
 # ── numpy / pandas parameters ───────────────────────────────────────────────
 
-@pytest.mark.parametrize("value", [
-    np.int64(3),
-    np.float32(1.5),
-    np.bool_(True),
-    np.array([1, 2, 3]),
-    np.array([[1.0, 2.0], [3.0, 4.0]]),
-    np.float64("nan"),
+@pytest.mark.parametrize("value,expected", [
+    (np.int64(3), 3),
+    (np.float32(1.5), 1.5),
+    (np.bool_(True), True),
+    (np.array([1, 2, 3]), [1, 2, 3]),
+    (np.array([[1.0, 2.0], [3.0, 4.0]]), [[1.0, 2.0], [3.0, 4.0]]),
+    # Non-finite values have no JSON spelling, so they are recorded as text
+    # rather than as the NaN token Python's json module would happily emit.
+    (np.float64("nan"), "nan"),
+    (np.float64("inf"), "inf"),
 ])
-def test_numpy_parameters_are_serialisable(value):
+def test_numpy_parameters_are_serialisable(value, expected):
     text = dumps_params({"value": value})
-    json.loads(text)          # must be valid JSON, not a repr
+    assert "NaN" not in text and "Infinity" not in text, text
+    assert json.loads(text)["value"] == expected
 
 
 def test_numpy_parameters_round_trip_through_the_database(tracker):
@@ -78,12 +82,12 @@ def test_pandas_objects_do_not_break_recording(tracker):
     assert len(tracker.get_steps()) == 1
 
 
-def test_unserialisable_objects_do_not_raise():
+def test_unserialisable_objects_are_recorded_by_class_name():
     class Opaque:
         pass
 
     text = dumps_params({"obj": Opaque()})
-    json.loads(text)
+    assert json.loads(text) == {"obj": "<Opaque>"}
 
 
 # ── HTML export ─────────────────────────────────────────────────────────────

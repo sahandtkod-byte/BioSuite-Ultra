@@ -15,15 +15,15 @@ local development.
 
 Open API docs at: http://localhost:8000/docs
 """
-import logging
 import os
 import sys
 
 from biosuite import __version__
 from biosuite.api import app  # noqa: F401  — the documented ASGI target
 from biosuite.api.config import dev_mode, format_config_error, validate_runtime_config
+from biosuite.core.log import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 __all__ = ["app", "main", "ensure_safe_to_serve"]
 

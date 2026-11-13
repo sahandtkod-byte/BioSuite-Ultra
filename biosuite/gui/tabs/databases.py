@@ -25,7 +25,7 @@ class DatabasesTabMixin:
         params.pack(fill='x', pady=(0, 8))
         self._label(params, 'Database:', 'small').pack(side='left')
         self.db_combo = ctk.CTkComboBox(params, values=["NCBI", "UniProt", "PDB", "KEGG", "Ensembl", "All"],
-                                         width=120, height=32,
+                                         width=120, height=32, state='readonly',
                                          fg_color=T['input_bg'], border_color=T['border'],
                                          button_color=T['accent'], button_hover_color=T['accent_dim'],
                                          dropdown_fg_color=T['card'], dropdown_text_color=T['text'])
@@ -68,7 +68,9 @@ class DatabasesTabMixin:
             elif db == 'ensembl':
                 results = search_ensembl(query)
             else:
-                results = search_ncbi(query)
+                raise ValueError(
+                    f"Unknown database: {self.db_combo.get().strip()!r}. "
+                    "Choose NCBI, UniProt, PDB, KEGG, Ensembl or All.")
             self.db_result.delete("1.0", "end")
             self.db_result.insert("end", format_search_results(results))
             self._set_status("Database search complete")
@@ -106,7 +108,7 @@ class DatabasesTabMixin:
             return
         try:
             ext = os.path.splitext(path)[1].lower()
-            if ext in ('.bed',):
+            if ext == '.bed':
                 from ...core.file_formats import format_bed_summary, parse_bed
                 records = parse_bed(path)
                 self.ff_result.delete("1.0", "end")
@@ -118,7 +120,7 @@ class DatabasesTabMixin:
                 self.ff_result.insert("end", format_gff_summary(records))
             elif ext in ('.nwk', '.newick', '.tree', '.nhx'):
                 from ...core.file_formats import parse_newick, tree_to_ascii
-                with open(path) as fh:
+                with open(path, encoding="utf-8") as fh:
                     newick = fh.read().strip()
                 tree = parse_newick(newick)
                 self.ff_result.delete("1.0", "end")
@@ -132,7 +134,10 @@ class DatabasesTabMixin:
                 for name, seq in list(data['alignment'].items())[:10]:
                     self.ff_result.insert("end", f"  {name}: {seq[:60]}{'...' if len(seq)>60 else ''}\n")
             else:
-                self._msg_info("Info", f"Unknown format: {ext}\nSupported: .bed, .gff, .gtf, .nwk, .sto")
+                self._msg_info(
+                    "Info",
+                    f"Unknown format: {ext}\nSupported: .bed, .gff, .gtf, .nwk, .newick, "
+                    ".tree, .nhx, .sto, .stockholm, .aln")
         except Exception as e:
             self._msg_error("Error", str(e))
 
@@ -151,7 +156,9 @@ class DatabasesTabMixin:
         self._label(inner, 'Configure API keys for external database services.', 'dim').pack(anchor='w', pady=(0, 12))
         self._label(inner, 'All keys are optional — features work without them, just slower.', 'dim').pack(anchor='w', pady=(0, 16))
 
-        api_keys = config.get('api_keys', {})
+        api_keys = config.get('api_keys')
+        if not isinstance(api_keys, dict):
+            api_keys = {}
 
         self._label(inner, 'NCBI Entrez (nucleotide/protein search)', 'sub').pack(anchor='w')
         nci_frame = ctk.CTkFrame(inner, fg_color='transparent')

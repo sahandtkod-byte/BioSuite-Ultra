@@ -1,8 +1,8 @@
 """Documentation-accuracy tests (BSU-024, BSU-025).
 
-The repository's docs stated counts that were simply false for this tree:
-117 CLI options (99), 40 REST endpoints (38), "1,444 tests in 30 files",
-and DEVELOPMENT.md still advertised version 4.2.5.
+The repository's docs stated counts that were simply false for this tree: the number
+of CLI menu options, 40 REST endpoints (38), "1,444 tests in 30 files", and
+DEVELOPMENT.md still advertised version 4.2.5.
 
 These tests re-measure from the code, so the numbers cannot drift back
 unnoticed. They assert the documented figure equals the measured one; when the
@@ -37,7 +37,10 @@ def _plotting_function_counts():
     plot = REPO / "biosuite" / "plotting"
     public = total = 0
     for p in plot.glob("*.py"):
-        if p.name == "__init__.py":
+        if p.name == "__init__.py" or p.name.startswith("_"):
+            # A private module is plumbing, not surface: ``_demo_guard.py`` holds
+            # the failure guard the demos share, and counting it would move the
+            # "public plotting functions" figure the README advertises.
             continue
         tree = ast.parse(p.read_text(encoding="utf-8"))
         fns = [n for n in tree.body if isinstance(n, ast.FunctionDef)]
@@ -47,9 +50,21 @@ def _plotting_function_counts():
 
 
 def _api_route_count():
-    from biosuite.api import app
-    return len([r for r in app.routes
+    return len([r for r in _api_app().routes
                 if getattr(r, "path", "").startswith("/api/")])
+
+
+def _api_app():
+    """The FastAPI app, or a skip: ``[api]`` is an extra, not a core dependency.
+
+    Without this the two API locks below reported a missing optional dependency as
+    a documentation defect.
+    """
+    try:
+        from biosuite.api import app
+    except ImportError as exc:
+        pytest.skip(f"API extra not installed: {exc}")
+    return app
 
 
 # ── version consistency (BSU-024) ───────────────────────────────────────────
@@ -62,7 +77,7 @@ def test_version_is_a_single_source_of_truth():
         "pyproject.toml disagrees with biosuite.__version__"
 
 
-def test_agents_md_does_not_advertise_a_stale_version():
+def test_development_md_does_not_advertise_a_stale_version():
     import biosuite
     text = _read("DEVELOPMENT.md")
     assert "4.2.5" not in text.split("## ")[0] or biosuite.__version__ == "4.2.5"
@@ -79,16 +94,10 @@ def test_citation_file_matches_the_package_version():
 
 def test_the_api_app_reports_the_package_version():
     import biosuite
-    from biosuite.api import app
-    assert app.version == biosuite.__version__
+    assert _api_app().version == biosuite.__version__
 
 
 # ── documented counts match the code (BSU-025) ──────────────────────────────
-
-def test_no_document_still_claims_117_cli_options():
-    for name in ("README.md", "DEVELOPMENT.md"):
-        assert "117" not in _read(name), f"{name} still claims 117 CLI options"
-
 
 def test_no_document_still_claims_1444_tests():
     for name in ("README.md", "DEVELOPMENT.md"):
@@ -115,7 +124,40 @@ def test_documented_api_endpoint_count_is_correct():
 def test_documented_plotting_function_count_is_correct():
     public, total = _plotting_function_counts()
     assert public == 105, f"public plotting functions changed to {public}"
-    assert total == 123, f"total plotting functions changed to {total}"
+    # 126 before the line-by-line pass on biosuite/plotting, which grew private
+    # guards in plot_api.py (input validation, colourscale translation, PNG
+    # naming), shared helpers in biological_plots.py (the Venn region check),
+    # six in sequence_viewer.py (the sequence validator, two coordinate
+    # checkers, the window solver, the ORF record check and the DNA fold),
+    # three in cluster 30 (the category-order helper, the HTML writer, the GSEA
+    # running sum), seven in cluster 31 (the parser note, the region checker,
+    # the track-array checker, the variant classifier, the polar-slot helper, the
+    # label staggerer and the shared map drawer), nine in cluster 32 (four
+    # input/order guards in synteny.py, three sequence/alphabet/pseudocount
+    # checks in conservation_plots.py, and the whole-number and set-shape checks
+    # in upset_plots.py) and three in cluster 33 (the shared empty-network panel,
+    # the finite-curve guard and the overflow-safe logistic in math_plots.py).
+    # Cluster 30 also moved biological_plots' demo guard
+    # into `_demo_guard.py`, which is a private module and is not counted here.
+    # The public count is the one the README advertises, and it is unchanged.
+    assert total == 167, f"total plotting functions changed to {total}"
+    text = _read("DEVELOPMENT.md")
+    assert f"**{total} functions** ({public} public)" in text, \
+        f"DEVELOPMENT.md does not quote the measured {total}/{public} plotting counts"
+
+
+def _python_line_count():
+    """Lines of Python under ``biosuite/``, counted the same way the docs state it."""
+    paths = sorted((REPO / "biosuite").rglob("*.py"))
+    return len(paths), sum(len(p.read_text(encoding="utf-8").splitlines()) for p in paths)
+
+
+def test_development_md_quotes_the_measured_source_size():
+    modules, lines = _python_line_count()
+    text = _read("DEVELOPMENT.md")
+    assert f"**{lines:,} lines** of Python across {modules} modules" in text, (
+        f"DEVELOPMENT.md quotes a stale source size; measured {lines} lines "
+        f"across {modules} modules")
 
 
 def test_restriction_enzyme_count_is_correct():
@@ -129,18 +171,38 @@ def test_gui_tab_count_is_correct():
     assert count == 11, f"GUI tab count changed to {count}; update the docs"
 
 
-def _cli_menu_option_count():
-    """Distinct numeric choices the interactive menu dispatches, excluding 0 (exit)."""
+_MENU_LABEL = re.compile(r"\{[A-Z]\}\{[A-Z]\} ?([a-z0-9]{1,3})\{R\}")
+_DISPATCH_KEY = re.compile(r"(?:el)?if choice == '([a-z0-9]+)'")
+
+
+def _menu_labels_and_dispatch():
+    """The labels ``print_menu`` shows and the keys the dispatcher handles."""
     src = (REPO / "biosuite" / "cli" / "menu.py").read_text(encoding="utf-8")
-    nums = {int(m) for m in re.findall(r"choice\s*==\s*['\"](\d+)['\"]", src)}
-    nums |= {int(m) for m in re.findall(r"^\s*['\"](\d+)['\"]\s*:", src, re.M)}
-    return len({n for n in nums if n != 0})
+    shown = src[src.index("def print_menu"):src.index("def main_cli")]
+    return set(_MENU_LABEL.findall(shown)), set(_DISPATCH_KEY.findall(src))
+
+
+def test_the_menu_displays_exactly_the_options_it_dispatches():
+    """A label with no key is dead; a key with no label is unreachable.
+
+    Both documents quoted a number that matched neither set, because it counted only
+    the numeric keys and ignored the seventeen lettered cloning and Phase-6 options.
+    """
+    displayed, handled = _menu_labels_and_dispatch()
+    assert displayed == handled
+    assert "0" in displayed, "exit should be a menu entry the loop answers"
 
 
 def test_documented_cli_menu_option_count_is_correct():
-    measured = _cli_menu_option_count()
-    assert measured == 99, f"CLI menu options changed to {measured}; update the docs"
-    assert "99" in _read("README.md")
+    """The docs count selectable options, so 0 (Exit) is not one of them."""
+    displayed, _ = _menu_labels_and_dispatch()
+    measured = len(displayed) - 1
+    assert measured == 117, f"menu options changed to {measured}; update the docs"
+    for name in ("README.md", "DEVELOPMENT.md"):
+        quoted = {int(n) for n in
+                  re.findall(r"(\d+)\s+(?:CLI\s+)?(?:menu\s+)?options\b", _read(name))}
+        assert quoted == {measured}, \
+            f"{name} quotes {sorted(quoted)} menu options; measured {measured}"
 
 
 def test_documented_plot_catalogue_size_is_correct():
@@ -215,25 +277,12 @@ def _test_file_count():
     return len(list((REPO / "tests").rglob("test_*.py")))
 
 
-def _readme_ci_pass_counts():
-    """Pass counts from the README's per-interpreter CI results table."""
-    text = _read("README.md")
-    return {int(m.replace(",", ""))
-            for m in re.findall(r"Tests\s*[—-]\s*Python\s*[\d.]+\s*\|\s*([\d,]+)\s+passed",
-                                text)}
+def _documented_run_counts(text):
+    """Pass counts a document quotes for its last measured run."""
+    return {int(m.replace(",", "")) for m in re.findall(r"([\d,]{3,})\s+passed", text)}
 
 
-def _agents_ci_pass_counts():
-    """Pass counts DEVELOPMENT.md states in a CI context (not the local figure)."""
-    counts = set()
-    for line in _read("DEVELOPMENT.md").splitlines():
-        if re.search(r"\bCI\b", line):
-            counts |= {int(m.replace(",", ""))
-                       for m in re.findall(r"([\d,]{3,})\s+passed", line)}
-    return counts
-
-
-def test_agents_md_quotes_the_authoritative_test_file_count():
+def test_development_md_quotes_the_authoritative_test_file_count():
     text = _read("DEVELOPMENT.md")
     actual = _test_file_count()
     quoted = {int(m) for m in re.findall(r"(\d+)\s+(?:test\s+)?files\b", text)}
@@ -242,27 +291,31 @@ def test_agents_md_quotes_the_authoritative_test_file_count():
         f"DEVELOPMENT.md quotes test-file counts {sorted(quoted)}; measured {actual}")
 
 
-def test_agents_md_does_not_carry_the_stale_test_count_claims():
-    text = _read("DEVELOPMENT.md")
-    for stale in ("2,500+", "2500+", "2,529", "2,375"):
-        assert stale not in text, f"DEVELOPMENT.md still claims '{stale}' tests"
+def test_stale_test_count_claims_are_gone_from_both_documents():
+    """Figures this tree has outgrown, or that were never measurable here."""
+    for name in ("README.md", "DEVELOPMENT.md"):
+        text = _read(name)
+        for stale in ("2,500+", "2500+", "2,529", "2,375", "2,493", "2,352", "1,444"):
+            assert stale not in text, f"{name} still claims '{stale}' tests"
 
 
-def test_agents_md_and_readme_agree_on_the_ci_pass_count():
-    """Tie the two documents together so they cannot drift apart again.
+def test_both_documents_quote_one_measured_run_count():
+    """The two documents must tell the same story about the same run.
 
-    DEVELOPMENT.md may additionally quote the local figure, which differs because
-    the GUI tests cannot run without tkinter; what it must not do is quote a
-    *different* CI figure from the one in the README.
+    They used to quote three per-interpreter CI figures that cannot be re-measured
+    from a checkout, alongside a local figure that disagreed with them.  One
+    measured run, named as such, is what can be checked.
     """
-    readme = _readme_ci_pass_counts()
-    agents = _agents_ci_pass_counts()
-    assert readme, "README's CI results table quotes no pass count"
-    assert agents, "DEVELOPMENT.md quotes no CI pass count"
-    assert len(readme) == 1, f"README quotes conflicting pass counts: {readme}"
-    assert agents == readme, (
-        f"DEVELOPMENT.md CI pass counts {sorted(agents)} disagree with the README "
-        f"table {sorted(readme)}")
+    readme = _documented_run_counts(_read("README.md"))
+    development = _documented_run_counts(_read("DEVELOPMENT.md"))
+    assert readme, "README.md quotes no pass count"
+    assert development, "DEVELOPMENT.md quotes no pass count"
+    assert len(readme) == 1, f"README.md quotes conflicting pass counts: {sorted(readme)}"
+    assert len(development) == 1, (
+        f"DEVELOPMENT.md quotes conflicting pass counts: {sorted(development)}")
+    assert development == readme, (
+        f"DEVELOPMENT.md quotes {sorted(development)} passed while the README quotes "
+        f"{sorted(readme)}")
 
 
 def _deploy_current_version_section():

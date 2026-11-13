@@ -82,25 +82,41 @@ def detect_features_from_matrix(intensity_matrix, mz_values=None, rt_values=None
 
     Args:
         intensity_matrix: 2D numpy array (samples x mz_bins or samples x timepoints).
-        mz_values: optional mz values for each column.
-        rt_values: optional retention time values for each column.
+        mz_values: optional m/z value for each column (one entry per column).
+        rt_values: optional retention time for each column (one entry per column).
         min_snr: minimum signal-to-noise ratio.
 
     Returns:
-        DataFrame of detected features.
+        DataFrame of detected features.  ``rt`` is the value from ``rt_values``
+        when given, otherwise the column index, because peaks are found at the
+        default sampling rate of one point per unit.
     """
+    intensity_matrix = np.asarray(intensity_matrix, dtype=float)
+    if intensity_matrix.ndim != 2:
+        raise ValueError(
+            f"intensity_matrix must be 2-D (samples x columns), got {intensity_matrix.ndim}-D.")
+    n_cols = intensity_matrix.shape[1]
+    for name, values in (('mz_values', mz_values), ('rt_values', rt_values)):
+        # detect_peaks is called with sampling_rate=1.0, so its peak index is the
+        # column position and both arrays are addressed the same way.  A length
+        # that does not match the matrix used to be papered over by writing 0 into
+        # the mz of every out-of-range peak.
+        if values is not None and len(values) != n_cols:
+            raise ValueError(
+                f"{name} has {len(values)} entries but the intensity matrix has "
+                f"{n_cols} columns; they must match one-to-one.")
+
     all_features = []
     for sample_idx in range(intensity_matrix.shape[0]):
         sample = intensity_matrix[sample_idx]
-        peaks = detect_peaks(sample, min_snr=min_snr)
-        for p in peaks:
-            p.mz = mz_values[int(p.rt)] if mz_values and int(p.rt) < len(mz_values) else 0
+        for peak in detect_peaks(sample, min_snr=min_snr):
+            col = int(round(peak.rt))
             all_features.append({
                 'sample': sample_idx,
-                'mz': p.mz,
-                'rt': p.rt,
-                'intensity': p.intensity,
-                'snr': p.snr
+                'mz': float(mz_values[col]) if mz_values is not None else 0.0,
+                'rt': float(rt_values[col]) if rt_values is not None else peak.rt,
+                'intensity': peak.intensity,
+                'snr': peak.snr
             })
 
     return pd.DataFrame(all_features)
@@ -110,13 +126,21 @@ def align_features(feature_dfs, mz_tolerance=0.01, rt_tolerance=30):
     """Align detected features across samples.
 
     Args:
-        feature_dfs: list of DataFrames, one per sample.
-        mz_tolerance: mz tolerance for matching.
-        rt_tolerance: RT tolerance for matching.
+        feature_dfs: list of DataFrames, one per sample.  A sample that produced
+            no features keeps its own all-zero column.
+        mz_tolerance: mz tolerance for matching; must be positive.
+        rt_tolerance: RT tolerance for matching; must be positive.
 
     Returns:
-        Aligned feature matrix (samples x features).
+        Feature matrix with one row per (mz bin, rt bin) feature and one column
+        per input sample, labelled by its position in ``feature_dfs``.
     """
+    for name, tol in (('mz_tolerance', mz_tolerance), ('rt_tolerance', rt_tolerance)):
+        # Dividing by zero produced NaN bins and then an opaque
+        # "Cannot convert non-finite values" from the astype(int) below.
+        if tol <= 0:
+            raise ValueError(f"{name} must be positive, got {tol}.")
+
     if not feature_dfs:
         return pd.DataFrame()
 
@@ -127,7 +151,12 @@ def align_features(feature_dfs, mz_tolerance=0.01, rt_tolerance=30):
                                 'intensity': row['intensity']})
 
     if not all_features:
-        return pd.DataFrame()
+        # Every sample came back empty: report the zero-filled shape rather than
+        # a nameless empty frame, so callers still see one column per sample.
+        return pd.DataFrame(
+            0.0,
+            index=pd.MultiIndex.from_arrays([[], []], names=['mz_bin', 'rt_bin']),
+            columns=list(range(len(feature_dfs))))
 
     all_df = pd.DataFrame(all_features)
 
@@ -137,7 +166,11 @@ def align_features(feature_dfs, mz_tolerance=0.01, rt_tolerance=30):
 
     pivot = all_df.pivot_table(values='intensity', index=['mz_bin', 'rt_bin'],
                                columns='sample', aggfunc='max', fill_value=0)
-    return pivot
+    # A sample that contributed no rows had no 'sample' value to pivot on and
+    # vanished from the result entirely, so an alignment of five samples could
+    # silently return four columns and mislabel the remaining ones.  The fill is
+    # 0.0, not 0, so the new column keeps the float dtype of the measured ones.
+    return pivot.reindex(columns=range(len(feature_dfs)), fill_value=0.0)
 
 
 def anova_test(feature_matrix, group_labels):

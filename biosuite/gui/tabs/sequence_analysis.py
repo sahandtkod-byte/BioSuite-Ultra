@@ -2,6 +2,7 @@
 Sequence analysis tabs: Sequence, Alignment, Phylogeny, ORF/Primers/Enzymes.
 """
 import os
+import tkinter as tk
 from tkinter import filedialog
 
 import customtkinter as ctk
@@ -50,7 +51,7 @@ class SequenceAnalysisTabMixin:
         for label, cmd, tip in [
                 ("GC%", self._seq_gc, "GC content percentage"),
                 ("Rev Comp", self._seq_revcomp, "Reverse complement of the sequence"),
-                ("Translate", self._seq_translate, "Translate DNA to protein (all 6 frames for long inputs)"),
+                ("Translate", self._seq_translate, "Translate DNA to protein"),
                 ("Stats", self._seq_stats_cmd, "Full composition statistics")]:
             self._action_button(btn_row2, label, cmd, tip=tip).pack(side='left', padx=(0, 6))
         self._action_button(btn_row2, "Copy", self._seq_copy_results, 'success',
@@ -66,10 +67,11 @@ class SequenceAnalysisTabMixin:
             # File I/O + formatting off the UI thread so large files
             # don't freeze the window.
             from ...core.sequence import read_fasta, read_fastq, read_genbank
-            if path.endswith(('.fasta', '.fa')):
+            suffix = os.path.splitext(path)[1].lower()
+            if suffix in ('.fasta', '.fa'):
                 data = read_fasta(path)
                 return "\n".join(f">{name}\n{seq}" for name, seq in data) if data else ""
-            if path.endswith(('.fastq', '.fq')):
+            if suffix in ('.fastq', '.fq'):
                 data = read_fastq(path)
                 return "\n".join(f"@{name}\n{seq}\n+\n{qual}" for name, seq, qual in data) if data else ""
             data = read_genbank(path)
@@ -91,7 +93,7 @@ class SequenceAnalysisTabMixin:
         try:
             n = len(self._get_seq())
             self.seq_info_label.configure(text=f"{n:,} bp" if n else "0 bp")
-        except Exception:
+        except tk.TclError:
             pass
 
     def _seq_copy_results(self):
@@ -176,6 +178,11 @@ class SequenceAnalysisTabMixin:
         self.align_result = self._text_box(inner, height=120)
         self.align_result.pack(fill='both', expand=True)
 
+        self._label(inner, 'Multiple Sequences (FASTA: >name then sequence)', 'sub').pack(anchor='w', pady=(8, 0))
+        self.align_msa_input = self._text_box(inner, height=80)
+        self.align_msa_input.pack(fill='x', pady=(0, 8))
+        self._action_button(inner, "Multiple Alignment (MSA)", self._align_msa).pack(anchor='w')
+
     def _get_align_seq(self, widget):
         return widget.get("1.0", "end").strip().replace('\n', '').replace(' ', '')
 
@@ -186,9 +193,12 @@ class SequenceAnalysisTabMixin:
         if not s1 or not s2:
             self._msg_warning("Missing", "Enter both sequences.")
             return
-        a1, a2, score = needleman_wunsch(s1, s2)
-        self.align_result.delete("1.0", "end")
-        self.align_result.insert("end", f"Score: {score}\n\nSeq1: {a1}\nSeq2: {a2}\n")
+        try:
+            a1, a2, score = needleman_wunsch(s1, s2)
+            self.align_result.delete("1.0", "end")
+            self.align_result.insert("end", f"Score: {score}\n\nSeq1: {a1}\nSeq2: {a2}\n")
+        except Exception as e:
+            self._msg_error("Error", str(e))
 
     def _align_sw(self):
         from ...core.alignment import smith_waterman
@@ -197,9 +207,51 @@ class SequenceAnalysisTabMixin:
         if not s1 or not s2:
             self._msg_warning("Missing", "Enter both sequences.")
             return
-        a1, a2, score = smith_waterman(s1, s2)
+        try:
+            a1, a2, score = smith_waterman(s1, s2)
+            self.align_result.delete("1.0", "end")
+            self.align_result.insert("end", f"Score: {score}\n\nSeq1: {a1}\nSeq2: {a2}\n")
+        except Exception as e:
+            self._msg_error("Error", str(e))
+
+    def _align_msa(self):
+        from ...core.alignment import multiple_alignment
+        text = self.align_msa_input.get("1.0", "end").strip()
+        if not text:
+            self._msg_warning("No data",
+                              "Enter sequences in FASTA format (>name then sequence).")
+            return
+        names, seqs, current = [], [], []
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith('>'):
+                if current:
+                    seqs.append(''.join(current))
+                    current = []
+                names.append(line[1:].strip())
+            else:
+                current.append(line)
+        if current:
+            seqs.append(''.join(current))
+        if len(seqs) < 2:
+            self._msg_error("Error", "Need at least 2 sequences for multiple alignment.")
+            return
+        # A trailing '>name' with no sequence leaves one more name than rows.
+        if len(names) != len(seqs):
+            self._msg_error("Error", "Every sequence needs its own name line.")
+            return
+        try:
+            aligned = multiple_alignment(seqs)
+        except Exception as e:
+            self._msg_error("Error", str(e))
+            return
         self.align_result.delete("1.0", "end")
-        self.align_result.insert("end", f"Score: {score}\n\nSeq1: {a1}\nSeq2: {a2}\n")
+        self.align_result.insert("end", f"Multiple alignment ({len(aligned)} sequences):\n\n")
+        for name, row in zip(names, aligned):
+            self.align_result.insert("end", f"{name}: {row}\n")
+        self._set_status(f"MSA: {len(aligned)} sequences aligned")
 
     # ─── Phylogeny Tab ────────────────────────────────────────────────────────
 
@@ -248,9 +300,15 @@ class SequenceAnalysisTabMixin:
         if len(set(len(s) for s in seqs)) != 1:
             self._msg_error("Error", "Sequences must be same length (aligned).")
             return
+        # A trailing '>name' with no sequence of its own leaves one more name than
+        # sequences, which used to surface as an IndexError after the figure had
+        # already been drawn and the matrix half-written.
+        if len(names) != len(seqs):
+            self._msg_error("Error", "Every sequence needs its own name line.")
+            return
         try:
             dist_mat = distance_matrix(seqs)
-            link_mat = upgma_tree(dist_mat, names)
+            link_mat = upgma_tree(dist_mat)
             fig = plot_phylogenetic_tree(link_mat, names)
             self._show_plot_from_figure(fig, "Phylogenetic Tree")
             self.phylo_result.delete("1.0", "end")

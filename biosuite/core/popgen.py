@@ -118,6 +118,13 @@ def calculate_fst(population_genotype_matrices):
     n_pops = len(population_genotype_matrices)
     fst_pairs = {}
 
+    for k, gt in enumerate(population_genotype_matrices):
+        if gt.shape[0] == 0:
+            raise ValueError(
+                f"population {k} has no samples. Its allele frequency is NaN, "
+                "which used to collapse the pair silently to FST 0.0 — reported "
+                "as 'no differentiation' for a population that was never measured.")
+
     for i in range(n_pops):
         for j in range(i + 1, n_pops):
             gt_i = population_genotype_matrices[i]
@@ -147,15 +154,19 @@ def calculate_fst(population_genotype_matrices):
 
 
 def nucleotide_diversity(genotype_matrix):
-    """Calculate nucleotide diversity (pi) from genotype matrix.
+    """Average per-site nucleotide diversity (pi) of one population.
 
     Args:
         genotype_matrix: numpy array (n_samples x n_sites).
             Values: 0=ref/ref, 1=ref/alt, 2=alt/alt.
 
     Returns:
-        Per-site and average nucleotide diversity.
+        float: the mean of the per-site diversity.  It used to promise "per-site
+        and average" while returning only the average, and it answered NaN for a
+        matrix with no sites at all — with a numpy "Mean of empty slice" warning.
     """
+    if genotype_matrix.shape[1] == 0:
+        return 0.0
     n = genotype_matrix.shape[0]
     if n < 2:
         return 0.0
@@ -215,9 +226,9 @@ def tajimas_d(genotype_matrix):
     e2 = c2 / (a1**2 + a2)
 
     var_d = e1 * S + e2 * S * (S - 1)
-    if var_d <= 0:
-        return 0.0
-
+    # var_d is strictly positive for every reachable input: over n = 4..7998 and
+    # every S >= 1 both e1 and e2 stay positive (measured), and S == 0 and n < 4
+    # returned above — so no guard against a non-positive variance is needed here.
     d = (theta_pi - S / a1) / np.sqrt(var_d)
     return round(float(d), 4)
 
@@ -227,11 +238,19 @@ def linkage_disequilibrium(genotype_matrix, max_pairs=1000):
 
     Args:
         genotype_matrix: numpy array (n_samples x n_sites).
-        max_pairs: maximum number of site pairs to compute.
-
+        max_pairs: maximum number of site pairs to compute; at least 1.  Sites
+            are strided and only the nearest 20 of each are paired, so on a wide
+            matrix this is a sample of the pairs, not all of them.
     Returns:
         Dict of (site_i, site_j) -> r2.
+    Raises:
+        ValueError: If ``max_pairs`` is below 1.  Zero divided the stride
+            computation and a negative value made ``sqrt`` return NaN, which
+            ``int()`` then refused.
     """
+    if not isinstance(max_pairs, (int, np.integer)) or max_pairs < 1:
+        raise ValueError(f"max_pairs must be an integer >= 1, got {max_pairs!r}.")
+
     n_sites = genotype_matrix.shape[1]
     ld = {}
 
@@ -295,6 +314,13 @@ def full_analysis(genotype_matrix, population_labels=None):
     report.tajima_d = tajimas_d(genotype_matrix)
 
     # HWE for first site
+    if genotype_matrix.shape[1] == 0:
+        # There is no site to genotype: the per-site block used to die with
+        # "IndexError: index 0 is out of bounds for axis 1 with size 0".
+        report.message = ("No sites in the genotype matrix, so no per-site "
+                          "statistic was computed.")
+        return report
+
     genotypes = genotype_matrix[:, 0]
     report.hw_test = hardy_weinberg_test({
         'AA': int((genotypes == 0).sum()),
@@ -304,6 +330,14 @@ def full_analysis(genotype_matrix, population_labels=None):
 
     # LD
     report.ld = linkage_disequilibrium(genotype_matrix, max_pairs=100)
+
+    # The caller handed over population labels, so the statistic that needs them
+    # has to be computed — `fst` was a field nothing ever filled, and
+    # `num_populations` was the only trace the labels left in the report.
+    if population_labels is not None:
+        labels = np.asarray(population_labels)
+        groups = [genotype_matrix[labels == name] for name in np.unique(labels)]
+        report.fst = calculate_fst(groups)
 
     return report
 
@@ -325,6 +359,9 @@ def format_popgen_report(report):
     if report.ld:
         avg_ld = np.mean(list(report.ld.values()))
         lines.append(f"Avg LD (r2): {avg_ld:.4f} across {len(report.ld)} pairs")
+    if report.fst:
+        avg_fst = float(np.mean(list(report.fst.values())))
+        lines.append(f"FST (Nei's Gst): {avg_fst:.4f} across {len(report.fst)} pairs")
     if report.message:
         lines.append(f"Note: {report.message}")
     return '\n'.join(lines)

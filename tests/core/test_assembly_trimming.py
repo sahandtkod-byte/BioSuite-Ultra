@@ -53,7 +53,9 @@ class TestAssembly:
         fastq.write_text("@r1\nACGTACGT\n+\nIIIIIIII\n")
         result = assemble(str(fastq))
         report = format_assembly_report(result)
-        assert isinstance(report, str)
+        assert "Contigs: 1" in report
+        assert "Total length: 8 bp" in report
+        assert "N50: 8 bp" in report
 
 
 class TestQuantification:

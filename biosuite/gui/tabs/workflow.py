@@ -5,6 +5,10 @@ from tkinter import filedialog
 
 import customtkinter as ctk
 
+from ...core.log import get_logger, log_exception
+
+logger = get_logger(__name__)
+
 
 class WorkflowTabMixin:
     """Provides Pipeline, Batch, GO Browser, Pathway, GWAS, and Epitope tabs."""
@@ -41,6 +45,7 @@ class WorkflowTabMixin:
             return
         try:
             p = Pipeline("gui_pipeline")
+            skipped = []
             for line in text.split('\n'):
                 line = line.strip()
                 if ':' in line:
@@ -49,11 +54,23 @@ class WorkflowTabMixin:
                     func = getattr(sequence, func_name.strip(), None)
                     if func:
                         p.add_step(name.strip(), func)
-            p.set_context(sequence="ATGAAATTTTAA")
+                        continue
+                skipped.append(line)
+            # Both shipped steps take a parameter called ``seq``, and Pipeline.run()
+            # drops context entries no step accepts, so any other key left every
+            # step with no argument at all.
+            p.set_context(seq="ATGAAATTTTAA")
             p.run()
             self.pipe_results.delete("1.0", "end")
             self.pipe_results.insert("end", p.summary())
+            if skipped:
+                self.pipe_results.insert(
+                    "end",
+                    f"\nSkipped {len(skipped)} line(s) without a usable step:\n")
+                for line in skipped:
+                    self.pipe_results.insert("end", f"  {line}\n")
         except Exception as e:
+            log_exception(logger, "GUI pipeline run failed")
             self._msg_error("Pipeline Error", str(e))
 
     # ─── Batch Processor Tab ────────────────────────────────────────────────
@@ -96,6 +113,7 @@ class WorkflowTabMixin:
             self.batch_results.delete("1.0", "end")
             self.batch_results.insert("end", bp.summary())
         except Exception as e:
+            log_exception(logger, "GUI batch run failed")
             self._msg_error("Batch Error", str(e))
 
     # ─── GO Browser Tab ─────────────────────────────────────────────────────
@@ -130,31 +148,40 @@ class WorkflowTabMixin:
 
     def _go_search(self):
         from ...core.go_browser import GOBrowser, format_go_results
-        go = GOBrowser()
         query = self.go_search.get().strip()
         if not query:
+            self._msg_warning("No query", "Enter a search term.")
             return
-        results = go.search(query)
-        self.go_results.delete("1.0", "end")
-        self.go_results.insert("end", format_go_results(results))
-        if results:
-            t = results[0]
-            self.go_detail.delete("1.0", "end")
-            self.go_detail.insert("end", f"ID: {t.go_id}\nName: {t.name}\nNS: {t.namespace}\n")
-            self.go_detail.insert("end", f"Def: {t.definition}\n\nParents:\n")
-            for p in go.get_parents(t.go_id):
-                self.go_detail.insert("end", f"  {p.go_id} {p.name}\n")
-            self.go_detail.insert("end", "\nChildren:\n")
-            for c in go.get_children(t.go_id):
-                self.go_detail.insert("end", f"  {c.go_id} {c.name}\n")
+        try:
+            go = GOBrowser()
+            results = go.search(query)
+            self.go_results.delete("1.0", "end")
+            self.go_results.insert("end", format_go_results(results))
+            if results:
+                t = results[0]
+                self.go_detail.delete("1.0", "end")
+                self.go_detail.insert("end", f"ID: {t.go_id}\nName: {t.name}\nNS: {t.namespace}\n")
+                self.go_detail.insert("end", f"Def: {t.definition}\n\nParents:\n")
+                for p in go.get_parents(t.go_id):
+                    self.go_detail.insert("end", f"  {p.go_id} {p.name}\n")
+                self.go_detail.insert("end", "\nChildren:\n")
+                for c in go.get_children(t.go_id):
+                    self.go_detail.insert("end", f"  {c.go_id} {c.name}\n")
+        except Exception as e:
+            log_exception(logger, "GO search failed")
+            self._msg_error("GO Error", str(e))
 
     def _go_browse(self, namespace):
         from ...core.go_browser import GOBrowser
-        go = GOBrowser()
-        terms = go.get_namespace_terms(namespace)
-        self.go_results.delete("1.0", "end")
-        for t in terms[:30]:
-            self.go_results.insert("end", f"{t.go_id} {t.name}\n")
+        try:
+            go = GOBrowser()
+            terms = go.get_namespace_terms(namespace)
+            self.go_results.delete("1.0", "end")
+            for t in terms[:30]:
+                self.go_results.insert("end", f"{t.go_id} {t.name}\n")
+        except Exception as e:
+            log_exception(logger, "GO namespace browse failed")
+            self._msg_error("GO Error", str(e))
 
     # ─── Pathway Visualization Tab ──────────────────────────────────────────
 
@@ -191,15 +218,20 @@ class WorkflowTabMixin:
         )
         genes = [g.strip() for g in self.pathway_genes.get().split(',') if g.strip()]
         if not genes:
+            self._msg_warning("No genes", "Enter gene names.")
             return
-        pm = create_custom_pathway(genes)
-        self.pathway_info.delete("1.0", "end")
-        self.pathway_info.insert("end", format_pathway_report(pm))
-        fig = draw_pathway(pm)
-        # fig used to be dropped on the floor — the user clicked
-        # "Draw Pathway" and only got text.  Record + display it.
-        self._record_plot(fig, f"Custom Pathway ({len(genes)} genes)")
-        self._show_plot_from_figure(fig, "Custom Pathway")
+        try:
+            pm = create_custom_pathway(genes)
+            self.pathway_info.delete("1.0", "end")
+            self.pathway_info.insert("end", format_pathway_report(pm))
+            fig = draw_pathway(pm)
+            # fig used to be dropped on the floor — the user clicked
+            # "Draw Pathway" and only got text.  Record + display it.
+            self._record_plot(fig, f"Custom Pathway ({len(genes)} genes)")
+            self._show_plot_from_figure(fig, "Custom Pathway")
+        except Exception as e:
+            log_exception(logger, "Custom pathway draw failed")
+            self._msg_error("Pathway Error", str(e))
 
     def _kegg_demo(self):
         from ...core.pathway_viz import (
@@ -207,12 +239,16 @@ class WorkflowTabMixin:
             draw_pathway,
             format_pathway_report,
         )
-        pm = create_kegg_style_pathway()
-        self.pathway_info.delete("1.0", "end")
-        self.pathway_info.insert("end", format_pathway_report(pm))
-        fig = draw_pathway(pm)
-        self._record_plot(fig, "KEGG-Style Pathway")
-        self._show_plot_from_figure(fig, "KEGG-Style Pathway")
+        try:
+            pm = create_kegg_style_pathway()
+            self.pathway_info.delete("1.0", "end")
+            self.pathway_info.insert("end", format_pathway_report(pm))
+            fig = draw_pathway(pm)
+            self._record_plot(fig, "KEGG-Style Pathway")
+            self._show_plot_from_figure(fig, "KEGG-Style Pathway")
+        except Exception as e:
+            log_exception(logger, "KEGG demo draw failed")
+            self._msg_error("Pathway Error", str(e))
 
 
 
@@ -249,6 +285,7 @@ class WorkflowTabMixin:
         try:
             self._gwas_data = pd.read_csv(path)
         except Exception as e:
+            log_exception(logger, "GWAS CSV load failed")
             self._msg_error("Error", f"Could not load CSV: {e}")
             return
         self.gwas_results.delete("1.0", "end")
@@ -266,6 +303,7 @@ class WorkflowTabMixin:
             self.gwas_results.insert("end", format_gwas_report(results, leads))
             self._set_status(f"GWAS: analysed {len(self._gwas_data)} SNPs")
         except Exception as e:
+            log_exception(logger, "GWAS analysis of loaded CSV failed")
             self._msg_error("GWAS Error", str(e))
 
     def _gwas_demo(self):
@@ -327,4 +365,5 @@ class WorkflowTabMixin:
             self.epi_results.delete("1.0", "end")
             self.epi_results.insert("end", format_epitope_report(tc, bc, "input"))
         except Exception as e:
+            log_exception(logger, "Epitope prediction failed")
             self._msg_error("Epitope Error", str(e))

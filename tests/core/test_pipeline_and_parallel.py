@@ -1,6 +1,4 @@
 """Workflow pipeline + core/parallel executor behaviours."""
-import pytest
-
 from biosuite.core.workflow.pipeline import Pipeline, PipelineStep
 from biosuite.core import parallel as par
 
@@ -100,12 +98,34 @@ def test_get_optimal_workers_sane():
 
 
 def test_parallel_batch_processor_items():
-    import inspect
-    sig = inspect.signature(par.ParallelBatchProcessor.__init__)
-    print(sig)
+    """``process()`` keeps input order across batches and counts what it ran.
+
+    The old version of this test looked for a ``run`` method the class never had,
+    skipped itself and reported nothing.
+    """
     proc = par.ParallelBatchProcessor(workers=2)
-    if hasattr(proc, 'run'):
-        out = proc.run(lambda x: x * 2, [1, 2, 3])
-        assert sorted(out) == [2, 4, 6]
-    else:
-        pytest.skip('ParallelBatchProcessor signature differs')
+    seen = []
+
+    out = proc.process(lambda x, **kw: x * 2, [1, 2, 3], batch_size=2,
+                       progress_callback=lambda done, total: seen.append((done, total)))
+
+    assert out == [2, 4, 6]
+    assert proc.stats["total"] == 3 and proc.stats["completed"] == 3
+    assert proc.stats["failed"] == 0
+    assert seen == [(2, 3), (3, 3)], "progress is reported per finished batch"
+
+
+def test_parallel_batch_processor_records_a_failed_item_without_reordering():
+    proc = par.ParallelBatchProcessor(workers=2)
+
+    def half(x):
+        if x == 2:
+            raise ValueError("bad item")
+        return x
+
+    out = proc.process(half, [1, 2, 3, 4], batch_size=2)
+
+    assert out == [1, None, 3, 4], "a failed item keeps its position as None"
+    assert proc.stats["total"] == 4
+    assert proc.stats["completed"] == 4
+    assert proc.stats["failed"] == 1

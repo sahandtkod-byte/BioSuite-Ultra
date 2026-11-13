@@ -33,13 +33,17 @@ class Tooltip:
 
     def _schedule(self, event=None):
         self._cancel()
-        self._after_id = self._widget.after(self._delay, self._show)
+        try:
+            self._after_id = self._widget.after(self._delay, self._show)
+        except tk.TclError:
+            # The widget's Tk peer can disappear between the hover and this call.
+            self._after_id = None
 
     def _cancel(self):
         if self._after_id is not None:
             try:
                 self._widget.after_cancel(self._after_id)
-            except Exception:
+            except tk.TclError:
                 pass
             self._after_id = None
 
@@ -49,7 +53,7 @@ class Tooltip:
         try:
             if not self._widget.winfo_exists():
                 return
-        except Exception:
+        except tk.TclError:
             return
         T = self._T
         tip = tk.Toplevel(self._widget)
@@ -64,15 +68,18 @@ class Tooltip:
                          bg=bg, fg=fg, font=('Segoe UI', 10),
                          padx=self.PAD_X, pady=6, wraplength=280)
         label.pack(padx=1, pady=1)
-        # Position: below the widget, clamped to screen
+        # Position: below the widget, clamped to the screen edges
         self._widget.update_idletasks()
         x = self._widget.winfo_rootx()
         y = self._widget.winfo_rooty() + self._widget.winfo_height() + self.OFFSET_Y
         tip.update_idletasks()
         sw = tip.winfo_screenwidth()
+        sh = tip.winfo_screenheight()
         if x + tip.winfo_reqwidth() > sw:
             x = sw - tip.winfo_reqwidth() - 8
-        tip.geometry(f"+{max(0, x)}+{y}")
+        if y + tip.winfo_reqheight() > sh:
+            y = sh - tip.winfo_reqheight() - 8
+        tip.geometry(f"+{max(0, x)}+{max(0, y)}")
         self._tip = tip
 
     def _hide(self, event=None):
@@ -80,7 +87,7 @@ class Tooltip:
         if self._tip is not None:
             try:
                 self._tip.destroy()
-            except Exception:
+            except tk.TclError:
                 pass
             self._tip = None
 
@@ -91,5 +98,5 @@ def attach_tooltip(widget, text, theme=None):
         return None
     try:
         return Tooltip(widget, text, theme)
-    except Exception:
+    except tk.TclError:
         return None

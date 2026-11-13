@@ -5,7 +5,6 @@ with optional parallel branches for independent steps.
 """
 import copy
 import inspect
-import threading
 import time
 import traceback
 from collections import OrderedDict
@@ -23,6 +22,10 @@ class PipelineStep:
         self.description = description
         self.result = None
         self.error = None
+        # Every other piece of run state is initialised here; traceback was
+        # only created by run(), so reading it from a step that never ran
+        # raised AttributeError while a failed step exposed it.
+        self.traceback = None
         self.elapsed = 0.0
         self.status = "pending"
 
@@ -97,7 +100,6 @@ class Pipeline:
         self.steps = []
         self._initial_context = {}
         self.context = {}
-        self._lock = threading.Lock()
         self.results = OrderedDict()
         self._log = []
 
@@ -109,23 +111,43 @@ class Pipeline:
                 make the two steps overwrite each other in ``results`` and in
                 the shared context.
         """
-        if any(existing.name == name for existing in self.steps):
-            raise ValueError(
-                f"duplicate pipeline step name {name!r}; step names must be "
-                "unique because results and context entries are keyed by name")
+        self._require_unique_name(name)
         step = PipelineStep(name, func, args, kwargs, description)
         self.steps.append(step)
         return self
 
     def add_steps(self, step_list):
+        """Append several steps from dicts, tuples/lists or PipelineStep objects.
+
+        Raises:
+            TypeError: for an item that is none of those — silently dropping a
+                misspelled step turned a pipeline into a shorter one.
+            ValueError: on a duplicate step name, including for pre-built
+                ``PipelineStep`` objects (see :meth:`add_step`).
+        """
         for s in step_list:
             if isinstance(s, dict):
                 self.add_step(**s)
             elif isinstance(s, (list, tuple)):
                 self.add_step(*s)
             elif isinstance(s, PipelineStep):
+                # Appending directly used to bypass the duplicate-name guard,
+                # so two pre-built steps with one name silently overwrote each
+                # other's entry in results and in the shared context.
+                self._require_unique_name(s.name)
                 self.steps.append(s)
+            else:
+                raise TypeError(
+                    f"pipeline step must be a dict, a list/tuple, or a "
+                    f"PipelineStep, not {type(s).__name__}: {s!r}")
         return self
+
+    def _require_unique_name(self, name):
+        """Reject a step name that is already taken (results key on it)."""
+        if any(existing.name == name for existing in self.steps):
+            raise ValueError(
+                f"duplicate pipeline step name {name!r}; step names must be "
+                "unique because results and context entries are keyed by name")
 
     def set_context(self, **kwargs):
         """Set values available to every step of the *next* run."""
@@ -159,6 +181,13 @@ class Pipeline:
         else:
             self._run_sequential(stop_on_error)
 
+        # Step order, not completion order: the results are an OrderedDict and a
+        # parallel run used to fill it as threads finished, so two runs of the
+        # same pipeline produced two different sequences.
+        self.results = OrderedDict(
+            (step.name, step.result) for step in self.steps
+            if step.name in self.results)
+
         total = time.time() - start
         self._log.append(f"Pipeline '{self.name}' finished in {total:.2f}s")
         return self
@@ -175,41 +204,89 @@ class Pipeline:
             else:
                 self._log.append(f"  FAILED: {step.error}")
                 if stop_on_error:
+                    skipped = len(self.steps) - i - 1
+                    if skipped:
+                        names = ", ".join(s.name for s in self.steps[i + 1:])
+                        self._log.append(
+                            f"  Stopped after {step.name}: {skipped} step(s) "
+                            f"({names}) were not run")
                     break
 
     def _run_parallel(self, max_workers, stop_on_error):
-        """Run all steps concurrently.
+        """Run the steps concurrently, each with the context as it stood before.
 
-        Note:
-            Every step is submitted with the context as it stood *before* the
-            run started, so ``max_workers > 1`` is only correct for mutually
-            independent steps.  Use the default sequential mode when a step
-            consumes an earlier step's output.
+        Every step is submitted with its own snapshot of the context, so in
+        parallel mode steps cannot see each other's output and a pipeline whose
+        steps chain must run with the default ``max_workers=1``.  Completed
+        results are still recorded on ``self.context`` for whoever reads the
+        finished pipeline.  (The previous note said the steps saw the pre-run
+        context while the loop kept inserting results into that very dict, so a
+        step that happened to start late read another's output — the isolation
+        was a timing accident rather than a property.)
         """
+        snapshot = dict(self.context)
+        stopped_at = None
+        collected = set()
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
             for i, step in enumerate(self.steps):
                 self._log.append(f"[{i+1}] Submitting: {step.name}")
-                futures[executor.submit(step.run, self.context)] = step
+                futures[executor.submit(step.run, snapshot)] = step
 
             for future in as_completed(futures):
                 step = futures[future]
-                if step.status == "done":
-                    with self._lock:
-                        self.results[step.name] = step.result
-                        if step.result is not None:
-                            self.context[step.name] = step.result
-                    self._log.append(f"  {step.name} done in {step.elapsed:.2f}s")
+                collected.add(step.name)
+                self._record(step)
+                if stopped_at is None and stop_on_error and step.status == "failed":
+                    stopped_at = step.name
+                    break
+
+            if stopped_at is not None:
+                # Cancelling the queue here rather than while as_completed was
+                # still live: on CPython 3.13 a future cancelled mid-iteration
+                # never wakes the waiter, and the run hangs (measured: 4 of 8
+                # quick steps yielded, then nothing).
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        if stopped_at is not None:
+            # The with block has waited for every step that had already started.
+            # Those are collected now — a step that finished after the break used
+            # to be left 'done' with no result and no log line — and the ones
+            # that never started are named instead of silently kept 'pending'.
+            for step in self.steps:
+                if step.name in collected:
+                    continue
+                if step.status == "pending":
+                    step.status = "cancelled"
+                    self._log.append(f"  {step.name} cancelled: not started")
                 else:
-                    self._log.append(f"  {step.name} FAILED: {step.error}")
-                    if stop_on_error:
-                        executor.shutdown(wait=False, cancel_futures=True)
-                        break
+                    self._record(step)
+            not_run = [s.name for s in self.steps if s.status == "cancelled"]
+            self._log.append(
+                f"  Stopped on {stopped_at}"
+                + (f": {len(not_run)} step(s) did not run ({', '.join(not_run)})"
+                   if not_run else ""))
+
+    def _record(self, step):
+        """File one finished step under its own name, in the context too.
+
+        The result is never handed back to a running step: those read only the
+        snapshot taken before the run, so the isolation the parallel mode
+        promises is a property of this method's timing, not an accident of it.
+        """
+        if step.status == "done":
+            self.results[step.name] = step.result
+            if step.result is not None:
+                self.context[step.name] = step.result
+            self._log.append(f"  {step.name} done in {step.elapsed:.2f}s")
+        else:
+            self._log.append(f"  {step.name} FAILED: {step.error}")
 
     def summary(self):
         lines = [f"Pipeline: {self.name}", f"Steps: {len(self.steps)}", ""]
         for i, step in enumerate(self.steps):
-            status_icon = {"done": "+", "failed": "X", "pending": "-", "running": "~"}.get(step.status, "?")
+            status_icon = {"done": "+", "failed": "X", "pending": "-", "running": "~",
+                           "cancelled": "o"}.get(step.status, "?")
             lines.append(f"  [{status_icon}] {i+1}. {step.name} ({step.elapsed:.2f}s)")
             if step.error:
                 lines.append(f"      Error: {step.error}")

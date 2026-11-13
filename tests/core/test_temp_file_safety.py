@@ -20,6 +20,15 @@ from biosuite.core.utils import secure_temp_path, wrote_output
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PACKAGE = REPO / "biosuite"
 
+# Windows does not model POSIX permission bits: os.chmod() there only toggles
+# the read-only flag, and a freshly created file reports 0o666 no matter which
+# mode was requested.  The private-mode guarantee is therefore asserted on the
+# platform that enforces it (CI runs ubuntu-latest) instead of being watered
+# down to an assertion that could never fail.
+POSIX_MODES = pytest.mark.skipif(
+    os.name != "posix",
+    reason="POSIX mode bits are emulated on Windows; 0o600 is not observable")
+
 
 # ── secure_temp_path ────────────────────────────────────────────────────────
 
@@ -31,6 +40,7 @@ def test_the_path_is_reserved_not_merely_predicted():
         os.unlink(path)
 
 
+@POSIX_MODES
 def test_the_file_is_created_private():
     path = secure_temp_path()
     try:
@@ -51,6 +61,7 @@ def test_paths_are_unique():
 def test_suffix_and_prefix_are_honoured():
     path = secure_temp_path(suffix=".fasta", prefix="unit_")
     try:
+        assert isinstance(path, str), "callers build on it with os.path, not with /"
         assert path.endswith(".fasta")
         assert os.path.basename(path).startswith("unit_")
     finally:
@@ -93,16 +104,47 @@ def test_a_missing_path_is_not_output():
     assert wrote_output(path) is False
 
 
-@pytest.mark.parametrize("bad", ["\x00", "", None, 123, b"\x00bytes"])
-def test_malformed_input_returns_false_rather_than_raising(bad):
-    """'\\x00' raises ValueError, not OSError - caught by this test."""
+@pytest.mark.parametrize("bad", ["\x00", "", 123, b"\x00bytes"])
+def test_a_malformed_path_is_not_output(bad):
+    """`os.path.isfile` swallows the `ValueError` an embedded null raises in the
+    stat itself — measured, `isfile('\\x00')` is False — so `wrote_output`'s own
+    guard only has to cover the `OSError` race.  `123` is read as a file
+    descriptor and answers False for the same reason."""
     assert wrote_output(bad) is False
 
 
-def test_a_directory_is_not_output():
-    import tempfile
-    with tempfile.TemporaryDirectory() as d:
-        assert wrote_output(d) is False or os.path.getsize(d) > 0
+def test_an_object_that_is_not_a_path_is_a_caller_bug_and_says_so():
+    """The old code answered `False`, which sent the caller down its "the tool
+    produced nothing" branch: our plumbing error became a report that blamed SPAdes
+    or muscle.  Every real call site passes `secure_temp_path()`'s own return value,
+    so a non-path can only be a programming error.  `os.path.isfile` already raises
+    `TypeError` on it; the guard here does not catch that."""
+    with pytest.raises(TypeError):
+        wrote_output(None)
+
+
+def test_a_file_deleted_between_the_two_stats_is_no_output(tmp_path, monkeypatch):
+    """A reserved name is not a claim on the filesystem: a temp sweep can delete the
+    file after `isfile()` has already said yes."""
+    path = str(tmp_path / "out.txt")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("chrom\tpos\n")
+
+    def gone(*args, **kwargs):
+        raise FileNotFoundError(2, "No such file or directory")
+
+    monkeypatch.setattr(os.path, "getsize", gone)
+    assert wrote_output(path) is False
+
+
+def test_a_directory_at_the_path_is_not_output(tmp_path):
+    """Measured on this machine: `getsize()` of a directory returns 0, so the old
+    `exists()` + `getsize() > 0` answered False by a coincidence of the platform's
+    stat semantics rather than by any rule.  `isfile()` makes it a rule: only a file
+    that holds bytes counts as output, whatever the directory reports."""
+    directory = tmp_path / "out"
+    directory.mkdir()
+    assert wrote_output(str(directory)) is False
 
 
 # ── static guards against reintroducing the patterns ────────────────────────

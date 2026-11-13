@@ -94,8 +94,10 @@ def _setup_root():
             '%(asctime)s %(levelname)s [%(name)s] %(funcName)s:%(lineno)d %(message)s'
         ))
         root.addHandler(fh)
-    except Exception:
-        pass  # File logging is optional
+    except OSError:
+        # The console handler above is already installed; a read-only home
+        # directory, a missing HOME or a full disk costs the file copy only.
+        pass
 
 
 def get_logger(name: str = None) -> "logging.Logger":
@@ -126,6 +128,20 @@ def log_performance(func_name: str, elapsed_ms: float, details: str = "") -> Non
     if details:
         msg += f" ({details})"
     get_logger('biosuite.performance').info(msg)
+
+
+def log_exception(logger: logging.Logger, message: str) -> None:
+    """Log exception type and frame locations without private messages or source."""
+    exc_type, _, trace = sys.exc_info()
+    locations = []
+    while trace is not None:
+        code = trace.tb_frame.f_code
+        locations.append(
+            f'  File "{code.co_filename}", line {trace.tb_lineno}, in {code.co_name}')
+        trace = trace.tb_next
+    diagnostic = Exception(
+        f"{exc_type.__name__}: [message redacted]\n" + "\n".join(locations))
+    logger.exception(message, exc_info=(type(diagnostic), diagnostic, None))
 
 
 def log_warning(message: str, module: str = None) -> None:

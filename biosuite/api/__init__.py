@@ -15,7 +15,6 @@ API Documentation:
     http://localhost:8000/docs (Swagger UI)
     http://localhost:8000/redoc (ReDoc)
 """
-import logging
 import functools
 import os
 import re
@@ -25,7 +24,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import unquote
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
+import matplotlib
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -37,19 +37,30 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from biosuite import __version__
-from biosuite.api.auth import verify_api_key
+from biosuite.api.auth import (
+    api_key_header,
+    key_matches,
+    public_endpoint,
+    verify_api_key,
+)
 from biosuite.api.config import dev_mode
 from biosuite.api.security import (
-    ADMIN_USERNAME,
     admin_login_enabled,
     authenticate_admin,
     create_access_token,
     verify_admin_token,
 )
+from biosuite.core.log import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+__all__ = ["app"]
 
 # ── App Setup ────────────────────────────────────────────────────────────────
+
+# Figures leave this server as PNG or base64, never on a display; the headless
+# backend belongs here, not in the import body of an analysis module (F2-4).
+matplotlib.use("Agg")
 
 # Interactive documentation publishes the full endpoint surface, so it is only
 # mounted anonymously in explicit dev mode.  Otherwise it is re-registered
@@ -335,8 +346,17 @@ class DifferentialExpressionRequest(BaseModel):
             raise ValueError(
                 f"conditions ({len(self.conditions)}) must match the number of "
                 f"count columns ({width})")
-        if len(set(self.conditions)) != 2:
+        groups = set(self.conditions)
+        if len(groups) != 2:
             raise ValueError("conditions must contain exactly two distinct groups")
+        # A one-vs-one comparison has no within-group variance, so the t-test comes
+        # back NaN and the response then dies in strict JSON encoding with an
+        # "Out of range float values" 422 that blames the client's format.
+        smallest = min(self.conditions.count(g) for g in groups)
+        if smallest < 2:
+            raise ValueError(
+                f"every group needs at least two samples for a variance estimate "
+                f"(smallest group has {smallest})")
         return self
 
 class CRISPRRequest(BaseModel):
@@ -461,27 +481,30 @@ curl -X POST "http://localhost:8000/api/v1/alignment/needleman-wunsch" \\
 def _count_analysis_modules() -> int:
     """Number of analysis modules actually present in this installation.
 
-    Counted from the package rather than hard-coded, so /health cannot drift
-    away from reality when modules are added or removed.
+    Delegates to :func:`biosuite.core.utils.count_analysis_modules` so ``/health``
+    and the CLI report cannot disagree about what the package contains.
     """
-    from pathlib import Path
-    import biosuite.core as core_pkg
-    root = Path(core_pkg.__file__).parent
-    modules = {p.stem for p in root.glob("*.py") if p.stem != "__init__"}
-    modules |= {f"workflow.{p.stem}" for p in (root / "workflow").glob("*.py")
-                if p.stem != "__init__"}
-    return len(modules)
+    from biosuite.core.utils import count_analysis_modules
+    return count_analysis_modules()
 
 
 @app.get("/health")
-async def health():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "version": __version__,
-        "modules": _count_analysis_modules(),
-        "timestamp": time.time()
-    }
+@public_endpoint
+async def health(key: str = Security(api_key_header)):
+    """Liveness probe, reachable without a key (FIX-23).
+
+    Anonymous callers get status and timestamp only; version and module inventory
+    require the key.  Exempt from the shared rate limit so load cannot make a
+    healthy server look dead to the monitor.
+    """
+    body = {"status": "healthy", "timestamp": time.time()}
+    if key_matches(key):
+        body["version"] = __version__
+        body["modules"] = _count_analysis_modules()
+    return body
+
+
+limiter.exempt(health)
 
 @app.get("/api/v1/modules")
 async def list_modules():
@@ -499,7 +522,11 @@ async def list_modules():
             {"name": "phylogeny", "endpoints": ["/api/v1/phylogeny/*"], "description": "Phylogenetic analysis"},
             {"name": "popgen", "endpoints": ["/api/v1/popgen/*"], "description": "Population genetics"},
         ],
-        "total_endpoints": 50,
+        # Derived, not hand-counted: the hard-coded 50 this replaced drifted from
+        # the real surface the moment a route was added or removed.
+        "total_endpoints": sum(
+            1 for r in app.routes
+            if getattr(r, "path", "").startswith("/api/v1")),
         "documentation": "/docs"
     }
 # ── Admin (JWT) ──────────────────────────────────────────────────────────────
@@ -635,10 +662,10 @@ async def api_blast_search(req: BLASTRequest):
     """Sequence similarity search using built-in k-mer engine."""
     import tempfile
 
-    from biosuite.core.blast import format_blast_result, run_blast
+    from biosuite.core.blast import run_blast
 
     # Create temp query file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False, encoding="utf-8") as f:
         f.write(f">query\n{req.query}\n")
         query_file = f.name
 
@@ -656,15 +683,20 @@ async def api_blast_search(req: BLASTRequest):
             result = run_blast(query_file, query_file, evalue=req.evalue)
 
         return {
-            "num_hits": result.num_hits,
-            "engine": result.engine,
+            # Every value is cast to a plain Python type.  ``numpy.int64`` is *not* a
+            # subclass of ``int``, so FastAPI's jsonable_encoder walked into
+            # ``vars()`` on it and this endpoint answered a valid request with
+            # ``422 Invalid input: ['numpy.int64' object is not iterable]`` — it had
+            # never once returned a hit list.
+            "num_hits": int(result.num_hits),
+            "engine": str(result.engine),
             "hits": [
                 {
-                    "subject_id": h.subject_id,
-                    "identity": round(h.percent_identity, 2),
-                    "e_value": h.e_value,
-                    "score": h.bit_score,
-                    "alignment_length": h.alignment_length
+                    "subject_id": str(h.subject_id),
+                    "identity": round(float(h.percent_identity), 2),
+                    "e_value": float(h.e_value),
+                    "score": float(h.bit_score),
+                    "alignment_length": int(h.alignment_length)
                 }
                 for h in result.top_hits(20)
             ]
@@ -701,44 +733,74 @@ async def api_differential_expression(req: DifferentialExpressionRequest):
         "results": result.to_dict(orient='records')
     }
 
+def _counts_frame(counts: Dict[str, List[int]]):
+    """Build the genes-as-rows count matrix every ``core.expression`` function wants.
+
+    ``counts`` maps gene -> per-sample counts.  ``pd.DataFrame(counts)`` — which three
+    of the normalization endpoints used — makes the genes the *columns*, so each gene
+    was divided by its own total: CPM summed to 1e6 per gene instead of per sample.
+    It is the same transpose the differential-expression endpoint carried before
+    FIX-4, and it is invisible in the response shape, which is why it stayed hidden.
+    """
+    import pandas as pd
+
+    if not counts:
+        raise HTTPException(status_code=422, detail="counts must contain at least one gene")
+    widths = {len(v) for v in counts.values()}
+    if len(widths) != 1:
+        raise HTTPException(status_code=422,
+                            detail="every gene must have the same number of count columns")
+    width = widths.pop()
+    if not width:
+        raise HTTPException(status_code=422, detail="every gene needs at least one count column")
+
+    df = pd.DataFrame.from_dict(counts, orient='index',
+                                columns=[f"sample{i + 1}" for i in range(width)])
+    df.index.name = 'gene'
+    return df
+
+
 @app.post("/api/v1/expression/normalize/cpm")
 async def api_cpm_normalization(counts: Dict[str, List[int]]):
-    """CPM normalization."""
+    """CPM normalization — each sample is scaled to one million counts."""
     import numpy as np
-    import pandas as pd
 
     from biosuite.core.expression import cpm_normalization
 
-    df = pd.DataFrame(counts)
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    df = _counts_frame(counts)
     result = cpm_normalization(df)
-    return {"normalized": result[numeric_cols].to_dict(orient='list')}
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    # Transposed back so the caller gets the same {gene: [...]} shape it sent.
+    return {"normalized": result[numeric_cols].T.to_dict(orient='list')}
+
 
 @app.post("/api/v1/expression/normalize/tpm")
 async def api_tpm_normalization(counts: Dict[str, List[int]], gene_lengths: List[float]):
-    """TPM normalization."""
-    import numpy as np
-    import pandas as pd
-
+    """TPM normalization, correcting for both depth and transcript length."""
     from biosuite.core.expression import tpm_normalization
 
-    df = pd.DataFrame(counts)
+    df = _counts_frame(counts)
+    if len(gene_lengths) != len(df):
+        raise HTTPException(
+            status_code=422,
+            detail=f"gene_lengths must have one entry per gene "
+                   f"(got {len(gene_lengths)} for {len(df)} genes)")
     result = tpm_normalization(df, gene_lengths)
-    numeric_cols = result.select_dtypes(include=[np.number]).columns
-    return {"normalized": result[numeric_cols].to_dict(orient='list')}
+    numeric_cols = df.select_dtypes(include=["number"]).columns
+    return {"normalized": result[numeric_cols].T.to_dict(orient='list')}
+
 
 @app.post("/api/v1/expression/normalize/deseq2")
 async def api_deseq2_normalization(counts: Dict[str, List[int]]):
     """DESeq2 median-of-ratios normalization."""
     import numpy as np
-    import pandas as pd
 
     from biosuite.core.expression import deseq2_normalization
 
-    df = pd.DataFrame(counts)
+    df = _counts_frame(counts)
     result = deseq2_normalization(df)
-    numeric_cols = result.select_dtypes(include=[np.number]).columns
-    return {"normalized": result[numeric_cols].to_dict(orient='list')}
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    return {"normalized": result[numeric_cols].T.to_dict(orient='list')}
 
 # ── CRISPR ───────────────────────────────────────────────────────────────────
 
@@ -866,7 +928,7 @@ async def api_upgma(sequences: List[str]):
 
     mat = distance_matrix(sequences)
     labels = [f"seq_{i}" for i in range(len(sequences))]
-    linkage = upgma_tree(mat, labels)
+    linkage = upgma_tree(mat)
 
     return {
         "linkage_matrix": linkage.tolist(),
@@ -879,23 +941,12 @@ async def api_upgma(sequences: List[str]):
 @app.post("/api/v1/popgen/hwe")
 async def api_hwe(genotype_counts: Dict[str, int]):
     """Hardy-Weinberg equilibrium test."""
-    import numpy as np
-
     from biosuite.core.popgen import hardy_weinberg_test
 
-    result = hardy_weinberg_test(genotype_counts)
-    # Convert numpy types to Python types for JSON serialization
-    def _convert(obj):
-        if isinstance(obj, (np.bool_,)):
-            return bool(obj)
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            return float(obj)
-        if isinstance(obj, dict):
-            return {k: _convert(v) for k, v in obj.items()}
-        return obj
-    return _convert(result)
+    # ``hardy_weinberg_test`` already hands back plain Python floats and bools, so
+    # there is nothing to convert: the walk over the result that used to sit here
+    # had three branches no real input could reach.
+    return hardy_weinberg_test(genotype_counts)
 
 @app.post("/api/v1/popgen/fst")
 async def api_fst(populations: List[List[List[int]]]):
@@ -983,23 +1034,27 @@ async def api_heatmap(data: List[List[float]], title: str = "Heatmap"):
 
 @app.post("/api/v1/workflow/pipeline")
 async def api_run_pipeline(steps: List[Dict[str, Any]]):
-    """Run a pipeline of analysis steps."""
-    from biosuite.core.workflow.pipeline import Pipeline
+    """Run a pipeline of analysis steps — not wired up, and says so.
 
-    # build the pipeline object; per-step dynamic dispatch not yet wired
-    Pipeline("api_pipeline")
-    for step in steps:
-        step.get('function', '')
-        step.get('args', {})
-
-    return {"status": "Pipeline execution not yet implemented via API", "steps": len(steps)}
+    This used to answer 200 with ``{"status": "Pipeline execution not yet
+    implemented via API"}``: a client checking the status code — which is what every
+    OpenAPI client generator does — read that as a executed pipeline.  Executing
+    ``step["function"]`` would also mean dispatching arbitrary names taken from an
+    HTTP body, so it needs the same allow-list the CLI's ``resolve_safe_callable``
+    uses before it can exist.
+    """
+    raise HTTPException(
+        status_code=501,
+        detail=(f"Pipeline execution is not available over the API; "
+                f"{len(steps)} step(s) were not run. Call the analysis endpoints "
+                f"directly, or use biosuite.core.workflow.pipeline in Python."))
 
 # ── Database Search ──────────────────────────────────────────────────────────
 
 @app.get("/api/v1/database/ncbi")
 async def api_search_ncbi(query: str = Query(..., description="Search query"), max_results: int = 10):
     """Search NCBI databases."""
-    from biosuite.core.databases import format_search_results, search_ncbi
+    from biosuite.core.databases import search_ncbi
 
     result = search_ncbi(query, max_results=max_results)
     return {"results": result.records, "count": result.data.get('count', 0)}

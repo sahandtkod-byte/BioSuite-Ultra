@@ -13,7 +13,6 @@ from typing import List, Optional, Tuple
 
 import matplotlib.patches as mpatches
 
-# matplotlib.use("Agg")  # Removed: caller manages backend
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -34,9 +33,47 @@ DEFAULT_COLORS = {
 }
 
 
-def _random_seq(length: int) -> str:
-    """Generate a random DNA sequence of given length."""
-    return "".join(random.choices("ATCG", k=length))
+# Public surface. ``biosuite/plotting/__init__.py`` star-imports this
+# module, and without this list it re-exports the module's own imports
+# (numpy, pandas, os, plotly, ...) as package-level names too.
+__all__ = [
+    'DEFAULT_COLORS',
+    'PlasmidFeature',
+    'PlasmidMap',
+    'draw_plasmid',
+    'draw_plasmid_with_annotations',
+    'create_sample_plasmid',
+    'format_plasmid_report',
+]
+
+#: The two drawings differ only in radii, label text and a few font sizes; they
+#: used to be two ninety-line copies that had already drifted (0.07 vs 0.09 band
+#: widths, 0.28 vs 0.32 label radius).
+_STYLES = {
+    False: dict(band_outer=0.07, band_inner=0.07, label_r=0.28, label_size=8,
+                label_position=False, alpha=0.75, backbone_lw=1.5, marker_size=5,
+                marker_offset=0.08, centre_size=12, ylim=1.6, arc_step=0.005,
+                arc_min=30),
+    True: dict(band_outer=0.09, band_inner=0.05, label_r=0.32, label_size=7,
+               label_position=True, alpha=0.8, backbone_lw=1.8, marker_size=4.5,
+               marker_offset=0.09, centre_size=11, ylim=1.7, arc_step=0.004,
+               arc_min=40),
+}
+
+#: Extra radii a colliding label may move out to, in axis units.
+_LABEL_RINGS = (0.0, 0.10, 0.20)
+#: Two labels closer than this (radians) would overlap at the base radius.
+_MIN_LABEL_GAP = 0.12
+
+
+def _random_seq(length: int, rng=None) -> str:
+    """Generate a DNA filler sequence of *length* bases.
+
+    *rng* is any object with ``choices`` — ``create_sample_plasmid`` passes a
+    seeded ``random.Random`` so the sample is the same plasmid on every run.
+    """
+    generator = rng if rng is not None else random
+    return "".join(generator.choices("ATCG", k=length))
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +81,12 @@ def _random_seq(length: int) -> str:
 # ---------------------------------------------------------------------------
 @dataclass
 class PlasmidFeature:
-    """A single annotated feature on a plasmid."""
+    """A single annotated feature on a plasmid.
+
+    ``end`` may be smaller than ``start`` for a feature that crosses the origin;
+    such a feature is drawn as one arc running past the top of the map.  A
+    negative coordinate is refused: it cannot be placed on a circle.
+    """
     name: str
     start: int
     end: int
@@ -54,10 +96,24 @@ class PlasmidFeature:
     label: Optional[str] = None
 
     def __post_init__(self):
+        if self.start < 0 or self.end < 0:
+            raise ValueError(
+                f"feature {self.name!r} has a negative coordinate "
+                f"({self.start}..{self.end}); positions on a plasmid start at 0")
         if self.color is None:
             self.color = DEFAULT_COLORS.get(self.feature_type, "#607D8B")
         if self.label is None:
             self.label = self.name
+
+    def span(self, total: int = 0) -> int:
+        """Length in bp, taking an origin-crossing feature past ``total``.
+
+        ``end - start`` reported a feature that wraps the origin as a negative
+        length (measured: a 600..300 feature on a 1000 bp plasmid printed -300).
+        """
+        if self.end >= self.start:
+            return self.end - self.start
+        return (total - self.start) + self.end if total else self.end - self.start
 
 
 class PlasmidMap:
@@ -67,23 +123,31 @@ class PlasmidMap:
                  description: str = "", sequence: Optional[str] = None):
         self.name = name
         self.description = description
+        #: True when ``sequence`` is generated filler rather than a real record.
+        self.sequence_is_synthetic = False
         if sequence is not None:
             self.sequence = sequence.upper()
             self.size = len(self.sequence)
         else:
             self.size = size
             self.sequence = _random_seq(size) if size > 0 else ""
+            self.sequence_is_synthetic = size > 0
         self.features: List[PlasmidFeature] = []
 
-    def add_feature(self, feature: PlasmidFeature, **kwargs) -> PlasmidMap:
+    def add_feature(self, feature, **kwargs) -> PlasmidMap:
         """Add a PlasmidFeature (object or keyword args) to the map."""
-        if isinstance(feature, PlasmidFeature):
-            self.features.append(feature)
-        else:
-            self.features.append(PlasmidFeature(feature, **kwargs))
+        feat = feature if isinstance(feature, PlasmidFeature) else \
+            PlasmidFeature(feature, **kwargs)
+        if self.size > 0 and max(feat.start, feat.end) > self.size:
+            raise ValueError(
+                f"feature {feat.name!r} ends at {max(feat.start, feat.end)} on a "
+                f"{self.size} bp plasmid; a feature that crosses the origin is "
+                "written with its start after its end")
+        self.features.append(feat)
         return self
 
     def set_size(self, bp: int) -> PlasmidMap:
+        """Change the size in bp.  The sequence, if any, is left as it is."""
         self.size = bp
         return self
 
@@ -104,45 +168,80 @@ def _bp_to_angle(bp: int, total: float) -> float:
     return (bp / total) * 2 * math.pi
 
 
-def draw_plasmid(plasmid_map: PlasmidMap, figsize: Tuple[int, int] = (10, 10),
-                 ax: Optional[plt.Axes] = None) -> plt.Figure:
-    """
-    Draw a circular plasmid map.
-
-    Returns matplotlib Figure.
-    """
-    total = plasmid_map.size if plasmid_map.size > 0 else 1000
-    r_backbone = 1.0
-
+def _polar_slot(plasmid_map: PlasmidMap, figsize, ax):
+    """Return (fig, ax, owns_figure) for a drawable plasmid and a polar slot."""
+    if plasmid_map.size <= 0:
+        raise ValueError(
+            f"plasmid {plasmid_map.name!r} has no size, so there is no circle to "
+            "draw; give it one (size=... or a sequence) first")
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize, subplot_kw={"projection": "polar"})
-    else:
-        fig = ax.get_figure()
+        return fig, ax, True
+    if getattr(ax, "name", "") != "polar":
+        raise ValueError(
+            "a plasmid map needs a polar axes (fig.add_subplot(projection='polar')); "
+            "drawing angles and radii on a Cartesian axes puts the map on a straight "
+            "line from (0, 0) to (2*pi, 1)")
+    return ax.get_figure(), ax, False
+
+
+def _label_radii(entries, base_r):
+    """A radius per label, lifting the ones that would collide by angle.
+
+    Every label sat on one ring, and the sample plasmid's multiple cloning site
+    (five features inside 52 bp, measured gaps down to 0.003 rad) drew its names
+    on top of each other.
+    """
+    order = sorted(range(len(entries)), key=lambda i: entries[i])
+    placed = []                      # (angle, ring) of the labels already set
+    radii = [base_r] * len(entries)
+    for i in order:
+        angle = entries[i]
+        ring = 0
+        while ring < len(_LABEL_RINGS) and any(
+                abs(angle - other) < _MIN_LABEL_GAP and other_ring == ring
+                for other, other_ring in placed):
+            ring += 1
+        ring = min(ring, len(_LABEL_RINGS) - 1)
+        placed.append((angle, ring))
+        radii[i] = base_r + _LABEL_RINGS[ring]
+    return radii
+
+
+def _draw_map(plasmid_map: PlasmidMap, ax, annotated: bool):
+    """Draw the circular map into a polar axes (the two public drawers' one body)."""
+    style = _STYLES[annotated]
+    total = plasmid_map.size
+    r_backbone = 1.0
 
     ax.set_aspect("equal")
-    ax.set_ylim(0, 1.6)
+    ax.set_ylim(0, style['ylim'])
     ax.set_axis_off()
 
     # Backbone circle
     theta = np.linspace(0, 2 * math.pi, 500)
     ax.plot(theta, np.full_like(theta, r_backbone), color="black",
-            linewidth=1.5, zorder=1)
+            linewidth=style['backbone_lw'], zorder=1)
 
-    # Features
-    for feat in sorted(plasmid_map.features, key=lambda f: f.start):
+    features = sorted(plasmid_map.features, key=lambda f: f.start)
+    arcs = []
+    for feat in features:
         start_angle = _bp_to_angle(feat.start, total)
         end_angle = _bp_to_angle(feat.end, total)
         if end_angle < start_angle:
             end_angle += 2 * math.pi
+        arcs.append((start_angle, end_angle, (start_angle + end_angle) / 2.0))
+    radii = _label_radii([arc[2] for arc in arcs], r_backbone + style['label_r'])
 
-        mid_angle = (start_angle + end_angle) / 2.0
-        outer_r = r_backbone + 0.07
-        inner_r = r_backbone - 0.07
-        n_pts = max(int((end_angle - start_angle) / 0.005), 30)
+    for (start_angle, end_angle, mid_angle), feat, label_r in zip(arcs, features, radii):
+        outer_r = r_backbone + style['band_outer']
+        inner_r = r_backbone - style['band_inner']
+        n_pts = max(int((end_angle - start_angle) / style['arc_step']),
+                    style['arc_min'])
         angles_body = np.linspace(start_angle, end_angle, n_pts)
 
         ax.fill_between(angles_body, inner_r, outer_r, color=feat.color,
-                        alpha=0.75, zorder=3)
+                        alpha=style['alpha'], zorder=3)
 
         # Direction arrow — annotated in POLAR DATA coords (theta, r);
         # the old Cartesian (r·cos, r·sin) landed at random polar spots.
@@ -154,26 +253,31 @@ def draw_plasmid(plasmid_map: PlasmidMap, figsize: Tuple[int, int] = (10, 10),
                                     lw=2, mutation_scale=16),
                     zorder=5)
 
-        # Label outside
-        label_r = r_backbone + 0.28
-        ax.text(mid_angle, label_r, feat.label, fontsize=8, fontweight="bold",
-                ha="center", va="center", color=feat.color, zorder=6,
-                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.8))
+        label_text = (f"{feat.label} ({feat.start}-{feat.end})"
+                      if style['label_position'] else feat.label)
+        ax.text(mid_angle, label_r, label_text, fontsize=style['label_size'],
+                fontweight="bold", ha="center", va="center", color=feat.color,
+                zorder=6,
+                bbox=dict(boxstyle="round,pad=0.15", fc="white",
+                          ec=feat.color if style['label_position'] else "none",
+                          alpha=0.9 if style['label_position'] else 0.8,
+                          linewidth=0.5))
 
     # Size markers every 500 bp
     for bp in range(0, total, 500):
         angle = _bp_to_angle(bp, total)
         ax.plot([angle, angle], [r_backbone - 0.02, r_backbone + 0.02],
                 color="gray", linewidth=0.6, zorder=2)
-        ax.text(angle, r_backbone - 0.08, f"{bp}", fontsize=5,
-                ha="center", va="center", color="gray", zorder=2)
+        ax.text(angle, r_backbone - style['marker_offset'], f"{bp}",
+                fontsize=style['marker_size'], ha="center", va="center",
+                color="gray", zorder=2)
 
     # Centre label
-    ax.text(0, 0, f"{plasmid_map.name}\n{total} bp", fontsize=12,
+    ax.text(0, 0, f"{plasmid_map.name}\n{total} bp", fontsize=style['centre_size'],
             fontweight="bold", ha="center", va="center", zorder=10,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9))
 
-    # Legend
+    # Legend, one entry per feature type
     legend_handles = []
     seen = set()
     for feat in sorted(plasmid_map.features, key=lambda f: f.feature_type):
@@ -187,7 +291,22 @@ def draw_plasmid(plasmid_map: PlasmidMap, figsize: Tuple[int, int] = (10, 10),
                   bbox_to_anchor=(0.5, -0.05),
                   ncol=min(4, len(legend_handles)), fontsize=7, framealpha=0.9)
 
-    fig.tight_layout()
+
+def draw_plasmid(plasmid_map: PlasmidMap, figsize: Tuple[int, int] = (10, 10),
+                 ax: Optional[plt.Axes] = None) -> plt.Figure:
+    """
+    Draw a circular plasmid map.
+
+    Returns matplotlib Figure.
+
+    Raises:
+        ValueError: if the map has no size, or *ax* is not a polar axes (the
+            angles and radii would be drawn as x and y on a straight line).
+    """
+    fig, ax, owns = _polar_slot(plasmid_map, figsize, ax)
+    _draw_map(plasmid_map, ax, annotated=False)
+    if owns:
+        fig.tight_layout()
     return fig
 
 
@@ -197,85 +316,13 @@ def draw_plasmid_with_annotations(plasmid_map: PlasmidMap,
     """
     Draw a plasmid map with richer annotations (feature names, positions,
     colour-coded arcs, and a detailed sidebar legend).
+
+    Raises the same two errors as :func:`draw_plasmid`.
     """
-    total = plasmid_map.size if plasmid_map.size > 0 else 1000
-
-    if ax is None:
-        fig, ax = plt.subplots(figsize=figsize, subplot_kw={"projection": "polar"})
-    else:
-        fig = ax.get_figure()
-
-    ax.set_aspect("equal")
-    ax.set_ylim(0, 1.7)
-    ax.set_axis_off()
-
-    # Backbone
-    theta = np.linspace(0, 2 * math.pi, 500)
-    r_backbone = 1.0
-    ax.plot(theta, np.full_like(theta, r_backbone), color="black",
-            linewidth=1.8, zorder=1)
-
-    # Features — two rings for visual depth
-    for feat in sorted(plasmid_map.features, key=lambda f: f.start):
-        start_angle = _bp_to_angle(feat.start, total)
-        end_angle = _bp_to_angle(feat.end, total)
-        if end_angle < start_angle:
-            end_angle += 2 * math.pi
-        mid_angle = (start_angle + end_angle) / 2.0
-
-        outer_r = r_backbone + 0.09
-        inner_r = r_backbone - 0.05
-        n_pts = max(int((end_angle - start_angle) / 0.004), 40)
-        angles_body = np.linspace(start_angle, end_angle, n_pts)
-
-        ax.fill_between(angles_body, inner_r, outer_r, color=feat.color,
-                        alpha=0.8, zorder=3)
-
-        # Arrow — see draw_plasmid: polar DATA coords, not Cartesian.
-        arrow_angle = end_angle if feat.strand == 1 else start_angle
-        back_angle = arrow_angle - (0.08 if feat.strand == 1 else -0.08)
-        ax.annotate("", xy=(arrow_angle, r_backbone),
-                    xytext=(back_angle, r_backbone),
-                    arrowprops=dict(arrowstyle="-|>", color=feat.color,
-                                    lw=2, mutation_scale=16),
-                    zorder=5)
-
-        # Label with position
-        label_r = r_backbone + 0.32
-        label_text = f"{feat.label} ({feat.start}-{feat.end})"
-        ax.text(mid_angle, label_r, label_text, fontsize=7, fontweight="bold",
-                ha="center", va="center", color=feat.color, zorder=6,
-                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec=feat.color,
-                          alpha=0.9, linewidth=0.5))
-
-    # Size markers
-    for bp in range(0, total, 500):
-        angle = _bp_to_angle(bp, total)
-        ax.plot([angle, angle], [r_backbone - 0.02, r_backbone + 0.02],
-                color="gray", linewidth=0.6, zorder=2)
-        ax.text(angle, r_backbone - 0.09, f"{bp}", fontsize=4.5,
-                ha="center", va="center", color="gray", zorder=2)
-
-    # Centre
-    ax.text(0, 0, f"{plasmid_map.name}\n{total} bp", fontsize=11,
-            fontweight="bold", ha="center", va="center", zorder=10,
-            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9))
-
-    # Legend
-    legend_handles = []
-    seen = set()
-    for feat in sorted(plasmid_map.features, key=lambda f: f.feature_type):
-        if feat.feature_type not in seen:
-            seen.add(feat.feature_type)
-            legend_handles.append(
-                mpatches.Patch(color=feat.color,
-                              label=feat.feature_type.replace("_", " ").title()))
-    if legend_handles:
-        ax.legend(handles=legend_handles, loc="lower center",
-                  bbox_to_anchor=(0.5, -0.05),
-                  ncol=min(4, len(legend_handles)), fontsize=7, framealpha=0.9)
-
-    fig.tight_layout()
+    fig, ax, owns = _polar_slot(plasmid_map, figsize, ax)
+    _draw_map(plasmid_map, ax, annotated=True)
+    if owns:
+        fig.tight_layout()
     return fig
 
 
@@ -288,12 +335,22 @@ def create_sample_plasmid() -> PlasmidMap:
 
     Includes AmpR, ori, and a multiple cloning site with EcoRI, BamHI,
     HindIII, and PstI.
+
+    The backbone is synthetic: a seeded filler with those four recognition sites
+    written in at the offsets the features name, so the map does not advertise a
+    site its own sequence lacks.  It is not the pUC19 reference sequence, and two
+    runs build the same plasmid.
     """
     total_size = 2686
-    seq = _random_seq(total_size)
+    bases = list(_random_seq(total_size, random.Random(42)))
+    for offset, motif in ((396, "GAATTC"), (412, "GGATCC"),
+                          (433, "AAGCTT"), (440, "CTGCAG")):
+        bases[offset:offset + len(motif)] = list(motif)
+    seq = "".join(bases)
 
     p = PlasmidMap(name="pUC19", size=total_size, sequence=seq,
-                   description="Classic E. coli cloning vector (2686 bp)")
+                   description="Synthetic pUC19-like cloning vector (2686 bp)")
+    p.sequence_is_synthetic = True
 
     p.add_feature(PlasmidFeature("AmpR", 1864, 2524, strand=1,
                                  feature_type="antibiotic_resistance"))
@@ -303,7 +360,7 @@ def create_sample_plasmid() -> PlasmidMap:
                                  feature_type="promoter"))
     p.add_feature(PlasmidFeature("rrnB T1", 70, 108, strand=1,
                                  feature_type="terminator"))
-    p.add_feature(PlasmidFeature("EcoRI", 396, 401, strand=1,
+    p.add_feature(PlasmidFeature("EcoRI", 396, 402, strand=1,
                                  feature_type="restriction_site"))
     p.add_feature(PlasmidFeature("BamHI", 412, 418, strand=1,
                                  feature_type="restriction_site"))
@@ -331,16 +388,22 @@ def format_plasmid_report(plasmid_map: PlasmidMap) -> str:
     lines.append(f"  Size: {plasmid_map.size} bp")
     if plasmid_map.description:
         lines.append(f"  Description: {plasmid_map.description}")
+    if plasmid_map.sequence_is_synthetic:
+        lines.append("  Sequence: synthetic filler written for this map, not a "
+                     "reference record")
     lines.append(f"  Features: {len(plasmid_map.features)}")
     lines.append("-" * 60)
     lines.append(f"  {'Name':<20} {'Start':>7} {'End':>7} {'Size':>7} {'Strand':>6} {'Type'}")
     lines.append("-" * 60)
 
     for feat in sorted(plasmid_map.features, key=lambda f: f.start):
-        fsize = feat.end - feat.start
+        fsize = feat.span(plasmid_map.size)
+        kind = feat.feature_type
+        if feat.end < feat.start:
+            kind += " (wraps)"
         lines.append(
             f"  {feat.name:<20} {feat.start:>7,} {feat.end:>7,} {fsize:>7,} "
-            f"{feat.strand:>6} {feat.feature_type}"
+            f"{feat.strand:>6} {kind}"
         )
 
     lines.append("-" * 60)

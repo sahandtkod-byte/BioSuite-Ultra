@@ -4,12 +4,17 @@ Unit tests for biosuite.core.phylogeny module.
 import os
 import sys
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from biosuite.core.phylogeny import distance_matrix, p_distance, upgma_tree
+from biosuite.core.phylogeny import (
+    distance_matrix, p_distance, plot_phylogenetic_tree, upgma_tree,
+)
 
 # ─── p_distance ──────────────────────────────────────────────────────────────
 
@@ -75,21 +80,83 @@ class TestDistanceMatrix:
         # AAAA vs AATT: 2 diff / 4 total = 0.5
         assert mat[0, 2] == pytest.approx(0.5)
 
+    def test_pair_without_comparable_positions_keeps_zero(self):
+        # A fully gapped sequence has no valid site against anybody, so its
+        # distances are never written and remain at the matrix' initial 0.0.
+        mat = distance_matrix(["ACGT", "----", "ACGG"])
+        assert mat[0, 1] == 0.0 and mat[1, 0] == 0.0
+        assert mat[1, 2] == 0.0 and mat[2, 1] == 0.0
+        assert mat[0, 2] == pytest.approx(0.25)
+
 
 # ─── upgma_tree ──────────────────────────────────────────────────────────────
 
 class TestUPGMATree:
-    def test_returns_linkage(self):
+    def test_linkage_matrix_is_the_scipy_format(self):
         mat = np.array([[0, 0.25, 0.5],
                         [0.25, 0, 0.5],
                         [0.5, 0.5, 0]])
-        labels = ["A", "B", "C"]
-        link = upgma_tree(mat, labels)
-        assert link is not None
-        assert link.shape[1] == 4  # scipy linkage format
+        link = upgma_tree(mat)
+        # taxa 1 and 0 merge at 0.25 (2 members), then taxon 2 joins that cluster
+        # at 0.5 with all 3.
+        assert link.tolist() == [[1.0, 0.0, 0.25, 2.0], [2.0, 3.0, 0.5, 3.0]]
+        assert link.shape == (2, 4)
 
     def test_two_sequences(self):
         mat = np.array([[0, 0.3], [0.3, 0]])
-        labels = ["A", "B"]
-        link = upgma_tree(mat, labels)
-        assert link.shape[0] == 1  # 1 merge for 2 sequences
+        assert upgma_tree(mat).tolist() == [[0.0, 1.0, 0.3, 2.0]]
+
+    def test_labels_are_no_longer_accepted(self):
+        """`labels` was a required argument that the body never read — the same
+        matrix gave the same tree for any labels, and the drawing step is where
+        names belong."""
+        mat = np.array([[0, 0.3], [0.3, 0]])
+        with pytest.raises(TypeError,
+                           match="upgma_tree\\(\\) takes 1 positional argument but 2 were given"):
+            upgma_tree(mat, ["A", "B"])
+
+    def test_condensed_input_is_passed_through_unchanged(self):
+        # scipy's condensed order is (1,0), (2,0), (2,1): A-C=0.2 is the
+        # closest pair, so taxa 2 and 0 merge first at height 0.2 and the
+        # remaining taxon 1 joins the growing cluster at (0.7 + 0.5) / 2.
+        condensed = np.array([0.7, 0.2, 0.5])
+        link = upgma_tree(condensed)
+        assert link[0, :3].tolist() == [2.0, 0.0, 0.2]
+        assert link[1, :3].tolist() == [1.0, 3.0, 0.6]
+        assert link[:, 3].tolist() == [2.0, 3.0]
+
+    def test_condensed_and_square_forms_agree(self):
+        condensed = np.array([0.7, 0.2, 0.5])
+        square = np.array([[0.0, 0.7, 0.2],
+                           [0.7, 0.0, 0.5],
+                           [0.2, 0.5, 0.0]])
+        assert np.allclose(upgma_tree(condensed), upgma_tree(square))
+
+
+# ─── plot_phylogenetic_tree ──────────────────────────────────────────────────
+
+class TestPlotPhylogeneticTree:
+    @staticmethod
+    def _linkage():
+        mat = distance_matrix(["AAAA", "AAAT", "AATT"])
+        return upgma_tree(mat)
+
+    def test_dendrogram_shows_every_label(self):
+        fig = plot_phylogenetic_tree(self._linkage(), ["A", "B", "C"], title="My Tree")
+        try:
+            assert isinstance(fig, matplotlib.figure.Figure)
+            assert len(fig.axes) == 1
+            ax = fig.axes[0]
+            assert ax.get_title() == "My Tree"
+            # optimal_ordering reorders the leaves, so compare as a set
+            assert sorted(t.get_text() for t in ax.get_xticklabels()) == ["A", "B", "C"]
+            assert ax.collections, "no branches were drawn"
+        finally:
+            plt.close(fig)
+
+    def test_title_defaults_to_phylogenetic_tree(self):
+        fig = plot_phylogenetic_tree(self._linkage(), ["A", "B", "C"])
+        try:
+            assert fig.axes[0].get_title() == "Phylogenetic Tree"
+        finally:
+            plt.close(fig)

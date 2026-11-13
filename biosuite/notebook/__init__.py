@@ -16,23 +16,90 @@ Usage in Jupyter:
     analyzer = SequenceAnalyzer()
     analyzer.show()
 """
-import json
-import os
-from pathlib import Path
-
 try:
-    from IPython.core.magic import Magics, cell_magic, line_magic, magics_class
-    from IPython.core.magic_arguments import argument, magic_arguments
+    from IPython.core.magic import Magics, line_magic, magics_class
+    # ``display`` belongs to IPython, not to ipywidgets: %biostats calls it, and
+    # with only IPython installed the name was never bound, so the magic printed
+    # the shape of the frame and then died with NameError.
+    from IPython.display import clear_output, display
     HAS_IPYTHON = True
 except ImportError:
     HAS_IPYTHON = False
 
 try:
     import ipywidgets as widgets
-    from IPython.display import HTML, clear_output, display
     HAS_WIDGETS = True
 except ImportError:
     HAS_WIDGETS = False
+
+#: The always-available surface plus whichever optional group is installed, so a
+#: star import on a reduced install never demands a name that does not exist.
+__all__ = [
+    "HAS_IPYTHON",
+    "HAS_WIDGETS",
+    "quick_gc",
+    "quick_translate",
+    "quick_align",
+    "quick_blast",
+]
+if HAS_IPYTHON:
+    __all__ += ["BioSuiteMagics", "load_ipython_extension"]
+if HAS_WIDGETS:
+    __all__ += ["SequenceAnalyzer", "AlignmentViewer", "PlotExplorer"]
+
+#: Optional exports mapped to the dependency group that provides them, so an
+#: explicit import on a reduced install fails with the fix, not a bare name error.
+_OPTIONAL_EXPORTS = {
+    "BioSuiteMagics": "IPython",
+    "load_ipython_extension": "IPython",
+    "SequenceAnalyzer": "ipywidgets",
+    "AlignmentViewer": "ipywidgets",
+    "PlotExplorer": "ipywidgets",
+}
+
+
+def __getattr__(name):
+    """PEP 562: say *why* an optional export is missing, and how to get it."""
+    requirement = _OPTIONAL_EXPORTS.get(name)
+    if requirement is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    raise ImportError(
+        f"{name} requires the optional dependency {requirement!r}, which is not "
+        "installed. Install it (e.g. pip install biosuite-ultra[notebook]) to "
+        f"use {name}."
+    )
+
+
+def _split_magic_args(line):
+    """Split a magic command line into arguments, honouring quotes.
+
+    Double or single quotes group whitespace into one argument (paths with
+    spaces), and quotes may sit inside a token.  Backslashes are ordinary
+    characters, so Windows paths pass through untouched.  An unterminated
+    quote raises ValueError naming the quote character.
+    """
+    tokens = []
+    current = []
+    quote = None
+    for char in line:
+        if quote:
+            if char == quote:
+                quote = None
+            else:
+                current.append(char)
+        elif char in ('"', "'"):
+            quote = char
+        elif char.isspace():
+            if current:
+                tokens.append("".join(current))
+                current = []
+        else:
+            current.append(char)
+    if quote:
+        raise ValueError(f"unterminated {quote!r} quote")
+    if current:
+        tokens.append("".join(current))
+    return tokens
 
 
 # ── Magic Commands ───────────────────────────────────────────────────────────
@@ -52,8 +119,13 @@ if HAS_IPYTHON:
                 %biosuite translate ATGAAATTTTAA
                 %biosuite stats ATCGATCGATCG
                 %biosuite search QUERY.fasta DB.fasta
+                (quote arguments containing spaces: search "my query.fasta" DB.fasta)
             """
-            parts = line.strip().split()
+            try:
+                parts = _split_magic_args(line)
+            except ValueError as exc:
+                print(f"Error: {exc}; quote paths that contain spaces.")
+                return
             if not parts:
                 print("BioSuite magic commands:")
                 print("  %biosuite gc <sequence>        - GC content")
@@ -144,7 +216,10 @@ if HAS_IPYTHON:
 
             if isinstance(obj, pd.DataFrame):
                 print(f"DataFrame: {obj.shape[0]} rows x {obj.shape[1]} columns")
-                print(f"Columns: {list(obj.columns[:10])}...")
+                columns = list(obj.columns)
+                if len(columns) > 10:
+                    columns = columns[:10] + ["..."]
+                print(f"Columns: {columns}")
                 print("\nFirst 5 rows:")
                 display(obj.head())
             elif isinstance(obj, np.ndarray):
@@ -170,59 +245,63 @@ if HAS_IPYTHON:
             from IPython import get_ipython
             ip = get_ipython()
 
+            # What each target promises to put in the namespace.  The module path
+            # is stored next to the names instead of being rebuilt from the key,
+            # because "plotting" is not under biosuite.core -- as a key-derived
+            # name it imported biosuite.core.plotting, which does not exist, so
+            # %bioimport plotting failed while %bioimport all loaded the same
+            # functions from a different place.
             modules = {
-                'sequence': ['gc_content', 'reverse_complement', 'translate',
-                            'read_fasta', 'read_fastq', 'sequence_stats'],
-                'alignment': ['needleman_wunsch', 'smith_waterman'],
-                'phylogeny': ['distance_matrix', 'upgma_tree'],
-                'expression': ['differential_expression', 'cpm_normalization', 'tpm_normalization'],
-                'blast': ['run_blast'],
-                'plotting': ['volcano', 'pca', 'manhattan', 'heatmap', 'scatter'],
+                'sequence': ('biosuite.core.sequence',
+                             ['gc_content', 'reverse_complement', 'translate',
+                              'read_fasta', 'read_fastq', 'sequence_stats']),
+                'alignment': ('biosuite.core.alignment',
+                              ['needleman_wunsch', 'smith_waterman']),
+                'phylogeny': ('biosuite.core.phylogeny',
+                              ['distance_matrix', 'upgma_tree']),
+                'expression': ('biosuite.core.expression',
+                               ['differential_expression', 'cpm_normalization',
+                                'tpm_normalization']),
+                'blast': ('biosuite.core.blast', ['run_blast']),
+                'plotting': ('biosuite.plotting.plot_api',
+                             ['volcano', 'pca', 'manhattan', 'heatmap', 'scatter',
+                              'boxplot']),
             }
+
+            def load(name):
+                """Put a module's advertised functions in the user namespace.
+
+                Returns False when the module could not be imported or promised a
+                function it does not have; either way the reason is printed
+                rather than swallowed.
+                """
+                path, funcs = modules[name]
+                try:
+                    mod = __import__(path, fromlist=funcs)
+                except ImportError as exc:
+                    print(f"  Skipping {name}: {exc}")
+                    return False
+                missing = [f for f in funcs if not hasattr(mod, f)]
+                for func_name in funcs:
+                    if not hasattr(mod, func_name):
+                        continue
+                    ip.user_ns[func_name] = getattr(mod, func_name)
+                print(f"  Loaded {name}: {', '.join(funcs)}")
+                if missing:
+                    print(f"  Not found in {path}: {', '.join(missing)}")
+                return not missing
 
             target = line.strip().lower()
             if target == 'all':
-                for mod_name, funcs in modules.items():
-                    try:
-                        mod = __import__(f'biosuite.core.{mod_name}', fromlist=funcs)
-                        for func_name in funcs:
-                            if hasattr(mod, func_name):
-                                ip.user_ns[func_name] = getattr(mod, func_name)
-                        print(f"  Loaded {mod_name}: {', '.join(funcs)}")
-                    except ImportError:
-                        print(f"  Skipping {mod_name} (dependencies missing)")
-                # Also import plotting
-                try:
-                    from biosuite.plotting.plot_api import (
-                        boxplot,
-                        heatmap,
-                        manhattan,
-                        pca,
-                        scatter,
-                        volcano,
-                    )
-                    ip.user_ns['volcano'] = volcano
-                    ip.user_ns['pca'] = pca
-                    ip.user_ns['manhattan'] = manhattan
-                    ip.user_ns['heatmap'] = heatmap
-                    ip.user_ns['scatter'] = scatter
-                    ip.user_ns['boxplot'] = boxplot
-                    print("  Loaded plotting: volcano, pca, manhattan, heatmap, scatter, boxplot")
-                except ImportError:
-                    pass
-                print("\nAll functions loaded into namespace!")
+                unready = [name for name in modules if not load(name)]
+                if unready:
+                    print(f"\nNot loaded: {', '.join(unready)}")
+                else:
+                    print("\nAll functions loaded into namespace!")
             elif target in modules:
-                funcs = modules[target]
-                try:
-                    mod = __import__(f'biosuite.core.{target}', fromlist=funcs)
-                    for func_name in funcs:
-                        if hasattr(mod, func_name):
-                            ip.user_ns[func_name] = getattr(mod, func_name)
-                    print(f"Loaded {', '.join(funcs)} from biosuite.core.{target}")
-                except ImportError as e:
-                    print(f"Error importing {target}: {e}")
+                load(target)
             else:
-                print(f"Available modules: {', '.join(modules.keys())}, all")
+                print(f"Available modules: {', '.join(modules)}, all")
 
 
     def load_ipython_extension(ipython):
@@ -419,48 +498,49 @@ if HAS_WIDGETS:
                     clear_output()
                     plot = plot_type.value
                     interactive = interactive_cb.value
+                    rng = np.random.default_rng(42)
 
                     if plot == 'Volcano':
                         from biosuite.plotting.plot_api import volcano
-                        np.random.seed(42)
-                        fc = np.random.normal(0, 1.5, 500)
-                        pvals = np.random.uniform(0, 1, 500)
-                        pvals[:30] = np.random.uniform(1e-6, 0.05, 30)
+                        fc = rng.normal(0, 1.5, 500)
+                        pvals = rng.uniform(0, 1, 500)
+                        pvals[:30] = rng.uniform(1e-6, 0.05, 30)
                         fig = volcano(fc, pvals, interactive=interactive)
                         display(fig)
 
                     elif plot == 'PCA':
                         from biosuite.plotting.plot_api import pca
-                        np.random.seed(42)
-                        data = np.random.randn(30, 50)
+                        data = rng.standard_normal((30, 50))
                         groups = ['Ctrl']*15 + ['Treat']*15
                         fig = pca(data, labels=groups, interactive=interactive)
                         display(fig)
 
                     elif plot == 'Scatter':
                         from biosuite.plotting.plot_api import scatter
-                        np.random.seed(42)
-                        x = np.random.randn(100)
-                        y = x * 2 + np.random.randn(100) * 0.5
+                        x = rng.standard_normal(100)
+                        y = x * 2 + rng.standard_normal(100) * 0.5
                         fig = scatter(x, y, interactive=interactive)
                         display(fig)
 
                     elif plot == 'Heatmap':
                         from biosuite.plotting.plot_api import heatmap
-                        np.random.seed(42)
-                        data = np.random.randn(10, 8)
+                        data = rng.standard_normal((10, 8))
                         fig = heatmap(data, interactive=interactive)
                         display(fig)
 
                     elif plot == 'Boxplot':
                         from biosuite.plotting.plot_api import boxplot
-                        np.random.seed(42)
                         data = {
-                            'Ctrl': np.random.randn(30).tolist(),
-                            'Treat': np.random.randn(30) + 1
+                            'Ctrl': rng.standard_normal(30).tolist(),
+                            'Treat': rng.standard_normal(30) + 1
                         }
                         fig = boxplot(data, interactive=interactive)
                         display(fig)
+
+                    else:
+                        # Reached only if the option list and these branches drift
+                        # apart; drawing nothing silently is how that stays hidden.
+                        print(f"Cannot draw plot type {plot!r}")
 
             run_btn.on_click(on_run_click)
 
@@ -489,8 +569,9 @@ def quick_align(seq1, seq2, method='nw'):
     from biosuite.core.alignment import needleman_wunsch, smith_waterman
     if method == 'nw':
         return needleman_wunsch(seq1, seq2)
-    else:
+    if method == 'sw':
         return smith_waterman(seq1, seq2)
+    raise ValueError(f"Unknown alignment method {method!r}: use 'nw' or 'sw'.")
 
 def quick_blast(query_file, database_file):
     """Quick BLAST search for Jupyter."""

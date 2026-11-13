@@ -19,6 +19,9 @@ class BatchJob:
         self.kwargs = kwargs or {}
         self.result = None
         self.error = None
+        # Set here as well as in run(): reading `traceback` from a job that has
+        # not run yet raised AttributeError, while a job that had run always had it.
+        self.traceback = None
         self.elapsed = 0.0
         self.status = "pending"
 
@@ -82,6 +85,15 @@ class BatchProcessor:
         return self
 
     def run(self, max_workers=4, progress_callback=None):
+        """Run every queued job.
+
+        ``results`` holds one entry per *successful* job, in the order the jobs
+        were added.  A failed job contributes nothing to it — its error is in
+        ``get_failures()``, ``summary()`` and ``to_dict()`` — because a failed
+        job and a job whose function legitimately returned ``None`` used to look
+        identical to the caller, and ``batch_run``'s dict was the only thing a
+        script got back.
+        """
         self._log = []
         self.results = OrderedDict()
         self._progress = 0
@@ -109,12 +121,14 @@ class BatchProcessor:
         for job in self.jobs:
             self._log.append(f"Processing: {job.sample_id}")
             job.run()
-            self.results[job.sample_id] = job.result
             self._progress += 1
             if progress_callback:
                 progress_callback(self._progress, self._total, job.sample_id)
             if job.status == "failed":
-                self._log.append(f"  FAILED: {job.error}")
+                self._log.append(f"  {job.sample_id} FAILED: {job.error}")
+            else:
+                self._log.append(f"  {job.sample_id} done in {job.elapsed:.2f}s")
+        self._collect()
 
     def _run_parallel(self, max_workers, progress_callback):
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -122,7 +136,6 @@ class BatchProcessor:
             for future in as_completed(futures):
                 job = futures[future]
                 with self._lock:
-                    self.results[job.sample_id] = job.result
                     self._progress += 1
                     progress = self._progress
                 if progress_callback:
@@ -131,6 +144,15 @@ class BatchProcessor:
                     self._log.append(f"  {job.sample_id} FAILED: {job.error}")
                 else:
                     self._log.append(f"  {job.sample_id} done in {job.elapsed:.2f}s")
+        # Rebuilt from the job list, not from completion order: results used to
+        # arrive in whatever order the threads finished, so an OrderedDict could
+        # hand back two different sequences for the same batch.
+        self._collect()
+
+    def _collect(self):
+        """Index the successful jobs by sample id, in the order they were added."""
+        self.results = OrderedDict(
+            (job.sample_id, job.result) for job in self.jobs if job.status == "done")
 
     def summary(self):
         n_done = sum(1 for j in self.jobs if j.status == "done")
@@ -172,13 +194,17 @@ def batch_run(func, sample_ids, *args, max_workers=4, **kwargs):
 
     Args:
         func: callable(sample_id, *args, **kwargs)
-        sample_ids: list of sample identifiers
+        sample_ids: list of sample identifiers; they must be unique, because the
+            results are keyed by them (a duplicate raises ValueError)
         *args: positional args passed to func
         max_workers: parallel workers
         **kwargs: keyword args passed to func
 
     Returns:
-        dict mapping sample_id -> result
+        dict mapping sample_id -> result, for the jobs that succeeded.  A job
+        that raised is missing from this dict; to see it, use a BatchProcessor
+        and read ``get_failures()`` instead, because nothing here can tell a
+        failed sample from one whose function legitimately returned ``None``.
     """
     bp = BatchProcessor()
     for sid in sample_ids:

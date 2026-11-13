@@ -62,7 +62,7 @@ def find_orfs(sequence, min_length=30, include_start=False):
     seq = sequence.upper().replace('U', 'T')
     orfs = []
 
-    def _segment_orfs(frame_start, seg_start, seg_end, has_stop, frame):
+    def _segment_orfs(seg_start, seg_end, has_stop, frame):
         """Translate seq[seg_start:seg_end] and emit ORFs if long enough.
 
         Emits the full stop-to-stop segment plus (when different) the
@@ -108,10 +108,10 @@ def find_orfs(sequence, min_length=30, include_start=False):
         while j <= len(seq) - 3:
             aa = GENETIC_CODE.get(seq[j:j+3], 'X')
             if aa == '*':
-                _segment_orfs(frame, seg_start, j, True, frame)
+                _segment_orfs(seg_start, j, True, frame)
                 seg_start = j + 3
             j += 3
-        _segment_orfs(frame, seg_start, j, False, frame)
+        _segment_orfs(seg_start, j, False, frame)
 
     orfs.sort(key=lambda o: o.length, reverse=True)
     return orfs

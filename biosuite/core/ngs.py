@@ -42,13 +42,12 @@ def read_bam_header(bam_path):
 
 
 
-def read_vcf(vcf_path, max_variants=None, chunk_size=10000):
+def read_vcf(vcf_path, max_variants=None):
     """Read VCF file and return DataFrame with CHROM, POS, REF, ALT, QUAL, INFO.
 
     Args:
         vcf_path: path to VCF file.
         max_variants: maximum number of variants to read (None for all).
-        chunk_size: for large files, read in chunks to limit memory.
 
     Returns:
         DataFrame with variant data, or None on error.
@@ -60,16 +59,20 @@ def read_vcf(vcf_path, max_variants=None, chunk_size=10000):
     try:
         data = []
         count = 0
-        with open(vcf_path, 'r') as f:
+        with open(vcf_path, 'r', encoding="utf-8") as f:
             for line in f:
                 if line.startswith('#'):
                     continue
+                # Tested before the record is taken, and against None rather than
+                # truthiness: `if max_variants and ...` made max_variants=0 read
+                # the whole file, and checking after the append returned one record
+                # more than was asked for.
+                if max_variants is not None and count >= max_variants:
+                    break
                 parts = line.strip().split('\t')
                 if len(parts) >= 8:
                     data.append(parts[:8])
                     count += 1
-                    if max_variants and count >= max_variants:
-                        break
                     # Warn for large files
                     if count == 100000:
                         logger.warning("Warning: VCF has 100K+ variants. Consider using max_variants parameter.")
@@ -84,12 +87,32 @@ def read_vcf(vcf_path, max_variants=None, chunk_size=10000):
         logger.error(f"Error reading VCF: {e}")
         return None
 
-def manhattan_from_vcf(vcf_df, pvalue_col='QUAL', threshold=5e-8):
-    """Convert VCF DataFrame to Manhattan plot data (chrom, pos, -log10(p))."""
+#: Axis order for the labels a Manhattan plot is drawn with: the numbered
+#: chromosomes ascending, then X, Y and the mitochondrion.  Anything else sorts
+#: last, alphabetically.
+_CHROMOSOME_ORDER = {'X': 23, 'Y': 24, 'MT': 25, 'M': 25}
+
+
+def manhattan_from_vcf(vcf_df, pvalue_col='QUAL'):
+    """Convert VCF DataFrame to Manhattan plot data (chrom, pos, -log10(p)).
+
+    Args:
+        vcf_df: frame carrying at least CHROM, POS and the p-value column.
+        pvalue_col: names the column holding the p-values; it used to be ignored,
+            so a caller pointing it at a real PVALUE column silently plotted QUAL
+            instead.  A row whose p-value is missing or not a number gets a NaN
+            -log10 and drops out of the plot: filling it with 0 turned a broken
+            cell into the tallest bar on the chart.
+    """
     df = vcf_df.copy()
-    df['chrom_num'] = df['CHROM'].str.replace('chr', '', case=False)
-    df = df.sort_values(['chrom_num', 'POS'])
-    pvals = pd.to_numeric(df['QUAL'], errors='coerce').fillna(0).clip(lower=0)
+    # Sorting on the label itself put chr10 between chr1 and chr2, because '10'
+    # precedes '2' as a string; the plot's x-axis then jumped back and forth
+    # across the genome.
+    label = df['CHROM'].astype(str).str.replace('^chr', '', case=False, regex=True)
+    numeric = pd.to_numeric(label, errors='coerce')
+    order = numeric.fillna(label.map(_CHROMOSOME_ORDER)).fillna(np.inf)
+    df = df.assign(_chrom_order=order).sort_values(['_chrom_order', 'CHROM', 'POS'])
+    pvals = pd.to_numeric(df[pvalue_col], errors='coerce').clip(lower=0)
     df['neg_log10'] = -np.log10(pvals + 1e-300)
     return df[['CHROM', 'POS', 'neg_log10']]
 
@@ -117,7 +140,7 @@ def read_sam(sam_path):
         return None
     try:
         reads = []
-        with open(sam_path, 'r') as fh:
+        with open(sam_path, 'r', encoding="utf-8") as fh:
             for line in fh:
                 if line.startswith('@'):
                     continue  # skip header
@@ -153,9 +176,11 @@ def parse_sam_header(sam_path):
     """Parse header lines from a SAM file into a line-classified dict.
 
     Returns a dict with keys '@HD' (dict of TAG:val), '@SQ'/'@RG'/'@PG'
-    (lists of dicts) and 'raw' (list or raw header lines).  Use
-    ``ngs.classify_sam_header`` if you need the raw lines grouped by tag —
-    the historical tuple-of-tuples return here broke every grouping query.
+    (lists of dicts) and 'raw' (list or raw header lines).  The header stops
+    at the first non-header line, so a whole-genome SAM costs one pass over
+    its header, not its reads.  (The historical tuple-of-tuples return broke
+    every grouping query; ``raw`` keeps the original lines for callers that
+    need them verbatim.)
     """
     
     if not os.path.exists(sam_path):
@@ -163,7 +188,7 @@ def parse_sam_header(sam_path):
         return None
     header = {'@HD': {}, '@SQ': [], '@RG': [], '@PG': [], 'raw': []}
     try:
-        with open(sam_path, 'r') as fh:
+        with open(sam_path, 'r', encoding="utf-8") as fh:
             for line in fh:
                 if not line.startswith('@'):
                     break
@@ -300,10 +325,16 @@ def _windowed_coverage_array(cov, window_size, chrom=None):
     """
     n_windows = len(cov) // window_size
     if n_windows == 0:
-        return pd.DataFrame({
+        # A reference shorter than one window still reports the chrom column it
+        # was given: whole-genome callers concat these frames, and a schema
+        # that depended on the reference length produced a missing column.
+        df = pd.DataFrame({
             'start': [0], 'end': [len(cov)],
             'mean_coverage': [float(np.mean(cov))]
         })
+        if chrom is not None:
+            df.insert(0, 'chrom', chrom)
+        return df
     trimmed = cov[:n_windows * window_size]
     reshaped = trimmed.reshape(n_windows, window_size)
     means = reshaped.mean(axis=1)
@@ -325,7 +356,7 @@ def _parse_bed(bed_path):
     Handles BED3 through BED12; only the first three columns are used.
     """
     intervals = []
-    with open(bed_path, 'r') as f:
+    with open(bed_path, 'r', encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith('#') or line.startswith('track'):
@@ -342,7 +373,7 @@ def _parse_vcf_intervals(vcf_path):
     Each variant record becomes a 1-base interval at POS.
     """
     intervals = []
-    with open(vcf_path, 'r') as f:
+    with open(vcf_path, 'r', encoding="utf-8") as f:
         for line in f:
             if line.startswith('#'):
                 continue
@@ -366,7 +397,8 @@ def intersect_bed_vcf(bed_path, vcf_path, report='count'):
         vcf_path: Path to VCF file.
         report: 'count' returns per-interval overlap counts;
                 'detail' returns a DataFrame with [bed_chrom, bed_start,
-                bed_end, vcf_chrom, vcf_pos, vcf_ref, vcf_alt].
+                bed_end, vcf_chrom, vcf_pos].  REF/ALT are not parsed here —
+                ``read_vcf`` returns them for a whole file.
 
     Returns:
         Series (report='count') or DataFrame (report='detail'), or
@@ -446,7 +478,12 @@ def coverage_from_bed(bam_path, bed_path):
                         bam.count_coverage(region=region), axis=0
                     )
                     mean_cov = float(np.mean(cov)) if len(cov) > 0 else 0.0
-                except Exception:
+                except Exception as exc:
+                    # Unknown contig/region, unreadable alignment file...  A
+                    # silent 0.0 is indistinguishable from "no reads mapped
+                    # here", so the reason has to reach the log.
+                    logger.warning(
+                        f"Coverage unavailable for {region}: {exc}")
                     mean_cov = 0.0
                 rows.append({
                     'chrom': chrom, 'start': start, 'end': end,
@@ -475,6 +512,11 @@ def vcf_summary(vcf_path):
         'multi_allelic_count', 'ti_count', 'tv_count', 'ti_tv_ratio',
         'per_chrom' (dict), 'qual_mean', 'qual_median',
         'qual_gt_20_count'.
+
+        ``total_variants`` and ``per_chrom`` count records — a multi-allelic
+        site is one variant — while ``snp_count``/``indel_count`` count
+        alternate alleles, so their sum can exceed ``total_variants`` by the
+        extra alleles of multi-allelic records.
     """
     if not os.path.exists(vcf_path):
         logger.error(f"VCF file not found: {vcf_path}")
@@ -492,12 +534,16 @@ def vcf_summary(vcf_path):
     _pyrimidines = set('CT')
 
     try:
-        with open(vcf_path, 'r') as f:
+        with open(vcf_path, 'r', encoding="utf-8") as f:
             for line in f:
                 if line.startswith('#'):
                     continue
                 parts = line.strip().split('\t')
-                if len(parts) < 5:
+                # QUAL is read from parts[5] below, so a record needs at least
+                # six fields; the old "< 5" guard let a 5-field line through
+                # and the resulting IndexError discarded every variant in the
+                # file, not just the malformed record.
+                if len(parts) < 6:
                     continue
                 chrom = parts[0]
                 qual_str = parts[5]
@@ -530,7 +576,9 @@ def vcf_summary(vcf_path):
                     else:
                         indel_count += 1
 
-        total = snp_count + indel_count
+        # Records, not alleles: a multi-allelic site is one variant, so the
+        # total agrees with per_chrom while snp/indel count every alternate.
+        total = sum(per_chrom.values())
         ti_tv = ti_count / tv_count if tv_count > 0 else float('inf')
         quals_arr = np.array(quals) if quals else np.array([0.0])
 
@@ -575,7 +623,7 @@ def compute_ts_tv_ratio(vcf_path):
     tv = 0
 
     try:
-        with open(vcf_path, 'r') as f:
+        with open(vcf_path, 'r', encoding="utf-8") as f:
             for line in f:
                 if line.startswith('#'):
                     continue

@@ -1,25 +1,36 @@
 """
 Database API integrations: NCBI Entrez, UniProt, Ensembl, PDB, KEGG.
 
-All APIs are free for academic use. Users can optionally provide API keys
+All APIs are free for academic use.  Users can optionally provide API keys
 for higher rate limits via the config system.
 
 Features:
-  - Retry logic with exponential backoff for transient failures
-  - In-memory TTL cache to avoid redundant API calls
+  - Retry logic with exponential backoff for transient failures, honouring a
+    capped Retry-After (both of its RFC 9110 forms)
+  - In-memory TTL cache to avoid redundant API calls, bounded at
+    MAX_CACHE_ENTRIES with expired-first eviction
   - Per-service rate limiting
   - Proper HTTP error handling (4xx/5xx/status codes)
-  - Malformed JSON safe-parsing
+  - Malformed JSON safe-parsing, including the top-level shape
+  - Identifiers checked before they are placed in a request path
   - Configurable timeouts
+
+The contract every search_*() / fetch_*() function keeps: it returns a DBResult
+and never raises.  An unusable argument (a page size below one, an identifier
+that would leave its path segment) comes back the same way a refused connection
+does — in ``DBResult.error``, with the detail in the log.  Nothing here opens a
+socket on import or on ``import biosuite``.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-import logging
+import re
 import threading
 import time
-from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from dataclasses import dataclass, field, replace
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional
 
 try:
@@ -30,6 +41,7 @@ try:
 except ImportError:
     HAS_URLLIB = False
 
+from .log import get_logger
 from .utils import get_api_key, prompt_api_key
 
 
@@ -53,7 +65,7 @@ class DBResult:
     cached: bool = False
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Retry / timeout / rate-limit config ─────────────────────────────────────
 
@@ -61,6 +73,20 @@ DEFAULT_TIMEOUT = 30          # seconds per HTTP request
 DEFAULT_MAX_RETRIES = 3       # max retry attempts for transient errors
 DEFAULT_RETRY_BACKOFF = 1.5   # exponential backoff base (seconds)
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+# Longest wait a server may ask for.  Retry-After is a suggestion, and a caller
+# stuck in the GUI thread should not be held for hours by one header: waits above
+# this are shortened to it, and the retry budget then decides whether to try again.
+MAX_RETRY_WAIT = 60.0
+
+# NCBI asks every tool for a contact address.  Both Entrez entry points ask the
+# user for the same value instead of one of them inventing one.
+NCBI_EMAIL_PROMPT = ("Free registration at: "
+                     "https://www.ncbi.nlm.nih.gov/account/")
+
+# Largest number of cached responses kept.  Entries are dropped when they expire
+# or, if the cache is full, oldest first -- see _Cache.set.
+MAX_CACHE_ENTRIES = 512
 
 # Per-service rate limits: (min_interval_seconds, label)
 RATE_LIMITS = {
@@ -72,6 +98,7 @@ RATE_LIMITS = {
 }
 
 # Cache: {key: (timestamp, value)} with per-service TTLs
+_DEFAULT_TTL = 300            # a service outside this table is cached 5 minutes
 _CACHE_TTL = {
     'ncbi':    600,    # 10 min
     'uniprot': 3600,   # 1 hour
@@ -134,7 +161,7 @@ class _Cache:
         Returns:
             Cached value or None if missing/expired.
         """
-        ttl = _CACHE_TTL.get(service, 300)
+        ttl = _CACHE_TTL.get(service, _DEFAULT_TTL)
         full_key = f"{service}:{key}"
         with self._lock:
             entry = self._store.get(full_key)
@@ -144,6 +171,15 @@ class _Cache:
             self._store.pop(full_key, None)
         return None
 
+    def _drop_expired_locked(self) -> None:
+        """Remove every entry whose TTL has run out.  The lock must be held."""
+        now = time.time()
+        for full_key in list(self._store):
+            service = full_key.split(':', 1)[0]
+            ttl = _CACHE_TTL.get(service, _DEFAULT_TTL)
+            if (now - self._store[full_key][0]) >= ttl:
+                del self._store[full_key]
+
     def set(self, service: str, key: str, value: Any) -> None:
         """Store a value in the cache with current timestamp.
 
@@ -151,10 +187,24 @@ class _Cache:
             service: Service identifier for TTL tracking.
             key: Cache key string.
             value: Value to cache.
+
+        An expired entry is otherwise only shed when the *same* key is asked for
+        again, so a session that keeps searching new terms would hold every
+        response it ever fetched — records and all — for the life of the process.
+        Each store that fills the cache first drops what has expired, then the
+        oldest entries if it is still over the limit.
         """
         full_key = f"{service}:{key}"
         with self._lock:
             self._store[full_key] = (time.time(), value)
+            if len(self._store) <= MAX_CACHE_ENTRIES:
+                return
+            self._drop_expired_locked()
+            overflow = len(self._store) - MAX_CACHE_ENTRIES
+            if overflow > 0:
+                oldest = sorted(self._store.items(), key=lambda item: item[1][0])
+                for stale, _entry in oldest[:overflow]:
+                    del self._store[stale]
 
     def invalidate(self, service: Optional[str] = None) -> None:
         """Remove cached entries for a specific service or all services.
@@ -180,10 +230,69 @@ def _cache_key(*args) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _http_get(url: str, *, timeout: int = DEFAULT_TIMEOUT,
-              headers: Optional[Dict[str, str]] = None, service: str = 'general') -> bytes:
+def _cache_hit(result: "DBResult") -> "DBResult":
+    """Hand a stored result back marked as served from cache.
+
+    ``DBResult.cached`` documents "Whether the result was served from cache",
+    but the object in the store is the original live response with cached=False
+    and every endpoint returned it unchanged, so no caller could ever tell a
+    hit from a fetch.  A copy keeps the stored entry's own flag untouched.
     """
-    Perform an HTTP GET with retry, rate-limiting, and proper error handling.
+    return replace(result, cached=True)
+
+
+def _retry_after_seconds(value: Any) -> Optional[float]:
+    """Convert a Retry-After header into seconds, or None if it says nothing usable.
+
+    RFC 9110 allows two forms: a number of seconds *or* an HTTP-date.  Reading
+    only the first meant a date-valued header raised out of the retry loop — and
+    the endpoint reported it as ``Invalid response: could not convert string to
+    float: 'Wed, 21 Oct 2015 07:28:00 GMT'``, blaming the database for our own
+    header parsing.  Whatever the form, the wait is capped at MAX_RETRY_WAIT: one
+    header must not park a GUI thread for hours.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        seconds = float(text)
+    except ValueError:
+        try:
+            # On this interpreter parsedate_to_datetime raises ValueError for
+            # every unreadable value ('', 'garbage', 'xxx' were checked) rather
+            # than returning None, and it is handed a str here, so the only
+            # failure to expect is the one it raises.
+            when = parsedate_to_datetime(text)
+        except ValueError:
+            return None
+        if when.tzinfo is None:
+            # A date without a zone is read as UTC, the way RFC 9110 writes it.
+            when = when.replace(tzinfo=timezone.utc)
+        seconds = (when - datetime.now(timezone.utc)).total_seconds()
+    return max(0.0, min(seconds, MAX_RETRY_WAIT))
+
+
+def _backoff_wait(attempt: int, headers: Any) -> float:
+    """Seconds to sleep before the next attempt, honouring the server if it spoke."""
+    retry_after = _retry_after_seconds(headers.get('Retry-After') if headers else None)
+    if retry_after is not None:
+        return retry_after
+    return DEFAULT_RETRY_BACKOFF ** attempt
+
+
+def _redact_url(url: str) -> str:
+    """Mask the api_key credential so a retry log never carries a secret."""
+    return re.sub(r'(api_key=)[^&]*', r'\1REDACTED', url)
+
+
+def _http_get(url: str, *, timeout: int = DEFAULT_TIMEOUT,
+              headers: Optional[Dict[str, str]] = None, service: str = 'general',
+              data: Optional[bytes] = None) -> bytes:
+    """
+    Perform an HTTP GET (or a POST, when *data* is given) with retry,
+    rate-limiting, and proper error handling.
 
     Returns raw response bytes.
     Raises urllib.error.HTTPError on non-retryable HTTP failures.
@@ -191,10 +300,10 @@ def _http_get(url: str, *, timeout: int = DEFAULT_TIMEOUT,
     """
     _rate_limiter.wait(service)
 
-    last_exc = None
     for attempt in range(1, DEFAULT_MAX_RETRIES + 1):
+        last = attempt == DEFAULT_MAX_RETRIES
         try:
-            req = urllib.request.Request(url)
+            req = urllib.request.Request(url, data=data)
             if headers:
                 for k, v in headers.items():
                     req.add_header(k, v)
@@ -202,53 +311,101 @@ def _http_get(url: str, *, timeout: int = DEFAULT_TIMEOUT,
                 return resp.read()
 
         except urllib.error.HTTPError as exc:
-            last_exc = exc
             status = exc.code
-            if status == 429:
-                # Rate limited — honour Retry-After if present, else backoff
-                retry_after = exc.headers.get('Retry-After')
-                if retry_after:
-                    wait = float(retry_after)
-                else:
-                    wait = DEFAULT_RETRY_BACKOFF ** attempt
-                logger.warning(f"[{service}] HTTP 429 from {url}, retrying in {wait:.1f}s (attempt {attempt}/{DEFAULT_MAX_RETRIES})")
-                time.sleep(wait)
-                continue
-            if status in RETRYABLE_STATUS and attempt < DEFAULT_MAX_RETRIES:
-                wait = DEFAULT_RETRY_BACKOFF ** attempt
-                logger.warning(f"[{service}] HTTP {status} from {url}, retrying in {wait:.1f}s (attempt {attempt}/{DEFAULT_MAX_RETRIES})")
-                time.sleep(wait)
-                continue
-            # Non-retryable (4xx other than 429, or last attempt)
-            raise
+            retryable = status == 429 or status in RETRYABLE_STATUS
+            if not retryable or last:
+                raise
+            wait = _backoff_wait(attempt, exc.headers)
+            logger.warning(f"[{service}] HTTP {status} from {_redact_url(url)}, retrying in {wait:.1f}s "
+                           f"(attempt {attempt}/{DEFAULT_MAX_RETRIES})")
+            time.sleep(wait)
 
         except (urllib.error.URLError, OSError, TimeoutError) as exc:
-            last_exc = exc
-            if attempt < DEFAULT_MAX_RETRIES:
-                wait = DEFAULT_RETRY_BACKOFF ** attempt
-                logger.warning(f"[{service}] Connection error ({exc}), retrying in {wait:.1f}s (attempt {attempt}/{DEFAULT_MAX_RETRIES})")
-                time.sleep(wait)
-                continue
-            raise
+            if last:
+                raise
+            wait = _backoff_wait(attempt, None)
+            logger.warning(f"[{service}] Connection error ({exc}), retrying in {wait:.1f}s "
+                           f"(attempt {attempt}/{DEFAULT_MAX_RETRIES})")
+            time.sleep(wait)
 
-    # Should not reach here, but just in case
-    raise last_exc
+    # Every attempt either returned or raised; the loop cannot fall through.
+    raise RuntimeError(f"[{service}] no HTTP attempt was made for {_redact_url(url)}")
 
 
 def _json_response(raw_bytes: bytes) -> dict:
     """
-    Safely parse JSON from raw bytes.
-    Returns parsed dict on success.
-    Raises ValueError with a descriptive message on malformed JSON.
+    Safely parse a JSON object from raw bytes.
+
+    Returns the parsed dict.  Raises ValueError with a descriptive message on a
+    malformed body, an empty body, or a body whose top level is not an object —
+    every endpoint here is asked for one object, and a JSON array used to reach
+    the caller as ``error="'list' object has no attribute 'get'"``: the shape
+    problem was real, the sentence describing it was not.
     """
     text = raw_bytes.decode('utf-8', errors='replace')
     if not text.strip():
         raise ValueError("Empty response body (expected JSON)")
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
     except json.JSONDecodeError as exc:
         preview = text[:200] if len(text) > 200 else text
         raise ValueError(f"Malformed JSON response: {exc}. Body preview: {preview!r}") from exc
+    if not isinstance(parsed, dict):
+        preview = text[:200] if len(text) > 200 else text
+        raise ValueError(f"Expected a JSON object at the top level, got "
+                         f"{type(parsed).__name__}. Body preview: {preview!r}")
+    return parsed
+
+
+# Characters that would move the request somewhere else when a value is placed
+# into the path: a separator, a query or fragment start, or an escape sign.
+_PATH_BREAKS = re.compile(r"[\s/?#%]")
+
+
+def _id_segment(value: str, name: str) -> str:
+    """Return *value* as exactly one URL path segment, or refuse it.
+
+    Identifiers reach these URLs by path, not by query, so a value carrying a
+    '/' or a '?' is not an odd accession — it is a different endpoint.  Measured
+    before the guard: ``fetch_kegg_pathway('hsa00010/list/compound')`` asked
+    ``rest.kegg.jp/get/hsa00010/list/compound`` and
+    ``fetch_uniprot('P12345/../../admin')`` asked
+    ``/uniprotkb/P12345/../../admin.json``.
+    """
+    return _checked_segment(value, name, _PATH_BREAKS)
+
+
+def _query_segment(value: str, name: str) -> str:
+    """Return a free-text search term as one path segment (spaces are encoded).
+
+    KEGG's ``find`` takes the term in the path, where ``glycolysis ATP`` is a
+    legitimate search — so only the characters that would leave the segment are
+    refused, and the rest is percent-encoded.
+    """
+    return _checked_segment(value, name, re.compile(r"[/?#%]"))
+
+
+def _checked_segment(value: str, name: str, breaks: "re.Pattern[str]") -> str:
+    text = str(value).strip()
+    if not text:
+        raise ValueError(f"{name} is empty")
+    found = ''.join(sorted(set(breaks.findall(text))))
+    if found:
+        raise ValueError(f"{name} cannot be placed in a request path: it contains "
+                         f"{found!r} (got {value!r})")
+    return urllib.parse.quote(text, safe='-_.:')
+
+
+def _search_limit(max_results: int, name: str = "max_results") -> int:
+    """Refuse a page size that cannot mean what the caller meant.
+
+    ``max_results=0`` asked the services for zero records, and a negative value
+    was handed straight to Entrez as ``retmax=-2`` (and, in the KEGG parser, used
+    as a Python slice that silently dropped the *last* rows instead of the first).
+    """
+    if max_results < 1:
+        raise ValueError(f"{name} must be at least 1, got {max_results}.")
+    return max_results
 
 
 # ── NCBI Entrez ─────────────────────────────────────────────────────────────
@@ -257,14 +414,25 @@ def search_ncbi(query: str, database: str = 'nucleotide', max_results: int = 10,
     """Search NCBI databases via Entrez API.
 
     Free API: https://www.ncbi.nlm.nih.gov/account/settings/
-    Includes retry logic, caching, and rate limiting.
+    Includes retry logic, caching, and rate limiting.  Entrez is asked for the
+    contact address it requests: *email*, else the configured one, else the prompt.
+    An empty or blank query is refused by name instead of being sent to Entrez.
     """
     if not HAS_URLLIB:
         return DBResult(source='ncbi', query=query, error="urllib not available")
 
+    if not query or not query.strip():
+        return DBResult(source='ncbi', query=query,
+                        error="Empty query: search_ncbi needs a non-empty search term")
+
+    try:
+        max_results = _search_limit(max_results)
+    except ValueError as exc:
+        return DBResult(source='ncbi', query=query, error=str(exc))
+
     if email is None:
         email = get_api_key('ncbi_email') or prompt_api_key('ncbi_email',
-            "Free registration at: https://www.ncbi.nlm.nih.gov/account/")
+                                                            NCBI_EMAIL_PROMPT)
 
     api_key = get_api_key('ncbi_api_key')
 
@@ -272,7 +440,7 @@ def search_ncbi(query: str, database: str = 'nucleotide', max_results: int = 10,
     ck = _cache_key(query, database, max_results, email)
     cached = _cache.get('ncbi', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     params = {
         'db': database,
@@ -350,22 +518,23 @@ def fetch_ncbi_sequence(accession: str, database: str = 'nucleotide') -> DBResul
     if not HAS_URLLIB:
         return DBResult(source='ncbi', query=accession, error="urllib not available")
 
-    email = get_api_key('ncbi_email') or 'biosuite@example.com'
+    email = get_api_key('ncbi_email') or prompt_api_key('ncbi_email', NCBI_EMAIL_PROMPT)
     api_key = get_api_key('ncbi_api_key')
 
     # Check cache
     ck = _cache_key(accession, database)
     cached = _cache.get('ncbi', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     params = {
         'db': database,
         'id': accession,
         'rettype': 'fasta',
         'retmode': 'text',
-        'email': email,
     }
+    if email:
+        params['email'] = email
     if api_key:
         params['api_key'] = api_key
 
@@ -405,10 +574,15 @@ def search_uniprot(query: str, max_results: int = 10) -> DBResult:
     if not HAS_URLLIB:
         return DBResult(source='uniprot', query=query, error="urllib not available")
 
+    try:
+        max_results = _search_limit(max_results)
+    except ValueError as exc:
+        return DBResult(source='uniprot', query=query, error=str(exc))
+
     ck = _cache_key(query, max_results)
     cached = _cache.get('uniprot', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     try:
         url = f"https://rest.uniprot.org/uniprotkb/search?query={urllib.parse.quote(query)}&format=json&size={max_results}"
@@ -447,18 +621,24 @@ def search_uniprot(query: str, max_results: int = 10) -> DBResult:
 def fetch_uniprot(accession: str) -> DBResult:
     """Fetch a UniProt record by accession.
 
-    Includes retry, caching, and rate limiting.
+    Includes retry, caching, and rate limiting.  *accession* is one path segment
+    (`P04637`, `P04637-2`); a value carrying a '/' or a '?' is refused.
     """
     if not HAS_URLLIB:
         return DBResult(source='uniprot', query=accession, error="urllib not available")
 
+    try:
+        segment = _id_segment(accession, "UniProt accession")
+    except ValueError as exc:
+        return DBResult(source='uniprot', query=accession, error=str(exc))
+
     ck = _cache_key(accession)
     cached = _cache.get('uniprot', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     try:
-        url = f"https://rest.uniprot.org/uniprotkb/{accession}.json"
+        url = f"https://rest.uniprot.org/uniprotkb/{segment}.json"
         raw = _http_get(url, timeout=DEFAULT_TIMEOUT, service='uniprot')
         entry = _json_response(raw)
 
@@ -501,10 +681,15 @@ def search_pdb(query: str, max_results: int = 10) -> DBResult:
     if not HAS_URLLIB:
         return DBResult(source='pdb', query=query, error="urllib not available")
 
+    try:
+        max_results = _search_limit(max_results)
+    except ValueError as exc:
+        return DBResult(source='pdb', query=query, error=str(exc))
+
     ck = _cache_key(query, max_results)
     cached = _cache.get('pdb', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     try:
         search_url = "https://search.rcsb.org/rcsbsearch/v2/query"
@@ -514,38 +699,11 @@ def search_pdb(query: str, max_results: int = 10) -> DBResult:
             "request_options": {"results_content_type": ["experimental"], "pager": {"start": 0, "rows": max_results}}
         }).encode()
 
-        # _http_get uses GET; for POST we need a custom path
-        _rate_limiter.wait('pdb')
-        last_exc = None
-        raw = None
-        for attempt in range(1, DEFAULT_MAX_RETRIES + 1):
-            try:
-                req = urllib.request.Request(search_url, data=search_body,
-                                             headers={'Content-Type': 'application/json'})
-                with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
-                    raw = resp.read()
-                break
-            except urllib.error.HTTPError as exc:
-                last_exc = exc
-                status = exc.code
-                if status == 429 or (status in RETRYABLE_STATUS and attempt < DEFAULT_MAX_RETRIES):
-                    retry_after = exc.headers.get('Retry-After')
-                    wait = float(retry_after) if retry_after else DEFAULT_RETRY_BACKOFF ** attempt
-                    logger.warning(f"[pdb] HTTP {status}, retrying in {wait:.1f}s (attempt {attempt}/{DEFAULT_MAX_RETRIES})")
-                    time.sleep(wait)
-                    continue
-                raise
-            except (urllib.error.URLError, OSError, TimeoutError) as exc:
-                last_exc = exc
-                if attempt < DEFAULT_MAX_RETRIES:
-                    wait = DEFAULT_RETRY_BACKOFF ** attempt
-                    logger.warning(f"[pdb] Connection error ({exc}), retrying in {wait:.1f}s (attempt {attempt}/{DEFAULT_MAX_RETRIES})")
-                    time.sleep(wait)
-                    continue
-                raise
-
-        if raw is None:
-            raise last_exc
+        # The search is a POST; _http_get drives it so the retry, the rate limit
+        # and the Retry-After rule stay in one place instead of three copies.
+        raw = _http_get(search_url, timeout=DEFAULT_TIMEOUT, service='pdb',
+                        headers={'Content-Type': 'application/json'},
+                        data=search_body)
 
         result = _json_response(raw)
 
@@ -583,17 +741,28 @@ def search_kegg(query: str, database: str = 'pathway', max_results: int = 10) ->
 
     Free for academics: https://www.genome.jp/kegg/
     Includes retry, caching, and rate limiting.
+
+    *database* names the collection (`pathway`, `compound`, `gene`, …) and is one
+    path segment; *query* is the search term, spaces included, and reaches the URL
+    percent-encoded.  Both are checked, and `max_results` must be at least 1.
     """
     if not HAS_URLLIB:
         return DBResult(source='kegg', query=query, error="urllib not available")
 
+    try:
+        segment = _id_segment(database, "KEGG collection")
+        term = _query_segment(query, "KEGG search term")
+        max_results = _search_limit(max_results)
+    except ValueError as exc:
+        return DBResult(source='kegg', query=query, error=str(exc))
+
     ck = _cache_key(query, database, max_results)
     cached = _cache.get('kegg', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     email = get_api_key('kegg_email')
-    url = f"https://rest.kegg.jp/find/{database}/{urllib.parse.quote(query)}"
+    url = f"https://rest.kegg.jp/find/{segment}/{term}"
     if email:
         url += f"?email={urllib.parse.quote(email)}"
 
@@ -601,10 +770,12 @@ def search_kegg(query: str, database: str = 'pathway', max_results: int = 10) ->
         raw = _http_get(url, timeout=DEFAULT_TIMEOUT, service='kegg')
         text = raw.decode('utf-8', errors='replace')
 
+        # Blank and separator lines carry no entry, so they must not spend the
+        # caller's page budget: slicing first made max_results=4 return 3 rows
+        # for a body that begins with an empty line.
+        rows = [line for line in text.split('\n') if line.strip()]
         records = []
-        for line in text.strip().split('\n')[:max_results]:
-            if not line.strip():
-                continue
+        for line in rows[:max_results]:
             # KEGG rows are "<db>:<entry>\t<description>" — the id contains
             # its OWN colon, so split on the tab (not the first colon).
             if '\t' in line:
@@ -637,18 +808,24 @@ def search_kegg(query: str, database: str = 'pathway', max_results: int = 10) ->
 def fetch_kegg_pathway(pathway_id: str) -> DBResult:
     """Fetch a KEGG pathway record.
 
-    Includes retry, caching, and rate limiting.
+    Includes retry, caching, and rate limiting.  *pathway_id* is one path segment
+    — `hsa00010` or `path:hsa00010` — so it cannot name a second segment.
     """
     if not HAS_URLLIB:
         return DBResult(source='kegg', query=pathway_id, error="urllib not available")
 
+    try:
+        segment = _id_segment(pathway_id, "KEGG pathway id")
+    except ValueError as exc:
+        return DBResult(source='kegg', query=pathway_id, error=str(exc))
+
     ck = _cache_key(pathway_id)
     cached = _cache.get('kegg', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     email = get_api_key('kegg_email')
-    url = f"https://rest.kegg.jp/get/{pathway_id}"
+    url = f"https://rest.kegg.jp/get/{segment}"
     if email:
         url += f"?email={urllib.parse.quote(email)}"
 
@@ -675,21 +852,32 @@ def fetch_kegg_pathway(pathway_id: str) -> DBResult:
 # ── Ensembl ──────────────────────────────────────────────────────────────────
 
 def search_ensembl(query: str, species: str = 'human') -> DBResult:
-    """Search Ensembl REST API.
+    """Look up one Ensembl gene symbol.
 
     Free API: https://rest.ensembl.org/
-    No API key required. Includes retry, caching, and rate limiting.
+    No API key required. Includes retry, caching, and rate limiting.  Both halves
+    of ``/lookup/symbol/<species>/<symbol>`` are checked as single path segments,
+    so ``species='mus musculus'`` is refused instead of asking for a 404.
     """
     if not HAS_URLLIB:
         return DBResult(source='ensembl', query=query, error="urllib not available")
 
+    try:
+        species_segment = _id_segment(species, "Ensembl species")
+        symbol_segment = _id_segment(query, "Ensembl gene symbol")
+    except ValueError as exc:
+        return DBResult(source='ensembl', query=query, error=str(exc))
+
     ck = _cache_key(query, species)
     cached = _cache.get('ensembl', ck)
     if cached is not None:
-        return cached
+        return _cache_hit(cached)
 
     try:
-        url = f"https://rest.ensembl.org/symbol/{species}/{query}?content-type=application/json"
+        # The gene-symbol lookup is /lookup/symbol/:species/:symbol; the shorter
+        # /symbol/… path this used to call answers HTTP 404 for every gene.
+        url = (f"https://rest.ensembl.org/lookup/symbol/{species_segment}/{symbol_segment}"
+               "?content-type=application/json")
         raw = _http_get(url, timeout=DEFAULT_TIMEOUT, service='ensembl')
         data = _json_response(raw)
 
@@ -721,7 +909,7 @@ def search_ensembl(query: str, species: str = 'human') -> DBResult:
 
 # ── Cache management ─────────────────────────────────────────────────────────
 
-def invalidate_cache(service: str = None) -> None:
+def invalidate_cache(service: Optional[str] = None) -> None:
     """Invalidate cached results.
 
     Args:
@@ -743,20 +931,34 @@ def cache_info() -> Dict[str, int]:
 
 # ── Universal Search ─────────────────────────────────────────────────────────
 
+# Every service this module can search, and the four that a search_all() call
+# uses when the caller names none.  Ensembl is left out of the default because
+# its endpoint is a gene-*symbol* lookup: a free-text term such as "p53" is not a
+# symbol and answers HTTP 404 there, which would put a failure line in every
+# general search result.
+SEARCHABLE_SERVICES = ('ncbi', 'uniprot', 'pdb', 'kegg', 'ensembl')
+DEFAULT_SEARCH_DATABASES = ('ncbi', 'uniprot', 'pdb', 'kegg')
+
+
 def search_all(query: str, databases: Optional[List[str]] = None) -> Dict[str, DBResult]:
-    """Search multiple databases simultaneously.
+    """Search multiple databases sequentially.
 
     Args:
         query: Search term.
-        databases: List of database names (default: all).
+        databases: List of database names.  The default is
+            ``DEFAULT_SEARCH_DATABASES`` — ncbi, uniprot, pdb and kegg — not
+            every service in ``SEARCHABLE_SERVICES``; name 'ensembl' to search it too.
 
     Returns:
-        Dict mapping database name to DBResult.
+        Dict mapping database name to DBResult.  Every name asked for is a key,
+        including one the module does not know: it gets an error result like any
+        other failure, instead of silently missing from the answer.
     """
     if databases is None:
-        databases = ['ncbi', 'uniprot', 'pdb', 'kegg']
+        databases = list(DEFAULT_SEARCH_DATABASES)
 
-    results = {}
+    # Built here, not at import time: the mapping has to resolve the module
+    # attribute on every call, or patching search_ncbi() would not reach this.
     search_funcs = {
         'ncbi': search_ncbi,
         'uniprot': search_uniprot,
@@ -765,37 +967,51 @@ def search_all(query: str, databases: Optional[List[str]] = None) -> Dict[str, D
         'ensembl': search_ensembl,
     }
 
-    for db in databases:
-        if db in search_funcs:
-            try:
-                results[db] = search_funcs[db](query)
-            except Exception as exc:
-                logger.warning("[search_all] %s failed: %s", db, exc)
-                results[db] = DBResult(
-                    source=db,
-                    query=query,
-                    error=str(exc),
-                )
-        else:
-            logger.warning("[search_all] Unknown database: %s", db)
+    results = {}
+    for service in databases:
+        func = search_funcs.get(service)
+        if func is None:
+            logger.warning("[search_all] Unknown database: %s", service)
+            results[service] = DBResult(
+                source=service, query=query,
+                error=f"Unknown database: {service}. "
+                      f"Known: {', '.join(sorted(search_funcs))}.")
+            continue
+        try:
+            results[service] = func(query)
+        except Exception as exc:
+            logger.warning("[search_all] %s failed: %s", service, exc)
+            results[service] = DBResult(
+                source=service,
+                query=query,
+                error=str(exc),
+            )
 
     return results
 
 
 def format_search_results(results: Any, source: Optional[str] = None) -> str:
-    """Format search results as readable string."""
-    if source and source in results:
-        result = results[source]
-        return _format_single(result)
-    elif isinstance(results, dict):
+    """Format search results as readable string.
+
+    *results* may be one DBResult or a dict of them (what search_all returns).
+    Handing over a single result *and* a source used to crash on the membership
+    test — ``TypeError: argument of type 'DBResult' is not iterable`` — because
+    the source branch was tried first whatever the object was.
+    """
+    if isinstance(results, DBResult):
+        return _format_single(results)
+    if isinstance(results, dict):
+        if source and source in results:
+            return _format_single(results[source])
         lines = []
         for db, result in results.items():
             lines.append(f"\n=== {db.upper()} Results ===")
             lines.append(_format_single(result))
         return '\n'.join(lines)
-    elif isinstance(results, DBResult):
-        return _format_single(results)
     return "No results"
+
+
+MAX_DISPLAYED_RECORDS = 10
 
 
 def _format_single(result: DBResult) -> str:
@@ -805,7 +1021,10 @@ def _format_single(result: DBResult) -> str:
     if not result.records:
         return "No records found."
     lines = []
-    for i, rec in enumerate(result.records[:10]):
+    for i, rec in enumerate(result.records[:MAX_DISPLAYED_RECORDS]):
         parts = [f"{k}: {v}" for k, v in rec.items() if v]
         lines.append(f"  {i+1}. {' | '.join(parts[:3])}")
+    remaining = len(result.records) - MAX_DISPLAYED_RECORDS
+    if remaining > 0:
+        lines.append(f"  … {remaining} more record(s) not shown.")
     return '\n'.join(lines)

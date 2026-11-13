@@ -19,7 +19,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from biosuite.core.utils import config, save_config, set_theme, load_session
-    from biosuite.plotting.biological_plots import export_all_to_folder, generate_markdown_story, batch_export_to_pdf
     from biosuite.cli.menu import main_cli
 except ModuleNotFoundError as e:
     missing = getattr(e, 'name', None) or str(e)
@@ -90,13 +89,34 @@ def run_benchmark():
         df = pd.DataFrame(data)
         conditions = ['ctrl'] * 3 + ['treat'] * 3
         start = time.perf_counter()
-        result = differential_expression(df, conditions)
+        differential_expression(df, conditions)
         elapsed = (time.perf_counter() - start) * 1000
         print(f"{n_genes:>8}  {n_samples:>8}  {elapsed:>9.2f}")
 
     print("\n" + "=" * 60)
     print("  Benchmark complete.")
     print("=" * 60)
+
+
+def _load_plot_exports():
+    """Import the biological-plots export surface on demand.
+
+    Only ``--batch`` and ``--export-folder`` need the plotting stack; loading
+    it here keeps ``--help``, ``--config``, ``--benchmark`` and plain launches
+    free of Matplotlib.
+    """
+    try:
+        from biosuite.plotting import biological_plots
+    except ModuleNotFoundError as e:
+        missing = getattr(e, 'name', None) or str(e)
+        hint = (f"Missing dependency: '{missing}'.\n"
+                "Install the core dependencies once, either of:\n"
+                "    python -m pip install -e .\n"
+                "    python -m pip install -r requirements.txt\n"
+                "(The first command is lighter — it installs only the core stack.)")
+        print(f"\n[run.py] {hint}\n", file=sys.stderr)
+        raise SystemExit(2) from None
+    return biological_plots
 
 
 def main():
@@ -131,14 +151,16 @@ def main():
     if args.quiet:
         config['quiet'] = True
 
-    set_theme(config['theme'])
-
+    # Only paths that draw figures (exports, batch, the interactive menu)
+    # set the theme up; lightweight operations never load the plotting stack.
     if args.gui:
         from biosuite.gui.main_window import BioSuiteApp
         app = BioSuiteApp()
         app.mainloop()
     elif args.export_folder:
-        export_all_to_folder(args.export_folder)
+        set_theme(config['theme'])
+        biological_plots = _load_plot_exports()
+        biological_plots.export_all_to_folder(args.export_folder)
         if args.story:
             plot_names = ["volcano", "pca", "manhattan", "maplot", "venn",
                          "barplot", "boxplot", "heatmap", "scatter", "timeseries",
@@ -146,9 +168,11 @@ def main():
                          "gsea", "motif_logo", "sankey",
                          "qqplot", "clustered_heatmap", "circos", "alignment", "umap",
                          "violin", "raincloud", "ridge", "dotplot"]
-            generate_markdown_story(plot_names, os.path.join(args.export_folder, "story.md"))
+            biological_plots.generate_markdown_story(plot_names,
+                                                     os.path.join(args.export_folder, "story.md"))
     elif args.batch:
-        batch_export_to_pdf(args.pdf)
+        set_theme(config['theme'])
+        _load_plot_exports().batch_export_to_pdf(args.pdf)
     else:
         main_cli()
 

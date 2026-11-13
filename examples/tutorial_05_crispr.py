@@ -58,7 +58,9 @@ if result.guides:
     print(f"  Sequence: {guide.sequence}")
     print(f"  GC content: {guide.gc_content:.1f}%")
     print(f"  On-target score: {guide.on_target_score:.3f}")
-    print(f"  Off-target count: {guide.off_target_count}")
+    # None, not 0: the built-in designer only scans the supplied sequence, so it
+    # has measured nothing about off-target sites.
+    print(f"  Off-target count: {guide.off_target_count if guide.off_target_count is not None else 'not assessed (no genome search)'}")
 
 # %%
 # ## 5. Design for Long Sequence

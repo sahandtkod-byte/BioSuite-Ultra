@@ -50,8 +50,17 @@ class TestGUICoreStructure:
             assert cat in PLOT_CATEGORIES
 
     def test_plot_funcs_dict_exists(self):
-        from biosuite.gui.main_window import PLOT_FUNCS
+        import inspect
+
+        from biosuite.gui.main_window import BioSuiteApp, PLOT_CATEGORIES, PLOT_FUNCS
         assert isinstance(PLOT_FUNCS, dict)
+        # The catalogue is a promise: every advertised plot id has a dispatch
+        # entry in the builder that fills PLOT_FUNCS at app construction.
+        ids = {entry[1] for cat in PLOT_CATEGORIES.values() for entry in cat}
+        assert len(ids) == 40
+        src = inspect.getsource(BioSuiteApp._build_plot_funcs)
+        for plot_id in ids:
+            assert plot_id in src, f"{plot_id} has no dispatch entry"
 
     def test_font_constants(self):
         from biosuite.gui.main_window import FONT_BODY, FONT_FAMILY, FONT_MONO

@@ -15,14 +15,17 @@ Usage:
     results = parallel_map(download_func, url_list, workers=8, io_bound=True)
 """
 
-import logging
 import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
-logger = logging.getLogger('biosuite.parallel')
+from .log import get_logger
+
+# get_logger() so the name follows the package (biosuite.core.parallel) and the
+# shared handlers are installed on first use, like every other core module.
+logger = get_logger(__name__)
 
 # ── Auto-detect optimal worker count ──────────────────────────────────────
 
@@ -53,6 +56,34 @@ def _is_picklable(func):
         return False
 
 
+def _threads_preferred(funcs, io_bound: bool) -> bool:
+    """Decide whether a thread pool is the right executor for *funcs*.
+
+    A process pool pickles the callable into every worker, and on Windows (spawn)
+    only an importable module-level function survives that (F2-5)."""
+    if io_bound or sys.platform == 'win32':
+        return True
+    return not all(_is_picklable(func) for func in funcs)
+
+
+def _run_sequential(func, items, kwargs) -> List[Any]:
+    """Apply *func* to *items* in this process, mapping a failure to a logged None.
+
+    parallel_map's pooled path already reports a failed item as None; the
+    in-process paths have to agree, or the same call raises or returns None
+    depending only on how many items it was given — which also makes
+    ParallelBatchProcessor's 'failed' statistic unusable for short batches.
+    """
+    results = []
+    for idx, item in enumerate(items):
+        try:
+            results.append(func(item, **kwargs))
+        except Exception as e:
+            logger.error("Parallel task failed at index %d: %s", idx, e)
+            results.append(None)
+    return results
+
+
 def parallel_map(
     func: Callable,
     items: List[Any],
@@ -72,7 +103,8 @@ def parallel_map(
         items: List of items to process.
         workers: Number of workers. None = auto-detect.
         io_bound: If True, use thread pool instead of process pool.
-        chunk_size: Items per chunk for process pool (None = auto).
+        chunk_size: Items per batch, submitted as one task; works for either pool.
+            None (the default) submits one task per item — there is no auto value.
         progress_callback: Optional callback(completed, total) for progress.
         **kwargs: Extra keyword arguments passed to func.
     
@@ -85,13 +117,19 @@ def parallel_map(
     """
     if not items:
         return []
+
+    if chunk_size is not None and (not isinstance(chunk_size, int)
+                                   or isinstance(chunk_size, bool) or chunk_size < 1):
+        # range(0, len(items), -5) is empty, so no task was ever submitted and the
+        # call answered [None] * len(items) — every item "failed" silently.
+        raise ValueError(f"chunk_size must be a positive integer, got {chunk_size!r}.")
     
     if workers is None:
         workers = get_optimal_workers(io_bound)
     
     # For small inputs, don't bother with parallelism
     if len(items) <= 4 or workers <= 1:
-        return [func(item, **kwargs) for item in items]
+        return _run_sequential(func, items, kwargs)
     
     results = [None] * len(items)
     completed = 0
@@ -102,7 +140,7 @@ def parallel_map(
     # machinery of every worker and silently fell back to SEQUENTIAL mode
     # after an exception storm; proactive picklability check picks threads
     # instead, which is cheap and correct for such callables.
-    if io_bound or sys.platform == 'win32' or not _is_picklable(func):
+    if _threads_preferred([func], io_bound):
         executor_class = ThreadPoolExecutor
     else:
         executor_class = ProcessPoolExecutor
@@ -116,37 +154,51 @@ def parallel_map(
                 for i in range(0, len(items), chunk_size):
                     chunk = items[i:i + chunk_size]
                     future = executor.submit(_apply_chunk, func, chunk, kwargs)
-                    future_to_idx[future] = (i, chunk_size)
+                    # (start, item count, submitted-as-a-chunk).  The count is the
+                    # REAL chunk length, so a short final chunk cannot drive
+                    # `completed` past len(items) in the progress callback.
+                    future_to_idx[future] = (i, len(chunk), True)
             else:
                 for idx, item in enumerate(items):
                     future = executor.submit(func, item, **kwargs)
-                    future_to_idx[future] = (idx, 1)
-            
+                    future_to_idx[future] = (idx, 1, False)
+
             # Collect results
             for future in as_completed(future_to_idx):
-                idx, size = future_to_idx[future]
+                idx, size, chunked = future_to_idx[future]
                 try:
-                    result = future.result(timeout=300)
-                    if size == 1:
-                        results[idx] = result
-                    else:
-                        # Chunk result
+                    # No timeout here: as_completed only yields futures that are
+                    # already done, so a timeout on result() could never fire —
+                    # the old timeout=300 was inert decoration.
+                    result = future.result()
+                    if chunked:
+                        # _apply_chunk returns exactly one value per item of the
+                        # chunk it was handed, so idx + j is always in range.
                         for j, r in enumerate(result):
-                            if idx + j < len(items):
-                                results[idx + j] = r
+                            results[idx + j] = r
+                    else:
+                        results[idx] = result
                     completed += size
-                    if progress_callback:
-                        progress_callback(completed, len(items))
                 except Exception as e:
-                    logger.error("Parallel task failed at index %d: %s", idx, e)
+                    if chunked and size > 1:
+                        # The whole chunk died on one item, so blaming a single
+                        # index pointed the reader at an item that ran fine.
+                        logger.error("Parallel task failed for items %d-%d: %s",
+                                     idx, idx + size - 1, e)
+                    else:
+                        logger.error("Parallel task failed at index %d: %s", idx, e)
                     # Fill with None for failed items
                     for j in range(size):
-                        if idx + j < len(items):
-                            results[idx + j] = None
+                        results[idx + j] = None
                     completed += size
+                # Outside the try, so a failed batch reports its progress too:
+                # a callback wired to a GUI bar used to stall below 100% whenever
+                # the last submitted unit of work raised.
+                if progress_callback:
+                    progress_callback(completed, len(items))
     except Exception as e:
         logger.error("Parallel executor failed: %s. Falling back to sequential.", e)
-        return [func(item, **kwargs) for item in items]
+        return _run_sequential(func, items, kwargs)
     
     return results
 
@@ -200,7 +252,14 @@ def parallel_submit(
         return results
     
     results = [None] * len(tasks)
-    executor_class = ThreadPoolExecutor if io_bound else ProcessPoolExecutor
+    # The same rule parallel_map applies: a process pool cannot carry a
+    # non-picklable callable, and on Windows (spawn) it cannot carry one that is
+    # only reachable from the parent's __main__.  Sending such a task costs the
+    # whole task, so heterogeneous batches fall back to threads instead.
+    if _threads_preferred([func for func, *_rest in tasks], io_bound):
+        executor_class = ThreadPoolExecutor
+    else:
+        executor_class = ProcessPoolExecutor
     
     try:
         with executor_class(max_workers=workers) as executor:

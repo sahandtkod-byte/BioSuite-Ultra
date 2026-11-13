@@ -30,8 +30,14 @@ def test_documented_asgi_target_resolves():
 def test_uvicorn_import_string_resolves():
     """`uvicorn biosuite.api.server:app` must be importable exactly as written."""
     import importlib
+
+    from fastapi import FastAPI
+
     module = importlib.import_module("biosuite.api.server")
-    assert callable(getattr(module.app, "__call__", None))
+    assert isinstance(module.app, FastAPI)
+    # The advertised endpoint surface is pinned at 38; the app object uvicorn
+    # would serve must carry at least that many routes.
+    assert len(module.app.routes) >= 38
 
 
 # ── BSU-002: refusal to serve without configuration ─────────────────────────
@@ -42,10 +48,15 @@ def _run_server_startup(env_overrides):
     env = {k: v for k, v in os.environ.items()
            if not k.startswith("BIOSUITE_")}
     env["MPLBACKEND"] = "Agg"
+    # Pin both ends to UTF-8: on Windows ``text=True`` alone decodes the child's
+    # output with the ANSI codepage, a reader thread dies on an undecodable byte,
+    # and stdout/stderr arrive as None.
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     env.update(env_overrides)
     return subprocess.run(
         [sys.executable, "-m", "biosuite.api.server"],
-        capture_output=True, text=True, timeout=120, env=env)
+        capture_output=True, text=True, encoding="utf-8", timeout=120, env=env)
 
 
 def test_server_refuses_to_start_with_no_configuration():

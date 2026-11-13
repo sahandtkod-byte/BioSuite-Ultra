@@ -3,15 +3,13 @@ BioSuite Ultra — Professional CLI Interface
 
 Supports both interactive menu mode and non-interactive command mode:
     biosuite                    # Interactive menu
-    biosuite --cmd gc ATCGATCG  # Non-interactive
-    biosuite --cmd translate ATCGATCG --frame 1
+    biosuite gc ATCGATCG        # Non-interactive
+    biosuite nw AGTACGCA TATGC  # Commands take positional arguments
 """
 import argparse
-import logging
 import os
+import re
 import sys
-
-import matplotlib.pyplot as plt
 
 
 def _enable_utf8_stdio():
@@ -42,65 +40,12 @@ from ..core.gwas import (
     generate_gwas_data,
     run_gwas,
 )
-from ..core.pathway_viz import (
-    create_kegg_style_pathway,
-    draw_pathway,
-    format_pathway_report,
-)
+from ..core.log import get_logger
 from ..core.utils import config, save_config, set_theme
 from ..core.workflow.batch import BatchProcessor, format_batch_report
 from ..core.workflow.pipeline import Pipeline, format_pipeline_report
 from ..core.workflow.report import (
     create_report,
-)
-from ..plotting.biological_plots import (
-    alignment_viewer,
-    barplot_custom,
-    boxplot_custom,
-    circos_plot,
-    clustered_heatmap,
-    dot_plot,
-    heatmap_custom,
-    ma_plot,
-    manhattan_plot,
-    pca_plot,
-    qq_plot,
-    raincloud_plot,
-    ridge_plot,
-    scatter_custom,
-    timeseries_plot,
-    venn_diagram,
-    violin_plot,
-    volcano_plot,
-)
-from ..plotting.conservation_plots import (
-    plot_logo_with_conservation,
-)
-from ..plotting.genome_browser import (
-    create_coverage_from_bam,
-    plot_genome_tracks,
-)
-from ..plotting.math_plots import (
-    cosine_plot,
-    cubic_plot,
-    exponential_plot,
-    linear_plot,
-    logistic_plot,
-    quadratic_plot,
-    sine_plot,
-)
-from ..plotting.specialized_plots import (
-    gsea_plot,
-    motif_logo,
-    sankey_diagram,
-    umap_plot,
-)
-from ..plotting.synteny import (
-    compute_synteny_score,
-    plot_synteny_dotplot,
-)
-from ..plotting.upset_plots import (
-    plot_upset,
 )
 
 G = '\033[92m'  # Green
@@ -117,35 +62,44 @@ M = '\033[95m'  # Magenta
 COMMAND_REGISTRY = {
     'gc': {'func': 'biosuite.core.sequence:gc_content', 'desc': 'Calculate GC content', 'args': ['sequence']},
     'revcomp': {'func': 'biosuite.core.sequence:reverse_complement', 'desc': 'Reverse complement', 'args': ['sequence']},
+    'search': {'func': 'biosuite.cli.menu:search_menu', 'desc': 'Search the interactive menu', 'args': ['query']},
     'translate': {'func': 'biosuite.core.sequence:translate', 'desc': 'Translate DNA to protein', 'args': ['sequence'], 'kwargs': {'frame': 1}},
     'stats': {'func': 'biosuite.core.sequence:sequence_stats', 'desc': 'Sequence composition stats', 'args': ['sequence']},
-    'nw': {'func': 'biosuite.core.alignment:needleman_wunsch', 'desc': 'Needleman-Wunsch alignment', 'args': ['seq1', 'seq2']},
-    'sw': {'func': 'biosuite.core.alignment:smith_waterman', 'desc': 'Smith-Waterman alignment', 'args': ['seq1', 'seq2']},
-    'blast': {'func': 'biosuite.core.blast:run_blast', 'desc': 'BLAST sequence search', 'args': ['query', 'database']},
-    'crispr': {'func': 'biosuite.core.crispr:design_guides', 'desc': 'CRISPR guide design', 'args': ['sequence']},
-    'epitope': {'func': 'biosuite.core.epitope:predict_t_cell_epitopes', 'desc': 'T-cell epitope prediction', 'args': ['sequence']},
-    'gwas': {'func': 'biosuite.core.gwas:run_gwas', 'desc': 'Run GWAS analysis', 'args': ['datafile']},
+    'nw': {'func': 'biosuite.cli.menu:_cli_align', 'desc': 'Needleman-Wunsch alignment', 'args': ['seq1', 'seq2'], 'kwargs': {'method': 'nw'}},
+    'sw': {'func': 'biosuite.cli.menu:_cli_align', 'desc': 'Smith-Waterman alignment', 'args': ['seq1', 'seq2'], 'kwargs': {'method': 'sw'}},
+    'blast': {'func': 'biosuite.cli.menu:_cli_blast', 'desc': 'BLAST sequence search', 'args': ['query', 'database']},
+    'crispr': {'func': 'biosuite.core.crispr:design_guides', 'desc': 'CRISPR guide design', 'args': ['sequence'], 'report': 'biosuite.core.crispr:format_crispr_report'},
+    'epitope': {'func': 'biosuite.cli.menu:_cli_epitope', 'desc': 'T-cell and B-cell epitope prediction', 'args': ['sequence']},
+    'gwas': {'func': 'biosuite.cli.menu:_cli_gwas', 'desc': 'Run GWAS analysis from a CSV/TSV of SNPs', 'args': ['datafile']},
     'hwe': {'func': 'biosuite.cli.menu:_cli_hardy_weinberg', 'desc': 'Hardy-Weinberg test (AA Aa aa counts)', 'args': ['AA', 'Aa', 'aa']},
-    'volcano': {'func': 'biosuite.plotting.plot_api:volcano', 'desc': 'Volcano plot', 'args': ['lfc_file', 'pval_file']},
-    'pca': {'func': 'biosuite.plotting.plot_api:pca', 'desc': 'PCA plot', 'args': ['datafile']},
-    'manhattan': {'func': 'biosuite.plotting.plot_api:manhattan', 'desc': 'Manhattan plot', 'args': ['datafile']},
-    'digest': {'func': 'biosuite.core.cloning:simulate_digestion', 'desc': 'Restriction digestion', 'args': ['sequence', 'enzyme']},
-    'primers': {'func': 'biosuite.core.cloning:design_primers', 'desc': 'Primer design', 'args': ['sequence']},
+    'volcano': {'func': 'biosuite.cli.menu:_cli_volcano', 'desc': 'Volcano plot from two numeric columns', 'args': ['lfc_file', 'pval_file']},
+    'pca': {'func': 'biosuite.cli.menu:_cli_pca', 'desc': 'PCA plot of a numeric matrix', 'args': ['datafile']},
+    'manhattan': {'func': 'biosuite.cli.menu:_cli_manhattan', 'desc': 'Manhattan plot (chrom, pos, p_value)', 'args': ['datafile']},
+    'digest': {'func': 'biosuite.core.cloning:simulate_digestion', 'desc': 'Restriction digestion', 'args': ['sequence', 'enzyme'], 'report': 'biosuite.core.cloning:format_digest_report'},
+    'primers': {'func': 'biosuite.core.cloning:design_primers', 'desc': 'Primer design', 'args': ['sequence'], 'report': 'biosuite.core.cloning:format_primer_report'},
     'gui': {'func': '_launch_gui', 'desc': 'Launch GUI application', 'args': []},
     'api': {'func': '_launch_api', 'desc': 'Launch REST API server', 'args': [], 'kwargs': {'port': 8000}},
     'theme': {'func': '_change_theme', 'desc': 'Change theme', 'args': ['theme_name']},
 }
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _import_func(func_path):
-    """Import a function from 'module:function' path."""
+    """Import a callable from a ``module:function`` path.
+
+    The name after the colon may be dotted (``builtins:str.upper``), because
+    :data:`SAFE_FUNCTIONS` lists aliases exactly that way and a resolver that could
+    not read its own table would fail the moment a caller resolved an alias through
+    it instead of through :func:`resolve_safe_callable`.
+    """
     module_path, func_name = func_path.rsplit(':', 1)
     import importlib
-    mod = importlib.import_module(module_path)
-    return getattr(mod, func_name)
+    target = importlib.import_module(module_path)
+    for part in func_name.split('.'):
+        target = getattr(target, part)
+    return target
 
 
 #: Short aliases the interactive pipeline/batch builders accept in addition to
@@ -211,6 +165,153 @@ def _cli_hardy_weinberg(AA, Aa, aa):
     return hardy_weinberg_test(counts)
 
 
+# ── Command-line adapters ────────────────────────────────────────────────────
+#
+# A registered command is called with the strings the user typed, so every entry
+# that needs more than one straight call lives here instead.  Before these existed
+# the registry pointed ``biosuite gwas`` at ``run_gwas`` directly: the path string
+# reached ``DataFrame.iterrows`` and the command answered
+# "Error: AttributeError: 'str' object has no attribute 'iterrows'" (exit 1), and
+# ``volcano``/``pca``/``manhattan`` failed the same way.  ``blast`` was worse: it
+# reported "Query not found" inside the repr of a result object and exited 0.
+
+def _require_file(path, what="File"):
+    """Raise the error :func:`_execute_command` renders as a one-line usage message."""
+    if not path or not os.path.isfile(path):
+        raise FileNotFoundError(f"{what} not found: {path}")
+    return path
+
+
+def _read_table(path):
+    """Read a CSV or TSV with a header row — the shape every tabular command takes."""
+    import pandas as pd
+
+    _require_file(path, "Data file")
+    return pd.read_csv(path, sep=None, engine="python")
+
+
+def _read_numbers(path):
+    """One number per line (or per first field), ignoring header and comment lines."""
+    import numpy as np
+
+    _require_file(path, "Data file")
+    values = []
+    skipped = 0
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            try:
+                values.append(float(line.replace(",", " ").split()[0]))
+            except ValueError:
+                skipped += 1
+    if skipped:
+        print(f"Warning: skipped {skipped} line(s) that are not numbers in {path}",
+              file=sys.stderr)
+    if not values:
+        raise ValueError(f"No numbers found in {path}")
+    return np.array(values)
+
+
+def _save_figure(fig, output):
+    """Write the rendered figure out and hand it back to pyplot."""
+    import matplotlib.pyplot as plt
+
+    fig.savefig(output, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return f"Saved: {output}"
+
+
+#: One provenance tracker per database file, kept for the life of the process.
+_PROVENANCE_TRACKERS = {}
+
+
+def _provenance_tracker(db_name):
+    """Return the tracker for *db_name*, reusing the one this session already opened.
+
+    Option 'e' used to build a fresh ``ProvenanceTracker`` for every action, and each
+    new tracker starts a new session — so a step recorded by "Record step" was
+    already invisible to "View history", and the export was always empty.
+    """
+    from ..core.provenance import ProvenanceTracker
+
+    key = os.path.abspath(db_name)
+    tracker = _PROVENANCE_TRACKERS.get(key)
+    if tracker is None:
+        tracker = ProvenanceTracker(db_name)
+        _PROVENANCE_TRACKERS[key] = tracker
+    return tracker
+
+
+def _cli_align(seq1, seq2, method="nw"):
+    """Pairwise alignment as two aligned lines and a score, never as a tuple repr."""
+    from ..core.alignment import needleman_wunsch, smith_waterman
+
+    align = needleman_wunsch if method == "nw" else smith_waterman
+    a1, a2, score = align(seq1, seq2)
+    return f"  Score: {score}\n  {a1}\n  {a2}"
+
+
+def _cli_blast(query, database):
+    from ..core.blast import format_blast_result, run_blast
+
+    _require_file(query, "Query FASTA")
+    _require_file(database, "Database FASTA")
+    return format_blast_result(run_blast(query, database))
+
+
+def _cli_epitope(sequence):
+    from ..core.epitope import (
+        format_epitope_report,
+        predict_b_cell_epitopes,
+        predict_t_cell_epitopes,
+    )
+
+    return format_epitope_report(predict_t_cell_epitopes(sequence),
+                                 predict_b_cell_epitopes(sequence), "command line")
+
+
+def _cli_gwas(datafile):
+    from ..core.gwas import detect_lead_snps, format_gwas_report, run_gwas
+
+    data = _read_table(datafile)
+    results = run_gwas(data)
+    return format_gwas_report(results, detect_lead_snps(results))
+
+
+def _cli_volcano(lfc_file, pval_file, output="volcano.png"):
+    from ..plotting.plot_api import volcano
+
+    log2fc = _read_numbers(lfc_file)
+    pvalues = _read_numbers(pval_file)
+    if len(log2fc) != len(pvalues):
+        raise ValueError(
+            f"{lfc_file} has {len(log2fc)} values but {pval_file} has {len(pvalues)}; "
+            f"the two files need one value per gene")
+    return _save_figure(volcano(log2fc, pvalues), output)
+
+
+def _cli_pca(datafile, output="pca.png"):
+    from ..plotting.plot_api import pca
+
+    table = _read_table(datafile).select_dtypes("number")
+    if table.empty:
+        raise ValueError(f"{datafile} has no numeric columns to project")
+    return _save_figure(pca(table.values), output)
+
+
+def _cli_manhattan(datafile, output="manhattan.png"):
+    from ..plotting.plot_api import manhattan
+
+    table = _read_table(datafile)
+    missing = [c for c in ("chrom", "pos", "p_value") if c not in table.columns]
+    if missing:
+        raise ValueError(f"{datafile} is missing column(s): {', '.join(missing)}")
+    return _save_figure(manhattan(table["chrom"], table["pos"], table["p_value"]),
+                        output)
+
+
 def _execute_command(cmd_name, args):
     """Execute a registered command with arguments.
 
@@ -250,10 +351,11 @@ def _execute_command(cmd_name, args):
         _launch_api(args.port if hasattr(args, 'port') else 8000)
         return 0
     elif entry['func'] == '_change_theme':
+        # An inline copy of this used to call set_theme() and print, never writing
+        # the config — so ``biosuite theme dark-purple`` was forgotten on the next
+        # start while reporting success.
         theme = args.theme_name if hasattr(args, 'theme_name') else 'dark-green'
-        set_theme(theme)
-        print(f"Theme set to: {theme}")
-        return 0
+        return 0 if _change_theme(theme) else 2
 
     # Dynamic import and call
     func = _import_func(entry['func'])
@@ -286,6 +388,10 @@ def _execute_command(cmd_name, args):
         return 1
 
     if result is not None:
+        if entry.get('report'):
+            # Some core functions answer a dataclass or a dict whose repr is not what
+            # a person should read; their module already has a formatter.
+            result = _import_func(entry['report'])(result)
         if hasattr(result, 'to_string'):
             print(result.to_string())
         elif isinstance(result, dict):
@@ -336,12 +442,25 @@ def _launch_api(port=8000):
     uvicorn.run(app, host=host, port=port)
 
 
+#: The themes the application actually ships.  ``set_theme`` treats anything that is
+#: not one of its dark names as light, so without this list ``biosuite theme
+#: dark-greene`` silently switched the whole app to a light theme and reported
+#: success.
+THEME_CHOICES = {'1': 'dark-green', '2': 'dark-purple', '3': 'light-blue'}
+VALID_THEMES = tuple(dict.fromkeys(THEME_CHOICES.values()))
+
+
 def _change_theme(theme_name):
-    """Change the application theme."""
+    """Apply and save a theme.  Returns False when the name is not one of ours."""
+    if theme_name not in VALID_THEMES:
+        print(f"Unknown theme {theme_name!r}. "
+              f"Choose one of: {', '.join(VALID_THEMES)}.")
+        return False
     set_theme(theme_name)
     config['theme'] = theme_name
     save_config(config)
     print(f"Theme changed to: {theme_name}")
+    return True
 
 
 def _build_parser():
@@ -454,7 +573,7 @@ def print_menu():
     _section("SPECIALIZED TOOLS  ·  Metagenomics, CRISPR, ML & More", Y)
     print(f"  {C}│{R}  {B}{G}55{R} Metagenomics Pipeline       {B}{G}56{R} CRISPR Guide RNA Design")
     print(f"  {C}│{R}  {B}{G}57{R} Flux Balance Analysis       {B}{G}58{R} Population Genetics")
-    print(f"  {C}│{R}  {B}{G}59{R} Epigenomics (Methylation)   {B}{G}60{R} Metabolomics Analysis")
+    print(f"  {C}│{R}  {B}{G}59{R} Epigenomics (Meth/DMR/ATAC) {B}{G}60{R} Metabolomics Analysis")
     print(f"  {C}│{R}  {B}{G}61{R} Molecular Dynamics (MD)     {B}{G}62{R} Machine Learning (RF/SVM)")
     _end_section()
 
@@ -511,7 +630,7 @@ def print_menu():
     print(f"  {C}│{R}  {B}{G} p{R} Sequence Viewer          {B}{G} q{R} Ligation Simulator")
     _end_section()
 
-    _section("PHASE 6  ·  Interactive Plots, Provenance, Advanced DE", M)
+    _section("ADVANCED TOOLS  ·  Interactive Plots, Provenance & File I/O", M)
     print(f"  {C}│{R}  {B}{G} d{R} Interactive Plot (Plotly) {B}{G} e{R} Provenance Tracker")
     print(f"  {C}│{R}  {B}{G} f{R} Plugin Manager            {B}{G} g{R} File Format Detector")
     print(f"  {C}│{R}  {B}{G} h{R} DESeq2 Normalization      {B}{G} i{R} VST Transformation")
@@ -521,8 +640,64 @@ def print_menu():
     _section("SYSTEM  ·  Configuration & Export", W)
     print(f"  {C}│{R}  {B}{G}89{R} Launch GUI             {B}{G}90{R} Launch API Server")
     print(f"  {C}│{R}  {B}{G}99{R} Change Theme           {B}{G} 0{R} Exit")
+    print(f"  {C}│{R}  {B}{G} s{R} Search Menu")
     _end_section()
     print()
+
+
+_MENU_PART_RE = re.compile(r"^([a-z0-9]{1,3})\s+(.+)$")
+
+
+def search_menu(query):
+    """Print every menu item whose number, name or section matches ``query``.
+
+    Matching is case-insensitive.  The items are parsed from the text
+    :func:`print_menu` generates, so the search can never drift from the menu
+    that is actually displayed.  Prints the matches grouped by section and
+    returns nothing; the print is the result.
+    """
+    import contextlib
+    import io
+
+    query = query.strip().lower()
+    if not query:
+        print("  Usage: search <keyword> — e.g. search blast")
+        return
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        print_menu()
+
+    ansi = re.compile(r"\x1b\[[0-9;]*m")
+    section = ""
+    matches = []
+    for raw_line in buf.getvalue().splitlines():
+        line = ansi.sub("", raw_line)
+        if "┌─" in line:
+            section = line.split("┌─", 1)[1].split("·")[0].rstrip("─ ").strip()
+            continue
+        if "│" not in line:
+            continue
+        body = line.split("│", 1)[1]
+        for part in re.split(r"\s{2,}", body.strip()):
+            m = _MENU_PART_RE.match(part.strip())
+            if not m:
+                continue
+            number, name = m.group(1), m.group(2)
+            if query in f"{number} {name} {section}".lower():
+                matches.append((section, number, name))
+
+    if not matches:
+        print(f"  No menu items match {query!r}.")
+        return
+
+    print(f"  Menu search for {query!r}:")
+    shown = set()
+    for match_section, number, name in matches:
+        if match_section not in shown:
+            print(f"    ── {match_section}")
+            shown.add(match_section)
+        print(f"    {B}{G}{number}{R}  {name}")
 
 
 def main_cli(argv=None):
@@ -535,13 +710,14 @@ def main_cli(argv=None):
     if argv is not None or len(sys.argv) > 1:
         args = parser.parse_args(argv)
         if args.theme:
-            _change_theme(args.theme)
+            if not _change_theme(args.theme):
+                return 2
         if args.gui:
             _launch_gui()
-            return
+            return 0
         if args.api:
             _launch_api(args.port)
-            return
+            return 0
         if args.command:
             # Create a namespace with cmd_args as individual attrs
             cmd_args = argparse.Namespace()
@@ -556,7 +732,10 @@ def main_cli(argv=None):
             return _execute_command(args.command, cmd_args)
         return 0
 
-    # Interactive mode
+    # Interactive mode. run.py no longer applies the theme up front, so
+    # lightweight operations never load the plotting stack; the menu applies
+    # it here, before any demo can draw.
+    set_theme(config['theme'])
     while True:
         print_menu()
         try:
@@ -595,24 +774,60 @@ def _handle_menu_choice(choice):
     diagnostic and returns to the menu instead of terminating the session.
     """
     # ── Visualization (1-18) ──
-    if choice == '1': volcano_plot()
-    elif choice == '2': pca_plot()
-    elif choice == '3': manhattan_plot()
-    elif choice == '4': ma_plot()
-    elif choice == '5': venn_diagram()
-    elif choice == '6': barplot_custom()
-    elif choice == '7': boxplot_custom()
-    elif choice == '8': heatmap_custom()
-    elif choice == '9': scatter_custom()
-    elif choice == '10': timeseries_plot()
-    elif choice == '11': violin_plot()
-    elif choice == '12': raincloud_plot()
-    elif choice == '13': ridge_plot()
-    elif choice == '14': dot_plot()
-    elif choice == '15': qq_plot()
-    elif choice == '16': clustered_heatmap()
-    elif choice == '17': circos_plot()
-    elif choice == '18': alignment_viewer()
+    if choice == '1':
+        from ..plotting.biological_plots import volcano_plot
+        volcano_plot()
+    elif choice == '2':
+        from ..plotting.biological_plots import pca_plot
+        pca_plot()
+    elif choice == '3':
+        from ..plotting.biological_plots import manhattan_plot
+        manhattan_plot()
+    elif choice == '4':
+        from ..plotting.biological_plots import ma_plot
+        ma_plot()
+    elif choice == '5':
+        from ..plotting.biological_plots import venn_diagram
+        venn_diagram()
+    elif choice == '6':
+        from ..plotting.biological_plots import barplot_custom
+        barplot_custom()
+    elif choice == '7':
+        from ..plotting.biological_plots import boxplot_custom
+        boxplot_custom()
+    elif choice == '8':
+        from ..plotting.biological_plots import heatmap_custom
+        heatmap_custom()
+    elif choice == '9':
+        from ..plotting.biological_plots import scatter_custom
+        scatter_custom()
+    elif choice == '10':
+        from ..plotting.biological_plots import timeseries_plot
+        timeseries_plot()
+    elif choice == '11':
+        from ..plotting.biological_plots import violin_plot
+        violin_plot()
+    elif choice == '12':
+        from ..plotting.biological_plots import raincloud_plot
+        raincloud_plot()
+    elif choice == '13':
+        from ..plotting.biological_plots import ridge_plot
+        ridge_plot()
+    elif choice == '14':
+        from ..plotting.biological_plots import dot_plot
+        dot_plot()
+    elif choice == '15':
+        from ..plotting.biological_plots import qq_plot
+        qq_plot()
+    elif choice == '16':
+        from ..plotting.biological_plots import clustered_heatmap
+        clustered_heatmap()
+    elif choice == '17':
+        from ..plotting.biological_plots import circos_plot
+        circos_plot()
+    elif choice == '18':
+        from ..plotting.biological_plots import alignment_viewer
+        alignment_viewer()
 
     # ── Sequence Analysis (20-28) ──
     elif choice == '20':
@@ -622,6 +837,8 @@ def _handle_menu_choice(choice):
         if q and db:
             result = run_blast(q, db)
             print(format_blast_result(result))
+        else:
+            print("  Both a query FASTA and a database FASTA are required.")
 
     elif choice == '21':
         from ..core.msa import (
@@ -636,6 +853,8 @@ def _handle_menu_choice(choice):
             result = auto_align(seqs)
             print(format_alignment(result))
             print(f"  Consensus: {consensus_sequence(result)}")
+        else:
+            print("  No sequences read from that file.")
 
     elif choice == '22':
         s1 = input("  Sequence 1: ").strip()
@@ -681,6 +900,8 @@ def _handle_menu_choice(choice):
         if seqs:
             for name, seq in seqs:
                 print(f"  >{name} ({len(seq)} bp)")
+        else:
+            print("  No sequences read from that file.")
 
     # ── Transcriptomics (30-35) ──
     elif choice == '30':
@@ -705,12 +926,16 @@ def _handle_menu_choice(choice):
         counts = read_counts_matrix(fp)
         if counts is not None:
             print(differential_expression(counts, cond).head(20).to_string())
+        else:
+            print("  No count matrix was read.")
 
     elif choice == '33':
         from ..core.expression import cpm_normalization, read_counts_matrix
         counts = read_counts_matrix(input("  Count matrix: ").strip())
         if counts is not None:
             print(cpm_normalization(counts).head(10).to_string())
+        else:
+            print("  No count matrix was read.")
 
     elif choice == '34':
         import numpy as np
@@ -720,12 +945,27 @@ def _handle_menu_choice(choice):
         if counts is not None:
             lens = np.array([float(x) for x in input("  Gene lengths (kb, comma-sep): ").split(',')])
             print(tpm_normalization(counts, lens).head(10).to_string())
+        else:
+            print("  No count matrix was read.")
 
     elif choice == '35':
-        from ..core.enrichment import format_enrichment_report, run_gsea, run_ora
+        from ..core.enrichment import (
+            format_enrichment_report,
+            run_gsea,
+            run_kegg_enrichment,
+            run_ora,
+        )
         genes = [g.strip() for g in input("  Gene IDs: ").split(',') if g.strip()]
-        m = input("  Method (ORA/GSEA) [ORA]: ").strip().upper() or "ORA"
-        result = run_ora(genes) if m == 'ORA' else run_gsea(genes)
+        m = input("  Method (ORA/GSEA/KEGG) [ORA]: ").strip().upper() or "ORA"
+        if m not in ('ORA', 'GSEA', 'KEGG'):
+            print(f"  Unknown method {m!r}: use ORA, GSEA or KEGG.")
+            return
+        if m == 'ORA':
+            result = run_ora(genes)
+        elif m == 'GSEA':
+            result = run_gsea(genes)
+        else:
+            result = run_kegg_enrichment(genes)
         print(format_enrichment_report(result))
 
     # ── Genomics & NGS (40-47) ──
@@ -734,12 +974,42 @@ def _handle_menu_choice(choice):
         print(format_alignment_report(align_reads(input("  Reference: ").strip(), input("  Reads: ").strip())))
 
     elif choice == '41':
-        from ..core.variant_calling import call_variants, variant_summary
-        print(variant_summary(call_variants(input("  SAM/BAM: ").strip())))
+        from ..core.variant_calling import call_variants, filter_variants, variant_summary
+        report = call_variants(input("  SAM/BAM: ").strip())
+        print(variant_summary(report))
+        flt = input("  Filter min_quality,min_depth,max_af (blank=keep all): ").strip()
+        if flt:
+            try:
+                quality, depth, max_af = (float(x) for x in flt.split(','))
+            except ValueError:
+                print("  Filter needs three numbers: min_quality,min_depth,max_af.")
+                return
+            kept = filter_variants(report.variants, min_quality=quality,
+                                   min_depth=depth, max_allele_freq=max_af)
+            print(f"  Kept {len(kept)} of {len(report.variants)} variant(s) after filtering.")
 
     elif choice == '42':
-        from ..core.peak_calling import call_peaks, format_peak_report
-        print(format_peak_report(call_peaks(input("  ChIP-seq BAM/SAM: ").strip())))
+        from ..core.peak_calling import (
+            annotate_peaks_with_genes,
+            call_peaks,
+            format_peak_report,
+        )
+        report = call_peaks(input("  ChIP-seq BAM/SAM: ").strip())
+        print(format_peak_report(report))
+        bed = input("  Gene BED to annotate peaks (blank=skip): ").strip()
+        if bed:
+            if not report.peaks:
+                print("  No peaks to annotate.")
+                return
+            try:
+                annotate_peaks_with_genes(report.peaks, bed)
+            except (OSError, ValueError) as e:
+                print(f"  Could not read the gene BED: {e}")
+                return
+            for p in report.peaks[:20]:
+                print(f"  {p.chrom}:{p.start}-{p.end} -> {p.name}")
+            if len(report.peaks) > 20:
+                print(f"  ... and {len(report.peaks) - 20} more.")
 
     elif choice == '43':
         from ..core.assembly import assemble, format_assembly_report
@@ -752,12 +1022,20 @@ def _handle_menu_choice(choice):
             plot_phylogenetic_tree,
             upgma_tree,
         )
+        import matplotlib.pyplot as plt
+
         seqs = read_fasta_for_msa(input("  Aligned FASTA: ").strip())
-        if seqs:
+        if not seqs:
+            print("  No sequences read from that file.")
+        else:
             names = [n for n, _ in seqs]
             dist = distance_matrix([s for _, s in seqs])
-            plot_phylogenetic_tree(upgma_tree(dist, names), names)
+            tree = upgma_tree(dist)
+            plot_phylogenetic_tree(tree, names)
+            print(f"  UPGMA tree from {len(names)} sequences "
+                  f"({', '.join(names)}).")
             plt.show()
+            plt.close()
 
     elif choice == '45':
         from ..core.ml_phylogeny import build_tree, format_phylo_report
@@ -770,12 +1048,21 @@ def _handle_menu_choice(choice):
 
     elif choice == '47':
         from ..core.ngs import manhattan_from_vcf, read_vcf
+        import matplotlib.pyplot as plt
+
         df = read_vcf(input("  VCF file: ").strip())
-        if df is not None:
+        if df is None:
+            print("  No VCF was read.")
+        else:
+            import numpy as np
+
             mh = manhattan_from_vcf(df)
             plt.scatter(mh['POS'], mh['neg_log10'], s=2)
             plt.title("Manhattan Plot from VCF")
+            print(f"  Plotting {len(mh)} variants; "
+                  f"{int((mh['neg_log10'] > -np.log10(5e-8)).sum())} below p=5e-8.")
             plt.show()
+            plt.close()
 
     # ── Single-Cell & Proteomics (50-53) ──
     elif choice == '50':
@@ -821,9 +1108,28 @@ def _handle_menu_choice(choice):
         print(format_crispr_report(design_guides(seq, pam_type=pam)))
 
     elif choice == '57':
-        from ..core.metabolism import format_flux_report, run_fba
+        from ..core.metabolism import (
+            check_metabolism_tools,
+            format_flux_report,
+            knockout_analysis,
+            run_fba,
+        )
         model = input("  SBML file (blank=demo): ").strip()
         print(format_flux_report(run_fba(model_file=model if model else None)))
+        genes = input("  Knockout gene IDs (comma-sep, blank=skip): ").strip()
+        ids = [g.strip() for g in genes.split(',') if g.strip()]
+        if ids:
+            results = knockout_analysis(model if model else None, ids)
+            if not results:
+                if check_metabolism_tools()['cobra']:
+                    print("  Knockout analysis returned no results.")
+                else:
+                    print("  No gene was tested: gene knockouts need COBRApy, "
+                          "which is not installed.")
+            else:
+                for r in results:
+                    flux = "n/a" if r.knockout_flux is None else f"{r.knockout_flux:.4f}"
+                    print(f"  {r.gene}: knockout flux={flux}  essential={r.essential}")
 
     elif choice == '58':
         import numpy as np
@@ -840,11 +1146,46 @@ def _handle_menu_choice(choice):
 
     elif choice == '59':
         from ..core.epigenomics import (
+            atac_peak_stats,
             calculate_methylation_levels,
+            find_dmrs,
             format_epigenomics_report,
+            parse_atac_peaks,
             parse_bisulfite_bed,
         )
-        print(format_epigenomics_report(calculate_methylation_levels(parse_bisulfite_bed(input("  BED file: ").strip()))))
+        mode = input("  Mode (METH/DMR/ATAC) [METH]: ").strip().upper() or "METH"
+        if mode == 'METH':
+            print(format_epigenomics_report(calculate_methylation_levels(parse_bisulfite_bed(input("  BED file: ").strip()))))
+        elif mode == 'DMR':
+            try:
+                sites1 = parse_bisulfite_bed(input("  Group 1 BED file: ").strip())
+                sites2 = parse_bisulfite_bed(input("  Group 2 BED file: ").strip())
+            except OSError as e:
+                print(f"  Could not read a BED file: {e}")
+                return
+            dmrs = find_dmrs(sites1, sites2)
+            print(f"  DMRs found: {len(dmrs)}")
+            for d in dmrs[:20]:
+                print(f"  {d['chrom']}:{d['pos']}  delta={d['delta_methylation']:+.4f}  "
+                      f"p={d['p_value']:.6g}")
+            if len(dmrs) > 20:
+                print(f"  ... and {len(dmrs) - 20} more.")
+        elif mode == 'ATAC':
+            try:
+                peaks = parse_atac_peaks(input("  ATAC peak BED file: ").strip())
+            except OSError as e:
+                print(f"  Could not read the peak file: {e}")
+                return
+            stats = atac_peak_stats(peaks)
+            if not stats:
+                print("  No peaks parsed from that file.")
+                return
+            print(f"  Peaks: {stats['total_peaks']}  Total bp: {stats['total_bp']}")
+            print(f"  Mean length: {stats['mean_length']:.1f}  "
+                  f"Median length: {stats['median_length']:.1f}")
+            print(f"  Chromosomes: {stats['chromosomes']}")
+        else:
+            print(f"  Unknown mode {mode!r}: use METH, DMR or ATAC.")
 
     elif choice == '60':
         import numpy as np
@@ -876,17 +1217,39 @@ def _handle_menu_choice(choice):
             print(format_ml_report(train_svm(X, y) if m == 'SVM' else train_random_forest(X, y)))
 
     # ── Advanced Plots (101-111) ──
-    elif choice == '101': gsea_plot()
-    elif choice == '102': motif_logo()
-    elif choice == '103': sankey_diagram()
-    elif choice == '104': umap_plot()
-    elif choice == '105': sine_plot()
-    elif choice == '106': cosine_plot()
-    elif choice == '107': linear_plot()
-    elif choice == '108': quadratic_plot()
-    elif choice == '109': cubic_plot()
-    elif choice == '110': exponential_plot()
-    elif choice == '111': logistic_plot()
+    elif choice == '101':
+        from ..plotting.specialized_plots import gsea_plot
+        gsea_plot()
+    elif choice == '102':
+        from ..plotting.specialized_plots import motif_logo
+        motif_logo()
+    elif choice == '103':
+        from ..plotting.specialized_plots import sankey_diagram
+        sankey_diagram()
+    elif choice == '104':
+        from ..plotting.specialized_plots import umap_plot
+        umap_plot()
+    elif choice == '105':
+        from ..plotting.math_plots import sine_plot
+        sine_plot()
+    elif choice == '106':
+        from ..plotting.math_plots import cosine_plot
+        cosine_plot()
+    elif choice == '107':
+        from ..plotting.math_plots import linear_plot
+        linear_plot()
+    elif choice == '108':
+        from ..plotting.math_plots import quadratic_plot
+        quadratic_plot()
+    elif choice == '109':
+        from ..plotting.math_plots import cubic_plot
+        cubic_plot()
+    elif choice == '110':
+        from ..plotting.math_plots import exponential_plot
+        exponential_plot()
+    elif choice == '111':
+        from ..plotting.math_plots import logistic_plot
+        logistic_plot()
 
     # ── Analysis (120-125) ──  (renumbered from 81-86: the display
     # labels these 120-125 and option 81 already means Synteny Dotplot —
@@ -923,6 +1286,8 @@ def _handle_menu_choice(choice):
         print(format_km_result(result))
 
     elif choice == '124':
+        import matplotlib.pyplot as plt
+
         from ..plotting.network_plots import (
             create_ppi_network,
             network_statistics,
@@ -940,8 +1305,8 @@ def _handle_menu_choice(choice):
             stats = network_statistics(graph)
             print(f"  Nodes: {stats['nodes']}, Edges: {stats['edges']}, Density: {stats['density']}")
             plot_network(graph, title="PPI Network")
-            import matplotlib.pyplot as plt
             plt.show()
+            plt.close()
 
     elif choice == '125':
         from ..plotting.network_plots import create_ppi_network, network_statistics
@@ -970,7 +1335,12 @@ def _handle_menu_choice(choice):
                 name = parts[0].strip()
                 elements = set(x.strip() for x in parts[1].split(','))
                 sets_dict[name] = elements
+            else:
+                print(f"  Ignored line {line!r}: expected 'name,element,element'.")
         if sets_dict:
+            import matplotlib.pyplot as plt
+
+            from ..plotting.upset_plots import plot_upset
             fig = plot_upset(sets_dict, title="UpSet Plot")
             plt.show()
             plt.close()
@@ -978,7 +1348,14 @@ def _handle_menu_choice(choice):
             print("  No sets entered.")
 
     elif choice == '78':
-        from ..plotting.genome_browser import create_bed_track, create_variant_track
+        import matplotlib.pyplot as plt
+
+        from ..plotting.genome_browser import (
+            create_bed_track,
+            create_coverage_from_bam,
+            create_variant_track,
+            plot_genome_tracks,
+        )
         print("  Track types: coverage, bed, variant")
         tracks = []
         while True:
@@ -988,14 +1365,22 @@ def _handle_menu_choice(choice):
                 fp = input("  BED file: ").strip()
                 if fp and os.path.exists(fp):
                     tracks.append(create_bed_track(fp))
+                else:
+                    print("  BED file not found; track skipped.")
             elif ttype == 'variant':
                 fp = input("  VCF file: ").strip()
                 if fp and os.path.exists(fp):
                     tracks.append(create_variant_track(fp))
+                else:
+                    print("  VCF file not found; track skipped.")
             elif ttype == 'coverage':
                 fp = input("  BAM/SAM file: ").strip()
                 if fp and os.path.exists(fp):
                     tracks.append(create_coverage_from_bam(fp))
+                else:
+                    print("  BAM/SAM file not found; track skipped.")
+            else:
+                print(f"  Unknown track type {ttype!r}; expected bed, variant or coverage.")
         if tracks:
             fig = plot_genome_tracks(tracks, title="Genome Browser")
             plt.show()
@@ -1026,14 +1411,17 @@ def _handle_menu_choice(choice):
             else:
                 print("  File not found.")
         else:
-            np.random.seed(42)
-            x = np.random.randn(100)
-            y = x * 2 + np.random.randn(100)
+            rng = np.random.default_rng(42)
+            x = rng.standard_normal(100)
+            y = x * 2 + rng.standard_normal(100)
             fig = interactive_scatter(x, y, title="Interactive Scatter (demo)",
                                       output_html="scatter_interactive.html")
             print("  Saved: scatter_interactive.html")
 
     elif choice == '80':
+        import matplotlib.pyplot as plt
+
+        from ..plotting.conservation_plots import plot_logo_with_conservation
         print("  Enter aligned sequences (one per line, empty to finish):")
         seqs = []
         while True:
@@ -1047,6 +1435,9 @@ def _handle_menu_choice(choice):
         plt.close()
 
     elif choice == '81':
+        import matplotlib.pyplot as plt
+
+        from ..plotting.synteny import compute_synteny_score, plot_synteny_dotplot
         print("  Enter gene orders (comma-sep, one genome per line):")
         g1 = [g.strip() for g in input("  Genome 1: ").split(',') if g.strip()]
         g2 = [g.strip() for g in input("  Genome 2: ").split(',') if g.strip()]
@@ -1185,17 +1576,27 @@ def _handle_menu_choice(choice):
             # the legacy 'label:function' form is still accepted.
             parts = line.split('=', 1) if '=' in line else line.split(':', 1)
             if len(parts) == 2:
+                name = parts[0].strip()
                 try:
                     func = resolve_safe_callable(parts[1].strip())
                 except (ValueError, ImportError, AttributeError) as exc:
                     print(f"  {Y}{exc}{R}")
                     continue
-                steps.append({"name": parts[0].strip(), "func": func})
+                # ``PipelineStep`` already carries per-step args, but the builder never
+                # asked for any — so every step of every pipeline died with
+                # "gc_content() missing 1 required positional argument: 'seq'".
+                arg_text = input(f"  Arguments for {name} (comma-sep, empty = none): ")
+                args = [a.strip() for a in arg_text.split(",") if a.strip()]
+                steps.append({"name": name, "func": func, "args": args})
+            else:
+                print(f"  {Y}Not a step: {line!r}. Use 'label=function'.{R}")
         if steps:
             p = Pipeline("cli_pipeline")
             p.add_steps(steps)
             p.run()
             print(format_pipeline_report(p))
+        else:
+            print("  No steps added — nothing to run.")
 
     elif choice == '93':
         print("  Batch Processor — run analysis on multiple samples")
@@ -1206,19 +1607,25 @@ def _handle_menu_choice(choice):
         except (ValueError, ImportError, AttributeError) as exc:
             print(f"  {Y}{exc}{R}")
             return
-        samples = input("  Sample IDs (comma-sep): ").strip().split(',')
-        samples = [s.strip() for s in samples if s.strip()]
+        # Each value typed here is passed to the function as its own job, so the
+        # prompt says that instead of implying they are just labels.
+        values = input("  Values to analyse (comma-sep; each is passed to the function): ")
+        samples = [s.strip() for s in values.split(',') if s.strip()]
         if samples:
             bp = BatchProcessor("cli_batch")
             bp.add_samples(samples, func)
             bp.run(max_workers=4)
             print(format_batch_report(bp))
+        else:
+            print("  No values given — nothing to run.")
 
     elif choice == '94':
+        from ..core.utils import count_analysis_modules, count_test_files
         title = input("  Report title [BioSuite Report]: ").strip() or "BioSuite Report"
         report = create_report(title)
         report.add_text("This report was generated by BioSuite Ultra.")
-        report.add_stats({"Modules": 48, "Tests": 203})
+        report.add_stats({"Modules": count_analysis_modules(),
+                          "Test files": count_test_files()})
         path = input("  Output file [report.html]: ").strip() or "report.html"
         report.save(path)
         print(f"  Report saved to {path}")
@@ -1238,6 +1645,13 @@ def _handle_menu_choice(choice):
                 print(f"    {t.go_id} {t.name}")
 
     elif choice == '96':
+        import matplotlib.pyplot as plt
+
+        from ..core.pathway_viz import (
+            create_kegg_style_pathway,
+            draw_pathway,
+            format_pathway_report,
+        )
         pm = create_kegg_style_pathway()
         print(format_pathway_report(pm))
         fig = draw_pathway(pm)
@@ -1252,7 +1666,15 @@ def _handle_menu_choice(choice):
         else:
             fp = input("  CSV file with SNP data: ").strip()
             import pandas as pd
-            data = pd.read_csv(fp) if fp and os.path.exists(fp) else generate_gwas_data(2000)
+            if not fp:
+                print("  No file given — nothing to analyse.")
+                return
+            if not os.path.isfile(fp):
+                print(f"  File not found: {fp}")
+                return
+            # A missing path used to fall back to 2,000 simulated SNPs without a
+            # word, so the report a user read was not the report they asked for.
+            data = pd.read_csv(fp)
         results = run_gwas(data)
         leads = detect_lead_snps(results)
         print(format_gwas_report(results, leads))
@@ -1270,12 +1692,11 @@ def _handle_menu_choice(choice):
     elif choice == '99':
         print("  Themes: 1=Dark-Green  2=Dark-Purple  3=Light-Blue")
         t = input("  Select: ").strip()
-        tm = {'1': 'dark-green', '2': 'dark-purple', '3': 'light-blue'}.get(t)
+        tm = THEME_CHOICES.get(t)
         if tm:
-            config['theme'] = tm
-            save_config(config)
-            set_theme(tm)
-            print(f"  Theme → {tm}")
+            _change_theme(tm)
+        else:
+            print(f"  Not a theme choice: {t!r}. Type 1, 2 or 3.")
 
     # ── Genomics Tools (a, b, c) ──
     elif choice == 'a':
@@ -1289,6 +1710,8 @@ def _handle_menu_choice(choice):
             if ':' in line:
                 name, seq = line.split(':', 1)
                 seqs.append((name.strip(), seq.strip().upper()))
+            else:
+                print(f"  Ignored {line!r}: expected 'name:sequence'.")
         if not seqs:
             # Demo
             seqs = [("Ecoli_16S", "TGGAGGAAGGTGGGGACGACGTCAGTATCGAATCTTGGATCAGGATCACCTCCGGA"),
@@ -1309,8 +1732,8 @@ def _handle_menu_choice(choice):
         print("  SV / CNV Detection from Coverage Data")
         use_demo = input("  Use demo data? (y/n) [y]: ").strip().lower() or 'y'
         if use_demo == 'y':
-            np.random.seed(42)
-            cov = np.random.poisson(30, 10000).astype(float)
+            rng = np.random.default_rng(42)
+            cov = rng.poisson(30, 10000).astype(float)
             cov[3000:4000] *= 0.3  # Deletion
             cov[6000:7000] *= 2.5  # Duplication
             ref = np.ones(10000) * 30
@@ -1321,8 +1744,8 @@ def _handle_menu_choice(choice):
                 ref = np.ones_like(cov) * np.median(cov)
             else:
                 print("  File not found. Using demo data.")
-                np.random.seed(42)
-                cov = np.random.poisson(30, 10000).astype(float)
+                rng = np.random.default_rng(42)
+                cov = rng.poisson(30, 10000).astype(float)
                 ref = np.ones(10000) * 30
         svs = detect_structural_variants(cov, ref)
         print(format_sv_report(svs))
@@ -1355,8 +1778,6 @@ def _handle_menu_choice(choice):
 
     # ── Molecular Cloning (l-q) ──
     elif choice == 'l':
-        import matplotlib
-        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
         from ..plotting.plasmid_map import (
@@ -1386,8 +1807,6 @@ def _handle_menu_choice(choice):
             print("  Invalid input.")
 
     elif choice == 'n':
-        import matplotlib
-        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
         from ..core.cloning import plot_virtual_gel, simulate_digestion
@@ -1396,7 +1815,10 @@ def _handle_menu_choice(choice):
         enzymes = [e.strip() for e in enzymes if e.strip()]
         if seq and enzymes:
             result = simulate_digestion(seq, enzymes)
-            fig = plot_virtual_gel(result['fragments'])
+            sizes = [f['size'] for f in result['fragments']]
+            print(f"  Virtual gel of {len(sizes)} fragment(s): "
+                  f"{', '.join(str(s) for s in sizes)} bp.")
+            plot_virtual_gel(result['fragments'])
             plt.show()
             plt.close()
         else:
@@ -1405,61 +1827,66 @@ def _handle_menu_choice(choice):
     elif choice == 'o':
         from ..core.cloning import (
             design_primers,
+            format_pcr_report,
             format_primer_report,
             simulate_pcr,
         )
         template = input("  Template sequence: ").strip().upper()
-        start = int(input("  Amplicon start: ") or "0")
-        end = int(input("  Amplicon end: ") or str(len(template)))
-        if template:
-            fwd, rev = design_primers(template, start, end)
-            print(format_primer_report(fwd, rev))
-            if fwd and rev:
-                amplicon = simulate_pcr(template, fwd, rev)
-                print(f"  Amplicon length: {len(amplicon)} bp")
-        else:
+        length = int(input("  Primer length [20]: ") or "20")
+        if not template:
             print("  No sequence provided.")
+        else:
+            # ``design_primers(target_seq, primer_length)`` answers a dict, so the
+            # old ``fwd, rev = design_primers(template, start, end)`` both passed
+            # three positional arguments (TypeError for every template) and
+            # unpacked a dict into its key names.
+            primers = design_primers(template, primer_length=length)
+            print(format_primer_report(primers))
+            amplicon = simulate_pcr(template, primers["forward"], primers["reverse"])
+            print(format_pcr_report(amplicon))
 
     elif choice == 'p':
-        import matplotlib
-        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
         from ..plotting.sequence_viewer import draw_sequence_view
-        seq = input("  DNA sequence (or FASTA path): ").strip()
-        if os.path.exists(seq):
+        text = input("  DNA sequence (or FASTA path): ").strip()
+        seq = text
+        if os.path.exists(text):
             from ..core.sequence import read_fasta
-            records = read_fasta(seq)
-            if records:
-                seq = records[0][1]
-        fig = draw_sequence_view(seq.upper())
-        plt.show()
-        plt.close()
+            records = read_fasta(text)
+            seq = records[0][1] if records else ""
+        if not seq:
+            print("  No sequence to draw.")
+        else:
+            print(f"  Sequence view of {len(seq)} bp.")
+            draw_sequence_view(seq.upper())
+            plt.show()
+            plt.close()
 
     elif choice == 'q':
-        from ..core.cloning import format_digest_report, simulate_ligation
-        print("  Enter fragment sizes (comma-separated):")
-        sizes = input("  Sizes: ").strip()
-        if sizes:
-            frag_list = [int(s.strip()) for s in sizes.split(',') if s.strip().isdigit()]
-            if frag_list:
-                result = simulate_ligation(frag_list)
-                print(f"  Ligated product: {result.get('total_bp', 0)} bp")
-                print(f"  Circular: {result.get('circular', False)}")
-            else:
-                print("  Invalid sizes.")
-        else:
+        from ..core.cloning import format_ligation_report, simulate_ligation
+        # ``simulate_ligation`` ligates fragment *sequences* and reports
+        # ``size``/``product``; this option asked for integer lengths, fed them in,
+        # and read a key the result does not have — so it either raised
+        # ``AttributeError: 'int' object has no attribute 'upper'`` or printed
+        # "Ligated product: 0 bp" for a product it had never measured.
+        print("  Enter fragment sequences (one per line, empty to finish):")
+        fragments = []
+        while True:
+            line = input("  > ").strip().upper()
+            if not line:
+                break
+            fragments.append(line)
+        if not fragments:
             print("  No fragments provided.")
+        else:
+            print(format_ligation_report(simulate_ligation(fragments)))
 
     elif choice == '89':
-        from ..gui.main_window import BioSuiteApp
-        app = BioSuiteApp()
-        app.mainloop()
+        _launch_gui()
         print(f"\n  {G}GUI closed.{R} {D}CLI ready.{R}")
-        import time
-        time.sleep(0.3)
 
-    # ── Phase 6 Features (d-k) ──
+    # ── Advanced Tools (d-k) ──
     elif choice == 'd':
         import numpy as np
 
@@ -1474,29 +1901,30 @@ def _handle_menu_choice(choice):
         print("  Interactive Plot Generator (Plotly)")
         print("  Plot types: 1=Volcano  2=PCA  3=Manhattan  4=Scatter  5=Boxplot  6=Heatmap")
         ptype = input("  Select plot type [1]: ").strip() or "1"
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
         if ptype == '1':
-            fc = np.random.normal(0, 1.5, 500)
-            pvals = np.random.uniform(0, 1, 500)
-            pvals[:30] = np.random.uniform(1e-6, 0.05, 30)
+            fc = rng.normal(0, 1.5, 500)
+            pvals = rng.uniform(0, 1, 500)
+            pvals[:30] = rng.uniform(1e-6, 0.05, 30)
             fig = volcano(fc, pvals, interactive=True, title="Interactive Volcano")
         elif ptype == '2':
-            data = np.random.randn(30, 50)
+            data = rng.standard_normal((30, 50))
             fig = pca(data, labels=['Ctrl']*15 + ['Treat']*15, interactive=True)
         elif ptype == '3':
-            chroms = np.random.choice(['chr1', 'chr2', 'chr3'], 200)
-            positions = np.random.randint(1, 1000000, 200)
-            pvals = np.random.uniform(0, 1, 200)
+            chroms = rng.choice(['chr1', 'chr2', 'chr3'], 200)
+            positions = rng.integers(1, 1000000, 200)
+            pvals = rng.uniform(0, 1, 200)
             fig = manhattan(chroms, positions, pvals, interactive=True)
         elif ptype == '4':
-            x = np.random.randn(100)
-            y = x * 2 + np.random.randn(100)
+            x = rng.standard_normal(100)
+            y = x * 2 + rng.standard_normal(100)
             fig = scatter(x, y, interactive=True)
         elif ptype == '5':
-            data = {'Ctrl': np.random.randn(30).tolist(), 'Treat': (np.random.randn(30) + 1).tolist()}
+            data = {'Ctrl': rng.standard_normal(30).tolist(),
+                    'Treat': (rng.standard_normal(30) + 1).tolist()}
             fig = boxplot(data, interactive=True)
         elif ptype == '6':
-            data = np.random.randn(10, 8)
+            data = rng.standard_normal((10, 8))
             fig = heatmap(data, interactive=True)
         else:
             print("  Invalid plot type."); return
@@ -1505,17 +1933,14 @@ def _handle_menu_choice(choice):
         print(f"  Saved: {outfile}")
 
     elif choice == 'e':
-        from ..core.provenance import ProvenanceTracker
         print("  Provenance Tracker")
         print("  Actions: 1=Start session  2=Record step  3=View history  4=Export HTML  5=Export JSON")
         action = input("  Select action [1]: ").strip() or "1"
+        db = input("  Database file [analysis.db]: ").strip() or "analysis.db"
+        tracker = _provenance_tracker(db)
         if action == '1':
-            db = input("  Database name [analysis.db]: ").strip() or "analysis.db"
-            tracker = ProvenanceTracker(db)
             print(f"  Session started: {tracker.session_id}")
         elif action == '2':
-            db = input("  Database file [analysis.db]: ").strip() or "analysis.db"
-            tracker = ProvenanceTracker(db)
             module = input("  Module name: ").strip()
             func = input("  Function name: ").strip()
             params = input("  Parameters (JSON): ").strip()
@@ -1523,26 +1948,25 @@ def _handle_menu_choice(choice):
             import json
             try:
                 params_dict = json.loads(params) if params else {}
+                if not isinstance(params_dict, dict):
+                    params_dict = {"value": params_dict}
             except json.JSONDecodeError:
                 params_dict = {"raw": params}
             tracker.record(module, func, params_dict, result)
-            print("  Step recorded.")
+            print(f"  Step recorded. {D}({tracker.session_id}, "
+                  f"{len(tracker.get_steps())} in this session){R}")
         elif action == '3':
-            db = input("  Database file [analysis.db]: ").strip() or "analysis.db"
-            tracker = ProvenanceTracker(db)
             print(tracker.summary())
         elif action == '4':
-            db = input("  Database file [analysis.db]: ").strip() or "analysis.db"
-            tracker = ProvenanceTracker(db)
             outfile = input("  Output HTML [provenance.html]: ").strip() or "provenance.html"
             tracker.export_html(outfile)
             print(f"  Saved: {outfile}")
         elif action == '5':
-            db = input("  Database file [analysis.db]: ").strip() or "analysis.db"
-            tracker = ProvenanceTracker(db)
             outfile = input("  Output JSON [provenance.json]: ").strip() or "provenance.json"
             tracker.export_json(outfile)
             print(f"  Saved: {outfile}")
+        else:
+            print(f"  Not an action: {action!r}. Type 1, 2, 3, 4 or 5.")
 
     elif choice == 'f':
         from ..core.plugin import PluginManager
@@ -1561,6 +1985,10 @@ def _handle_menu_choice(choice):
             if name:
                 pm.create_plugin_template(name, '.')
                 print(f"  Created: biosuite-plugin-{name}/")
+            else:
+                print("  No plugin name given.")
+        else:
+            print(f"  Unknown action {action!r}.")
 
     elif choice == 'g':
         from ..core.file_formats import (
@@ -1585,6 +2013,8 @@ def _handle_menu_choice(choice):
             normalized = deseq2_normalization(counts)
             print("  DESeq2-normalized data:")
             print(normalized.head(10).to_string())
+        else:
+            print("  No count matrix was read.")
 
     elif choice == 'i':
         from ..core.expression import (
@@ -1597,6 +2027,8 @@ def _handle_menu_choice(choice):
             vst = variance_stabilizing_transformation(counts)
             print("  VST-transformed data:")
             print(vst.head(10).to_string())
+        else:
+            print("  No count matrix was read.")
 
     elif choice == 'j':
         from ..core.expression import differential_expression, read_counts_matrix
@@ -1607,6 +2039,8 @@ def _handle_menu_choice(choice):
             result = differential_expression(counts, cond, method='nb')
             print("  Differential Expression (Negative Binomial):")
             print(result.head(20).to_string())
+        else:
+            print("  No count matrix was read.")
 
     elif choice == 'k':
         from ..core.file_formats import (
@@ -1624,8 +2058,14 @@ def _handle_menu_choice(choice):
                 print("\n  First 5 records:")
                 for rec in result['records'][:5]:
                     print(f"    {rec}")
+            else:
+                print("  The file holds no records to list.")
         else:
             print("  File not found.")
+
+    elif choice == 's':
+        query = input(f"  {B}Search the menu for:{R} ").strip()
+        search_menu(query)
 
     elif choice == '90':
         port = input("  Port [8000]: ").strip() or "8000"

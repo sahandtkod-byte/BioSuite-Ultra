@@ -22,12 +22,13 @@ from __future__ import annotations
 import binascii
 import hashlib
 import hmac
-import logging
 import os
 import secrets
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
+from ..core.log import get_logger
+
+logger = get_logger(__name__)
 
 # Well-known placeholders.  These are ONLY ever active in explicit dev mode and
 # are listed here so that :func:`validate_runtime_config` can reject them if an

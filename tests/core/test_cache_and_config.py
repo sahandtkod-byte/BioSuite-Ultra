@@ -15,6 +15,14 @@ import pytest
 
 from biosuite.core import utils
 
+# Windows emulates POSIX permission bits: os.chmod(path, 0o600) succeeds but the
+# file still reports 0o666, so the "not world-readable" property of a config
+# holding API keys can only be asserted where the kernel enforces it.  CI runs
+# this on ubuntu-latest.
+POSIX_MODES = pytest.mark.skipif(
+    os.name != "posix",
+    reason="POSIX mode bits are emulated on Windows; 0o600 is not observable")
+
 
 # ── BSU-008: cache keys ─────────────────────────────────────────────────────
 
@@ -88,8 +96,11 @@ def test_cache_respects_maxsize():
 
 def test_ttl_expiry_still_works():
     calls = []
-    cached = utils.CachedResult(lambda x: calls.append(x) or x, ttl=0.0)
+    cached = utils.CachedResult(lambda x: calls.append(x) or x, ttl=30)
     cached(1)
+    key = next(iter(cached.cache))
+    value, created = cached.cache[key]
+    cached.cache[key] = (value, created - 31)     # age it instead of sleeping
     cached(1)
     assert len(calls) == 2
 
@@ -119,6 +130,7 @@ def test_saved_config_round_trips(tmp_path, monkeypatch):
     assert utils.load_config()["marker"] == "xyz"
 
 
+@POSIX_MODES
 def test_api_keys_are_not_world_readable(tmp_path, monkeypatch):
     monkeypatch.setenv("BIOSUITE_CONFIG_DIR", str(tmp_path))
     utils.save_config({**utils.DEFAULT_CONFIG,

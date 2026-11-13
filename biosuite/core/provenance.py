@@ -18,7 +18,8 @@ import json
 import sqlite3
 import threading
 import time
-from dataclasses import asdict, dataclass, field
+import uuid
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from functools import wraps
 
@@ -36,17 +37,28 @@ def _json_default(obj):
         if callable(method):
             try:
                 return method()
-            except Exception:  # pragma: no cover - defensive
+            except (TypeError, ValueError):
+                # A closed or half-initialised array-like can expose `tolist` and
+                # still fail on it; fall through to the type-name placeholder
+                # rather than let a recording helper break the analysis.
                 break
     if isinstance(obj, (set, frozenset, tuple)):
         return list(obj)
+    if is_dataclass(obj) and not isinstance(obj, type):
+        return asdict(obj)
     return f"<{type(obj).__name__}>"
 
 
 def dumps_params(params) -> str:
-    """Serialise step parameters, never raising on exotic scientific objects."""
+    """Serialise step parameters, never raising on exotic scientific objects.
+
+    ``allow_nan=False`` because Python's default output for a NaN or infinite
+    parameter is ``NaN``/``Infinity``, which is not JSON: ``json.loads`` reads it
+    back, but every strict consumer of a provenance file (jq, JS, another
+    language) rejects it.  Such a parameter is recorded as a string instead.
+    """
     try:
-        return json.dumps(params, default=_json_default)
+        return json.dumps(params, default=_json_default, allow_nan=False)
     except (TypeError, ValueError):
         return json.dumps({k: str(v) for k, v in dict(params).items()})
 
@@ -67,6 +79,43 @@ class AnalysisStep:
     error_message: str = ""
 
 
+# `record` accepts only these.  Anything else reaches the reports, where the HTML
+# timeline already marks every non-'success' status with a cross while the counters
+# count only 'error' — a typo'd status then looks like a failure and is never
+# counted as one.
+VALID_STATUSES = ('success', 'error', 'skipped')
+
+
+def _check_status(status):
+    if status not in VALID_STATUSES:
+        raise ValueError(
+            f"status must be one of {', '.join(VALID_STATUSES)}, got {status!r}.")
+    return status
+
+
+def _check_execution_time(execution_time_ms):
+    """Return *execution_time_ms* as a non-negative number, or refuse.
+
+    The steps table declares the column INTEGER, and SQLite stores a value it
+    cannot convert (``'abc'``) as TEXT.  One such row then makes
+    ``sum(step.execution_time_ms ...)`` in :meth:`ProvenanceTracker.summary` and
+    :meth:`ProvenanceTracker.export_html` raise ``TypeError`` — a single bad
+    record is enough to make the whole audit report unreadable.
+    """
+    if isinstance(execution_time_ms, bool) or not isinstance(
+            execution_time_ms, (int, float)):
+        raise ValueError(
+            f"execution_time_ms must be a number, got "
+            f"{type(execution_time_ms).__name__}: {execution_time_ms!r}.")
+    value = float(execution_time_ms)
+    if value != value or value in (float('inf'), float('-inf')):
+        raise ValueError(f"execution_time_ms must be finite, got {execution_time_ms!r}.")
+    if value < 0:
+        raise ValueError(
+            f"execution_time_ms cannot be negative, got {execution_time_ms!r}.")
+    return execution_time_ms
+
+
 class ProvenanceTracker:
     """Track analysis provenance for reproducibility.
 
@@ -82,9 +131,12 @@ class ProvenanceTracker:
 
         Args:
             db_path: path to SQLite database. If None, uses in-memory DB.
-            session_id: unique session identifier. Auto-generated if None.
+            session_id: unique session identifier. Auto-generated if None — a
+                random one, because a timestamp to the second made two analyses
+                started in the same second share a session, and their steps then
+                merged into one indistinguishable audit history.
         """
-        self.session_id = session_id or f"session_{int(time.time())}"
+        self.session_id = session_id or f"session_{uuid.uuid4().hex[:12]}"
         self.db_path = db_path
         self.step_counter = 0
         self._lock = threading.RLock()
@@ -94,6 +146,20 @@ class ProvenanceTracker:
         self.conn = sqlite3.connect(db_path or ":memory:", check_same_thread=False)
 
         self._create_tables()
+        # The primary key is (session_id, step_id) and step ids restart at 1 for
+        # every instance, so a tracker reopened on the same database with the same
+        # session id collided with its own history: the first new step raised
+        # sqlite3.IntegrityError: UNIQUE constraint failed.  Seeding the counter
+        # from the stored maximum makes an append to an existing session work.
+        self.step_counter = self._last_step_id()
+
+    def _last_step_id(self):
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT MAX(step_id) FROM steps WHERE session_id=?",
+                (self.session_id,)
+            ).fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
 
     def _create_tables(self):
         """Create provenance tables."""
@@ -128,9 +194,18 @@ class ProvenanceTracker:
             result_summary: brief description of result.
             execution_time_ms: execution time in milliseconds.
             engine: 'builtin' or name of external tool.
-            status: 'success', 'error', or 'skipped'.
+            status: 'success', 'error', or 'skipped'; anything else raises ValueError.
             error_message: error details if status is 'error'.
+
+        Raises:
+            ValueError: if ``status`` is not one of the three documented values, or
+                if ``execution_time_ms`` is not a finite, non-negative number.  Both
+                are checked before any step id is taken, so a refused call leaves the
+                numbering untouched.
         """
+        _check_status(status)
+        execution_time_ms = _check_execution_time(execution_time_ms)
+
         with self._lock:
             self.step_counter += 1
             step_id = self.step_counter
@@ -202,8 +277,14 @@ class ProvenanceTracker:
         """
         steps = self.get_steps()
         total_time = sum(s.execution_time_ms for s in steps)
-        n_success = sum(1 for s in steps if s.status == 'success')
-        n_error = sum(1 for s in steps if s.status == 'error')
+        counts = {status: sum(1 for s in steps if s.status == status)
+                  for status in VALID_STATUSES}
+        # Reachable only for rows written before record() validated; counting them
+        # keeps the header numbers adding up to the total instead of dropping
+        # steps that the timeline still marks with a cross.
+        n_other = len(steps) - sum(counts.values())
+        other_span = (f'    <span><strong>Other:</strong> {n_other}</span>\n'
+                      if n_other else '')
 
         html = f"""<!DOCTYPE html>
 <html>
@@ -226,6 +307,7 @@ h2 {{ color: #00cc66; margin-top: 30px; }}
 .engine {{ display: inline-block; background: #1a3a1a; color: #00ff88; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 10px; }}
 .status-ok {{ color: #00ff88; }}
 .status-error {{ color: #ff4444; }}
+.status-skipped {{ color: #ffcc44; }}
 code {{ background: #0d170d; padding: 2px 6px; border-radius: 3px; font-family: Consolas, monospace; }}
 </style>
 </head>
@@ -235,17 +317,25 @@ code {{ background: #0d170d; padding: 2px 6px; border-radius: 3px; font-family: 
     <span><strong>Session:</strong> {_html.escape(self.session_id)}</span>
     <span><strong>Steps:</strong> {len(steps)}</span>
     <span><strong>Total time:</strong> {total_time}ms</span>
-    <span><strong>Success:</strong> {n_success}</span>
-    <span><strong>Errors:</strong> {n_error}</span>
-</div>
+    <span><strong>Success:</strong> {counts['success']}</span>
+    <span><strong>Errors:</strong> {counts['error']}</span>
+    <span><strong>Skipped:</strong> {counts['skipped']}</span>
+{other_span}</div>
 <h2>Analysis Timeline</h2>
 """
         for step in steps:
-            status_class = "status-ok" if step.status == "success" else "status-error"
-            status_icon = "✓" if step.status == "success" else "✗"
+            # A 'skipped' step used to render exactly like a failure (cross, red)
+            # while appearing in neither counter, so the header numbers did not add
+            # up and a deliberate skip read as a crash.
+            status_class, status_icon = {
+                "success": ("status-ok", "✓"),
+                "error": ("status-error", "✗"),
+                "skipped": ("status-skipped", "⊘"),
+                # Rows written before record() validated may hold anything, so an
+                # unknown status keeps rendering as a failure instead of raising.
+            }.get(step.status, ("status-error", "✗"))
             params_str = _html.escape(
-                json.dumps(step.params, indent=None, default=_json_default)
-                if step.params else "{}")
+                dumps_params(step.params) if step.params else "{}")
 
             html += f"""
 <div class="step">
@@ -281,13 +371,23 @@ Then call each function with the parameters shown above.
         """Print a text summary of the provenance."""
         steps = self.get_steps()
         total_time = sum(s.execution_time_ms for s in steps)
+        counts = {status: sum(1 for s in steps if s.status == status)
+                  for status in VALID_STATUSES}
         lines = [
             "=== Provenance Summary ===",
             f"Session: {self.session_id}",
             f"Total steps: {len(steps)}",
             f"Total execution time: {total_time}ms",
-            f"Success: {sum(1 for s in steps if s.status == 'success')}",
-            f"Errors: {sum(1 for s in steps if s.status == 'error')}",
+            f"Success: {counts['success']}",
+            f"Errors: {counts['error']}",
+            f"Skipped: {counts['skipped']}",
+        ]
+        n_other = len(steps) - sum(counts.values())
+        if n_other:
+            # Legacy rows (recorded before status was validated) would otherwise
+            # leave the counters short of the total.
+            lines.append(f"Other: {n_other}")
+        lines += [
             "",
             f"{'#':<4} {'Module':<15} {'Function':<25} {'Engine':<10} {'Time':>8} {'Status'}",
             "-" * 80,
@@ -307,18 +407,42 @@ Then call each function with the parameters shown above.
 
 # ── Decorator for automatic recording ────────────────────────────────────────
 
+def _brief(value, limit):
+    """``str(value)`` cut to *limit* characters, with the cut made visible.
+
+    The audit file advertises "To reproduce this analysis, replay these steps", so a
+    silently truncated parameter is worse than a marked one: the reader cannot tell a
+    100-character sequence from a 500-character one.
+    """
+    text = str(value)
+    if len(text) <= limit:
+        return text
+    return text[:limit - 3] + "..."
+
+
 def tracked(tracker=None):
     """Decorator that automatically records function calls to a ProvenanceTracker.
 
     Usage:
         tracker = ProvenanceTracker("analysis.db")
 
-        @tracked(tracker)
+        @tracked(tracker)          # called with the tracker
         def my_analysis(seq):
             return gc_content(seq)
 
         result = my_analysis("ATCGATCG")  # Automatically recorded
+
+    Raises:
+        TypeError: if a non-tracker (typically the decorated function itself, from a
+            bare ``@tracked``) is passed.  Bare use used to "work" by accident: the
+            name was bound to the inner ``decorator``, so calling it returned a
+            function object instead of running the analysis.
     """
+    if tracker is not None and not hasattr(tracker, "record"):
+        raise TypeError(
+            "tracked() needs a ProvenanceTracker: write @tracked(tracker), not a bare "
+            f"@tracked (got {tracker!r}).")
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -328,14 +452,17 @@ def tracked(tracker=None):
 
             params = {}
             for i, arg in enumerate(args):
-                params[f"arg{i}"] = str(arg)[:100]  # Truncate long values
+                params[f"arg{i}"] = _brief(arg, 100)
             for k, v in kwargs.items():
-                params[k] = str(v)[:100]
+                params[k] = _brief(v, 100)
 
             try:
                 result = func(*args, **kwargs)
                 elapsed_ms = int((time.time() - start_time) * 1000)
-                result_summary = str(result)[:200] if result else "None"
+                # `if result` made 0, '' and [] indistinguishable from a missing
+                # return: the audit line claimed "None" for a function that had
+                # deliberately answered with zero.
+                result_summary = "None" if result is None else _brief(result, 200)
 
                 if tracker:
                     tracker.record(
@@ -367,18 +494,28 @@ def tracked(tracker=None):
 # ── Global tracker (optional) ────────────────────────────────────────────────
 
 _default_tracker = None
+# The lazy singleton is created from FastAPI's endpoint threads and from
+# core.parallel workers, so it needs its own lock: measured with 8 threads racing on
+# a cold import, the unguarded version produced 6, 7 and 8 distinct trackers over
+# three attempts, and every step recorded through a loser of that race went into a
+# tracker no one could reach again.
+_tracker_lock = threading.Lock()
+
 
 def get_global_tracker():
-    """Get or create the global provenance tracker."""
+    """Get or create the global provenance tracker (thread-safe)."""
     global _default_tracker
-    if _default_tracker is None:
-        _default_tracker = ProvenanceTracker()
-    return _default_tracker
+    with _tracker_lock:
+        if _default_tracker is None:
+            _default_tracker = ProvenanceTracker()
+        return _default_tracker
+
 
 def set_global_tracker(tracker):
-    """Set the global provenance tracker."""
+    """Set the global provenance tracker (pass None to drop it)."""
     global _default_tracker
-    _default_tracker = tracker
+    with _tracker_lock:
+        _default_tracker = tracker
 
 def record_step(module, function, params=None, result_summary="",
                 execution_time_ms=0, engine="builtin"):

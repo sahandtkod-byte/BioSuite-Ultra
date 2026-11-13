@@ -24,7 +24,7 @@ Features
 - **Parallel processing**: thread- and process-based execution helpers
 - **169 restriction enzymes** with recognition sites and cut positions for molecular cloning
 - **Desktop GUI**: CustomTkinter application with 11 tabs and three themes
-- **CLI**: interactive menu with 99 options plus 19 direct subcommands
+- **CLI**: interactive menu with 117 options plus 20 direct subcommands
 - **REST API**: 38 FastAPI endpoints under ``/api/*``
 - **Pure Python core**: no external bioinformatics binaries required
 - **Optional external tools**: BLAST+, Clustal Omega, MUSCLE and MAFFT are used when present

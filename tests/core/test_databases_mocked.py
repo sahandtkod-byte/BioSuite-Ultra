@@ -69,14 +69,13 @@ def test_search_uniprot_parses_json(monkeypatch):
     assert res.records[0]['length'] == 393
 
 
-def test_fetch_uniprot_204_like(monkeypatch):
+def test_fetch_uniprot_on_an_empty_body_reports_instead_of_raising(monkeypatch):
     _patch_http(monkeypatch, lambda url, **kw: b'')
-    # empty body → graceful error, not crash
-    try:
-        res = db.fetch_uniprot('XXXX')
-        assert res.error is not None or res.records == []
-    except Exception:
-        pass  # acceptable: handled upstream
+    res = db.fetch_uniprot('XXXX')
+
+    assert res.records == []
+    assert res.data == {}
+    assert 'Empty response body' in res.error
 
 
 # ── KEGG ─────────────────────────────────────────────────────────────────────
@@ -121,16 +120,55 @@ def test_search_pdb_parses_json(monkeypatch):
 
 # ── Ensembl ─────────────────────────────────────────────────────────────────
 
-def test_search_ensembl_tolerant(monkeypatch):
-    payload = json.dumps([
-        {'id': 'ENSG00000141510', 'display_name': 'TP53',
-         'description': 'tumor protein p53', 'species': 'homo_sapiens'}
-    ]).encode()
-    _patch_http(monkeypatch, lambda url, **kw: payload)
-    try:
-        res = db.search_ensembl('TP53')  # must not raise
-    except Exception as e:
-        pytest.fail(f"ensembl search raised unexpectedly: {e}")
+ENSEMBL_GENE = {
+    'id': 'ENSG00000141510', 'display_name': 'TP53',
+    'description': 'tumor protein p53 [Source:HGNC Symbol;Acc:HGNC:11998]',
+    'species': 'homo_sapiens', 'biotype': 'protein_coding',
+    'start': 7661779, 'end': 7687546,
+}
+
+
+def test_search_ensembl_calls_the_symbol_lookup_endpoint(monkeypatch):
+    """The URL is part of the contract, because mocking hid the wrong one.
+
+    ``search_ensembl`` asked ``rest.ensembl.org/symbol/human/TP53``, which answers
+    HTTP 404 for every gene; the symbol lookup is ``/lookup/symbol/:species/:symbol``.
+    A mocked ``_http_get`` does not care which URL it is handed, so the parsed-record
+    tests kept passing while the live endpoint failed.  The payload here is the shape
+    the live API returns.
+    """
+    asked = {}
+
+    def fake(url, **kwargs):
+        asked['url'] = url
+        return json.dumps(ENSEMBL_GENE).encode()
+
+    _patch_http(monkeypatch, fake)
+
+    res = db.search_ensembl('TP53', species='human')
+
+    assert '/lookup/symbol/human/TP53' in asked['url'], asked['url']
+    assert not res.error
+    assert res.records == [{'id': 'ENSG00000141510',
+                            'description': ENSEMBL_GENE['description'],
+                            'species': 'homo_sapiens',
+                            'biotype': 'protein_coding',
+                            'start': 7661779, 'end': 7687546}]
+
+
+def test_search_ensembl_names_a_payload_that_is_not_an_object(monkeypatch):
+    """A JSON array is what the xref endpoints return; say so plainly.
+
+    It used to come back as ``error="'list' object has no attribute 'get'"`` — an
+    internal exception, no records, and nothing a user could act on.
+    """
+    _patch_http(monkeypatch, lambda url, **kw: json.dumps([{'id': 'x'}]).encode())
+
+    res = db.search_ensembl('TP53')
+
+    assert res.records == []
+    assert res.error.startswith(
+        "Invalid response: Expected a JSON object at the top level, got list"), res.error
 
 
 # ── cache behaviour ─────────────────────────────────────────────────────────

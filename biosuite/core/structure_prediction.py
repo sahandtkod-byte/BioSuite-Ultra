@@ -7,6 +7,7 @@ Both are free for academic use.
 
 from .utils import secure_temp_path
 from dataclasses import dataclass, field
+import json
 
 import numpy as np
 
@@ -63,7 +64,7 @@ def _esmfold_predict(sequence, output_file=None):
         confidence = float(np.mean(plddt)) if plddt else 0.0
 
         if output_file:
-            with open(output_file, 'w') as f:
+            with open(output_file, 'w', encoding="utf-8") as f:
                 f.write(pdb_string)
 
         return PredictionResult(
@@ -93,13 +94,14 @@ def _extract_plddt(pdb_string):
         if line.startswith(('ATOM', 'HETATM')) and len(line) >= 66:
             chain = line[21]
             resseq = line[22:26].strip()
+            icode = line[26]          # insertion codes make 54A and 54B distinct
             try:
                 bf = float(line[60:66].strip())
             except ValueError:
                 continue
-            if (chain, resseq) in seen:
+            if (chain, resseq, icode) in seen:
                 continue
-            seen.add((chain, resseq))
+            seen.add((chain, resseq, icode))
             scores.append(bf)
     return scores
 
@@ -114,7 +116,7 @@ def _alphafold_fetch(uniprot_id, output_file=None):
     try:
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=30) as response:
-            data = __import__('json').loads(response.read().decode())
+            data = json.loads(response.read().decode())
 
         pdb_url = data[0].get('pdbUrl')
         if pdb_url:
@@ -123,7 +125,7 @@ def _alphafold_fetch(uniprot_id, output_file=None):
                 pdb_string = pdb_response.read().decode()
 
             if output_file:
-                with open(output_file, 'w') as f:
+                with open(output_file, 'w', encoding="utf-8") as f:
                     f.write(pdb_string)
 
             plddt = _extract_plddt(pdb_string)
@@ -147,23 +149,43 @@ def _alphafold_fetch(uniprot_id, output_file=None):
 # ── Public API ──────────────────────────────────────────────────────────────
 
 def predict_structure(sequence=None, uniprot_id=None, output_file=None):
-    if output_file is None:
-        output_file = secure_temp_path(suffix='.pdb')
+    """Predict a structure, AlphaFold DB first when a UniProt ID is given.
 
+    Args:
+        sequence: protein sequence for ESMFold.
+        uniprot_id: UniProt accession to fetch from AlphaFold DB.
+        output_file: where to write the PDB.  When it is None a temporary path is
+            reserved only after a model came back — reserving it up front left a
+            0-byte ``biosuite_*.pdb`` behind for every failed prediction, whose
+            path was never reported to the caller.
+    """
     last_result = None
     if uniprot_id:
         last_result = _alphafold_fetch(uniprot_id, output_file)
         if last_result.pdb_string:
+            _reserve_and_write(last_result, output_file)
             return last_result
 
     if sequence:
         last_result = _esmfold_predict(sequence, output_file)
         if last_result.pdb_string:
+            _reserve_and_write(last_result, output_file)
             return last_result
 
     if last_result is not None:
         return last_result  # surface the engine error, not a generic text
     return PredictionResult(engine='none', message="No sequence or UniProt ID provided")
+
+
+def _reserve_and_write(result, output_file):
+    """Write a model the engines did not already write, to a path they did not
+    already choose."""
+    if output_file or not result.pdb_string:
+        return
+    path = secure_temp_path(suffix='.pdb')
+    with open(path, 'w', encoding="utf-8") as f:
+        f.write(result.pdb_string)
+    result.output_file = path
 
 
 def format_prediction_report(result):
@@ -178,7 +200,7 @@ def format_prediction_report(result):
         high = sum(1 for s in result.plddt_scores if s > 90)
         good = sum(1 for s in result.plddt_scores if 70 < s <= 90)
         low = sum(1 for s in result.plddt_scores if s <= 70)
-        lines.append(f"Confident (>90): {high} | Good (70-90): {good} | Low (<70): {low}")
+        lines.append(f"Confident (>90): {high} | Good (>70-90): {good} | Low (<=70): {low}")
     if result.message:
         lines.append(f"Note: {result.message}")
     return '\n'.join(lines)

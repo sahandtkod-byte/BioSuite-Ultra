@@ -25,7 +25,9 @@ class GuideRNA:
     strand: str
     score: float
     gc_content: float
-    off_target_count: int
+    #: None until an off-target search exists: the built-in designer only scans the
+    #: supplied sequence, and a 0 here reads as "this guide is specific".
+    off_target_count: int | None
     on_target_score: float
 
 
@@ -120,7 +122,23 @@ def _score_guide(guide_seq):
 
 
 def _builtin_design_guides(sequence, pam_type='SpCas9', guide_length=20, max_guides=20):
-    pam_pattern, direction = PAM_PATTERNS.get(pam_type, ('NGG', 'forward'))
+    if pam_type not in PAM_PATTERNS:
+        # An unknown nuclease used to fall back to the SpCas9 NGG pattern while
+        # the result message still echoed the requested name, so a report said
+        # "Found 20 guide RNAs for SpCA9" for guides chosen as SpCas9.
+        raise ValueError(
+            f"Unknown pam_type: {pam_type!r}. Available: {', '.join(PAM_PATTERNS)}.")
+    if not isinstance(guide_length, int) or isinstance(guide_length, bool) or guide_length < 1:
+        # _score_guide divides by the guide length, so 0 was a ZeroDivisionError.
+        raise ValueError(
+            f"guide_length must be a positive integer, got {guide_length!r}.")
+    if not isinstance(max_guides, int) or isinstance(max_guides, bool) or max_guides < 1:
+        # A negative cap was a slice: guides[:-5] returned every guide but the
+        # last five, more than the caller asked for.
+        raise ValueError(
+            f"max_guides must be a positive integer, got {max_guides!r}.")
+
+    pam_pattern, direction = PAM_PATTERNS[pam_type]
     sites = _find_pam_sites(sequence, pam_pattern, guide_length, direction)
 
     guides = []
@@ -134,7 +152,7 @@ def _builtin_design_guides(sequence, pam_type='SpCas9', guide_length=20, max_gui
             strand=site['strand'],
             score=round(score, 3),
             gc_content=round((guide_seq.count('G') + guide_seq.count('C')) / len(guide_seq) * 100, 1),
-            off_target_count=0,
+            off_target_count=None,
             on_target_score=round(score, 3)
         ))
 
@@ -161,6 +179,23 @@ def _crispor_api_search(sequence):
 # ── Public API ──────────────────────────────────────────────────────────────
 
 def design_guides(sequence, pam_type='SpCas9', guide_length=20, max_guides=20, tool='auto'):
+    """Design guide RNAs against a target sequence.
+
+    Args:
+        sequence: the target DNA.
+        pam_type: a key of ``PAM_PATTERNS`` ('SpCas9', 'SaCas9', 'Cas12a',
+            'SpCas9-HF1').
+        guide_length: protospacer length in nucleotides, at least 1.
+        max_guides: how many best-scoring guides to return, at least 1.
+        tool: 'auto' (built-in designer) or 'crispor' to try the CRISPOR web
+            service first — see the note below.
+    Raises:
+        ValueError: on an unknown ``pam_type`` or ``tool``, or a non-positive
+            ``guide_length`` / ``max_guides``.
+    """
+    if tool not in ('auto', 'crispor'):
+        raise ValueError(f"Unknown tool: {tool}. Use 'auto' or 'crispor'.")
+
     if not sequence:
         return CRISPRResult(engine='none', message="No sequence provided")
 

@@ -4,6 +4,8 @@ Unit tests for biosuite.core.databases module.
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from biosuite.core.databases import (
@@ -16,8 +18,16 @@ from biosuite.core.databases import (
 )
 from biosuite.core.utils import config
 
-# Prevent API key prompts during testing
-config['quiet'] = True
+
+@pytest.fixture(autouse=True)
+def _no_api_key_prompts(monkeypatch):
+    """Quiet for this module only, restored afterwards.
+
+    This used to be a module-level ``config['quiet'] = True`` that the shared config
+    dict carried into every later test file — so a test anywhere after this one that
+    expected a prompt found none instead of failing.
+    """
+    monkeypatch.setitem(config, 'quiet', True)
 
 
 class TestDBResult:
@@ -53,10 +63,17 @@ class TestSearchNCBI:
         assert isinstance(result, DBResult)
         assert result.source == 'ncbi'
 
-    def test_error_handling(self):
-        # Test with invalid query
+    def test_an_empty_query_is_refused_by_name(self):
         result = search_ncbi('')
-        assert isinstance(result, DBResult)
+        assert result.source == 'ncbi'
+        assert result.records == []
+        assert "Empty query" in result.error, result.error
+
+    def test_a_blank_query_is_refused_by_name(self):
+        result = search_ncbi('   ')
+        assert result.source == 'ncbi'
+        assert result.records == []
+        assert "Empty query" in result.error, result.error
 
 
 class TestSearchUniProt:

@@ -1,7 +1,7 @@
 Getting Started
 ===============
 
-This guide will help you get started with BioSuite Ultra v5.5.0.
+This guide will help you get started with BioSuite Ultra v6.0.0.
 
 Installation
 ------------

@@ -118,7 +118,7 @@ FEATURES:
 - Load File -- Read FASTA/FASTQ/GenBank files
 - GC% -- Calculate GC content percentage
 - Rev Comp -- Get reverse complement
-- Translate -- Translate DNA to protein (6 frames)
+- Translate -- Translate DNA to protein (frame 1)
 - Stats -- Full base composition statistics
 
 EXAMPLE WORKFLOW:
@@ -140,19 +140,11 @@ PAIRWISE ALIGNMENT:
 - Smith-Waterman = local alignment (best matching region)
 - Results show aligned sequences and alignment score
 
-MULTIPLE SEQUENCE ALIGNMENT:
-- Paste multiple FASTA sequences
-- Click "Auto Align" to run progressive alignment
-- Consensus sequence shown below alignment
-- Conservation bars indicate similarity
+FOR LARGER SEARCHES:
+- Use the "Database Search" tab to query NCBI, UniProt, PDB and KEGG
+- The search engine runs offline-safe with optional API keys
 
-BLAST SEARCH:
-- Enter query sequence
-- Select or create a database FASTA file
-- Results ranked by E-value and score
-- Pure Python search works without BLAST+ installed
-
-TIP: For large databases (>10,000 sequences), install BLAST+ for faster results."""
+TIP: Alignments accept IUPAC characters; spaces and line breaks are ignored."""
 
     def _help_transcriptomics(self):
         return """TRANSCRIPTOMICS GUIDE
@@ -167,17 +159,13 @@ RNA-seq QUANTIFICATION:
 DIFFERENTIAL EXPRESSION:
 1. Load a count matrix (CSV with gene columns as samples)
 2. Enter conditions (e.g., control,control,treat,treat)
-3. Click "Run DE Analysis"
-4. Results show log2FC, p-values, adjusted p-values
+3. Click "Run Differential Expression"
+4. Results show log2FC, p-values, adjusted p-values and a volcano plot
 
-NORMALIZATION:
-- CPM -- Counts Per Million (depth normalization)
-- TPM -- Transcripts Per Million (length + depth normalized)
-
-GO/KEGG ENRICHMENT:
-- Enter gene list (comma-separated)
-- Select ORA or GSEA method
-- Results show enriched pathways with p-values
+READ TRIMMING:
+1. Select a FASTQ file
+2. Set the quality threshold and minimum length
+3. Click "Run Trimming" for a per-read report
 
 TIP: For large datasets, install Salmon for faster quantification."""
 
@@ -185,28 +173,20 @@ TIP: For large datasets, install Salmon for faster quantification."""
         return """GENOMICS & NGS GUIDE
 ======================
 
-READ ALIGNMENT:
-1. Select reference FASTA file
-2. Select reads FASTQ file
-3. Results show mapping statistics
-
-VARIANT CALLING:
-1. Select a SAM/BAM file (aligned reads)
-2. Click "Run Variant Calling"
-3. Results show SNPs and indels with quality scores
-
-PEAK CALLING (ChIP-seq):
-1. Select your ChIP-seq BAM/SAM file
-2. Results show peaks with positions and scores
+VARIANT CALLING (VCF):
+1. Select a VCF file
+2. Click "Load VCF & Show Manhattan Plot"
+3. Results list the variants and draw a Manhattan plot
 
 GENOME ASSEMBLY:
 1. Select reads FASTQ file
 2. Results show contig statistics (N50, total length)
 
-PHYLOGENETIC TREES:
-- Paste aligned sequences in FASTA format
-- Select tree method (NJ, ML, or Bayesian)
-- Results show Newick tree and visualization
+OTHER TABS IN THIS GROUP:
+- Metagenomics -- classify reads with the built-in k-mer database
+- 16S rRNA -- classify pasted 16S sequences by best identity
+- SV / CNV -- structural variants and copy numbers from coverage
+- BigWig -- read .bw track files
 
 TIP: Install BWA for faster read alignment on large genomes."""
 
@@ -228,7 +208,6 @@ PIPELINE STEPS:
 PARAMETERS:
 - Min genes per cell: 200 (default)
 - Max mito%: 20% (default)
-- Leiden resolution: 0.5 (higher = more clusters)
 
 OUTPUT:
 - Number of cells and clusters
@@ -247,15 +226,8 @@ PROTEIN STRUCTURE ANALYSIS:
 - Ramachandran plot data
 - Surface area calculation
 
-STRUCTURE PREDICTION:
-- Enter a protein sequence
-- Or enter a UniProt accession ID
-- Uses ESMFold (pure Python) or AlphaFold DB
-
-MOLECULAR DOCKING:
-- Upload receptor PDB file
-- Upload ligand PDB file
-- Results show binding energy and pose coordinates
+A path that does not exist is reported as a missing file instead of being
+sent to the PDB as an ID.
 
 TIP: For best structure prediction, register at alphafold.ebi.ac.uk"""
 
@@ -288,14 +260,12 @@ TIP: Higher-scoring guides generally have better on-target efficiency."""
 
 TAXONOMIC CLASSIFICATION:
 - Select reads FASTQ file
-- Results show taxonomic composition
-- Bar chart of relative abundances
+- Results show the taxa each read was assigned to
+- Classification uses the built-in k-mer classifier (or Kraken2 when installed)
 
-DIVERSITY METRICS:
-- Shannon entropy -- Species diversity
-- Simpson index -- Dominance measure
-- Chao1 estimator -- Total species count
-- Bray-Curtis distance -- Community dissimilarity
+WHAT THE REPORT SHOWS:
+- Reads processed and how many were assigned to a taxon
+- The taxa found and their share of the reads
 
 TIP: For real metagenomics, install Kraken2 for accurate classification."""
 
@@ -310,11 +280,9 @@ INPUT: Enter genotype matrix (rows = samples, values 0/1/2)
 
 ANALYSES:
 - Hardy-Weinberg Equilibrium -- Test genotype frequencies
-- FST -- Population differentiation
 - Nucleotide Diversity (pi) -- Sequence variation
 - Tajima's D -- Selection detection
 - Linkage Disequilibrium -- Non-random association
-- PCA -- Population structure visualization
 
 EXAMPLE:
 0,0,1,2,0,1
@@ -530,21 +498,17 @@ Example steps:
   revcomp:reverse_complement
   translate:translate
 
+Lines the builder cannot use are named in the results instead of being
+dropped silently.
+
 Batch Processor:
-Run the same analysis on hundreds of samples in parallel.
+Run the same processing function over many sample IDs in parallel
+(the demo function prefixes each id with "processed_").
 
 Usage:
 1. Enter sample IDs (one per line)
 2. Click "Run Batch"
-3. View aggregated results
-
-HTML Report Generator:
-Create styled HTML reports with stats, plots, and tables.
-
-Usage:
-1. Click "Load CSV" or "Demo Data"
-2. Click "Generate"
-3. Report opens in browser"""
+3. View aggregated results"""
 
     def _help_go(self):
         return """GENE ONTOLOGY BROWSER
@@ -567,7 +531,7 @@ SEARCHABLE TERMS:
 kinase, apoptosis, adhesion, phosphorylation, transcription,
 transport, signaling, catalytic, binding, membrane, nucleus...
 
-TIP: The GO browser includes 30 built-in terms for quick reference.
+TIP: The GO browser includes 31 built-in terms for quick reference.
 For full GO, install goatools and provide an OBO file."""
 
     def _help_gwas(self):
@@ -617,7 +581,7 @@ B-CELL EPITOPES:
 
 INPUT:
 - Paste a protein sequence (one-letter codes)
-- Select HLA type from dropdown
+- Type an HLA allele (e.g., A0201) -- empty means A0201
 - Click "Predict"
 
 OUTPUT:
@@ -637,7 +601,7 @@ Classify 16S rRNA sequences to identify bacterial species.
 
 INPUT:
 - Enter sequences in format: name:sequence (one per line)
-- Or click "Demo" for example data
+- The box starts with two example sequences you can replace
 
 BUILT-IN DATABASE:
 - Escherichia coli
@@ -736,8 +700,9 @@ GLOBAL:
 
 TIPS:
 - Shortcuts work from any tab
-- Ctrl+S is context-aware (saves current tab's data)
-- F5 reloads the current tab's interface
+- Ctrl+S saves the Sequence tab's results box or the latest plot; other tabs
+  answer in the status line
+- F5 redraws the tab you are on
 - Escape always takes you back to the main plots view"""
 
     def _help_api(self):

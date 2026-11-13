@@ -60,7 +60,7 @@ def test_intersect_bed_vcf_counts(tmp_path):
     bed.write_text(BED_SIMPLE)
     vcf.write_text(VCF_MNYLICK)
     out = ng.intersect_bed_vcf(str(bed), str(vcf), report='count')
-    assert out is not None
+    assert out.to_dict() == {0: 1, 1: 1}  # one variant inside each BED region
 
 
 def test_vcf_summary_and_ts_tv(tmp_path):
@@ -79,11 +79,14 @@ def test_vcf_summary_and_ts_tv(tmp_path):
     assert summ is not None
 
 
-def test_read_vcf_chunked(tmp_path):
+def test_read_vcf_reads_all_records_and_has_no_chunking_option(tmp_path):
+    """``chunk_size`` used to be accepted and never read — the whole file was
+    parsed into one DataFrame either way — so it is gone rather than tested."""
     vcf = tmp_path / 'big.vcf'
     vcf.write_text(VCF_TSTV)
-    df = ng.read_vcf(str(vcf), chunk_size=2)
-    assert len(df) == 6
+    assert len(ng.read_vcf(str(vcf))) == 6
+    with pytest.raises(TypeError, match="unexpected keyword argument 'chunk_size'"):
+        ng.read_vcf(str(vcf), chunk_size=2)
 
 
 def test_sam_roundtrip(tmp_path):

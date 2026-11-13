@@ -9,13 +9,19 @@ import sys
 
 import pytest
 
-ENV = {**os.environ, "MPLBACKEND": "Agg", "BIOSUITE_QUIET": "1"}
+# The CLI banner is not ASCII.  Without pinning both ends to UTF-8, the child
+# writes UTF-8 bytes while ``text=True`` decodes them with the Windows ANSI
+# codepage (cp1252), the reader thread dies on a byte like 0x81, ``stdout``
+# arrives as ``None``, and six perfectly good tests fail on this platform.
+ENV = {**os.environ, "MPLBACKEND": "Agg", "BIOSUITE_QUIET": "1",
+       "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+TEXT_KW = {"capture_output": True, "text": True, "encoding": "utf-8"}
 
 
 def _run(args, stdin_text=""):
     return subprocess.run(
         [sys.executable, "-m", "biosuite.cli.menu", *args],
-        input=stdin_text, capture_output=True, text=True, timeout=180, env=ENV)
+        input=stdin_text, timeout=180, env=ENV, **TEXT_KW)
 
 
 def _run_cli(args, stdin_text=""):
@@ -27,7 +33,7 @@ def _run_cli(args, stdin_text=""):
         "sys.exit(main_cli())"
     )
     return subprocess.run([sys.executable, "-c", code], input=stdin_text,
-                          capture_output=True, text=True, timeout=180, env=ENV)
+                          timeout=180, env=ENV, **TEXT_KW)
 
 
 # ── BSU-003: no code execution from menu input ──────────────────────────────

@@ -13,8 +13,13 @@ def test_cache_key_stability():
 
 def test_cache_info_and_invalidate():
     assert isinstance(db.cache_info(), dict)
-    db.invalidate_cache("pytest_scoped")      # scoped invalidate must not raise
-    db.invalidate_cache()                      # full invalidate must not raise
+    db._cache._store['pytest_scoped:x'] = ('v', 0)
+    assert db.cache_info().get('pytest_scoped') == 1
+    db.invalidate_cache("pytest_scoped")      # scoped invalidate removes only it
+    assert 'pytest_scoped' not in db.cache_info()
+    db._cache._store['pytest_scoped:x'] = ('v', 0)
+    db.invalidate_cache()                      # full invalidate clears everything
+    assert db.cache_info() == {}
 
 
 def test_json_response_parsing():

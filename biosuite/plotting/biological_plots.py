@@ -13,12 +13,50 @@ from matplotlib.patches import (
 )
 from scipy import stats as sp_stats
 
+# Public surface. ``biosuite/plotting/__init__.py`` star-imports this
+# module, and without this list it re-exports the module's own imports
+# (numpy, pandas, os, plotly, ...) as package-level names too.
+__all__ = [
+    'draw_venn2',
+    'draw_venn3',
+    'draw_motif_logo',
+    'draw_sankey',
+    'volcano_plot',
+    'pca_plot',
+    'manhattan_plot',
+    'ma_plot',
+    'venn_diagram',
+    'barplot_custom',
+    'boxplot_custom',
+    'heatmap_custom',
+    'scatter_custom',
+    'timeseries_plot',
+    'qq_plot',
+    'clustered_heatmap',
+    'circos_plot',
+    'alignment_viewer',
+    'violin_plot',
+    'raincloud_plot',
+    'ridge_plot',
+    'dot_plot',
+    'export_all_to_folder',
+    'generate_markdown_story',
+    'batch_export_to_pdf',
+]
+
 try:
     from tqdm import tqdm
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
 
+
+# Every demo runs inside one shared guard: report a failure, name it in the log,
+# and release the figures it opened.  ``specialized_plots`` runs its four demos
+# through the same object rather than keeping a second, leakier copy.
+from ._demo_guard import demo_guard as _demo
+
+from ..core.log import get_logger
 from ..core.utils import (
     add_ttest_to_boxplot,
     apply_glass_ax,
@@ -37,8 +75,46 @@ from ..core.utils import (
     session,
 )
 
+logger = get_logger(__name__)
+
+
+def _checked_regions(subsets, set_labels, n_sets):
+    """Region counts and names, validated before anything is drawn.
+
+    Called straight (not through venn_diagram) these used to die on
+    ``subsets[2]`` with a bare IndexError for a two-value list, print
+    ``10.0`` for a count, and happily draw ``-5`` inside a circle.
+    """
+    values = list(subsets)
+    expected = 3 if n_sets == 2 else 7
+    if len(values) != expected:
+        raise ValueError(
+            f"draw_venn{n_sets}() needs {expected} region counts, got {len(values)} "
+            f"({values[:8]}); the regions are "
+            + ('[onlyA, onlyB, both]' if n_sets == 2 else
+               '[A, B, C, AB, AC, BC, ABC]'))
+    if len(set_labels) != n_sets:
+        raise ValueError(
+            f"draw_venn{n_sets}() needs {n_sets} set labels, got {len(set_labels)} "
+            f"({list(set_labels)})")
+    counts = []
+    for i, value in enumerate(values):
+        if isinstance(value, bool) or not isinstance(value, (int, np.integer, float)):
+            raise ValueError(
+                f"draw_venn{n_sets}() region {i} must be a count, got {value!r}")
+        if value < 0:
+            raise ValueError(
+                f"draw_venn{n_sets}() region {i} is {value!r}; a set cannot hold a "
+                f"negative number of members")
+        counts.append(int(value) if float(value).is_integer() else float(value))
+    if any(float(v) != int(float(v)) for v in values):
+        logger.warning("draw_venn%d() received fractional region counts (%s); they "
+                       "are drawn as given.", n_sets, values)
+    return counts, tuple(set_labels)
+
 
 def draw_venn2(subsets, set_labels=('A', 'B'), ax=None):
+    subsets, set_labels = _checked_regions(subsets, set_labels, 2)
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
     r = 1.0
@@ -58,10 +134,17 @@ def draw_venn2(subsets, set_labels=('A', 'B'), ax=None):
     ax.set_ylim(-1.5, 1.5)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.set_title('Venn Diagram (2 sets)')
+    ax.set_title('Venn Diagram (2 sets; schematic, circle areas are not proportional)')
     return ax
 
 def draw_venn3(subsets, set_labels=('A', 'B', 'C'), ax=None):
+    subsets, set_labels = _checked_regions(subsets, set_labels, 3)
+    if subsets[6] > min(subsets[3:6]):
+        raise ValueError(
+            f"draw_venn3() was given ABC={subsets[6]} but the pairwise regions "
+            f"AB={subsets[3]}, AC={subsets[4]}, BC={subsets[5]}; every member of the "
+            f"triple overlap is also a member of each pair, so no pair can be "
+            f"smaller than the triple")
     if ax is None:
         fig, ax = plt.subplots(figsize=(6,6))
     r = 1.0
@@ -85,10 +168,17 @@ def draw_venn3(subsets, set_labels=('A', 'B', 'C'), ax=None):
     ax.set_ylim(-2, 2)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.set_title('Venn Diagram (3 sets)')
+    ax.set_title('Venn Diagram (3 sets; schematic, circle areas are not proportional)')
     return ax
 
 def draw_motif_logo(sequences, ax=None):
+    if not len(sequences):
+        raise ValueError(
+            "draw_motif_logo() needs at least one sequence; max() of an empty "
+            "sequence length has no answer")
+    # The counter only knows ACGT, so a lowercase input used to draw a logo with
+    # every bar at zero height and no word said about it.
+    sequences = [str(s).upper() for s in sequences]
     if ax is None:
         fig, ax = plt.subplots(figsize=(10,4))
     max_len = max(len(s) for s in sequences)
@@ -99,6 +189,11 @@ def draw_motif_logo(sequences, ax=None):
         for i, ch in enumerate(seq):
             if ch in counts:
                 counts[ch][i] += 1
+    other = sum(1 for seq in padded for ch in seq if ch not in counts and ch != '-')
+    if other:
+        print(f"   {other} letter(s) outside ACGT were not counted (gaps '-' aside); "
+              "a column that stops short of 1.0 is missing information, not low "
+              "information.")
     total = len(sequences)
     positions = np.arange(max_len)
     bar_width = 0.8
@@ -115,9 +210,30 @@ def draw_motif_logo(sequences, ax=None):
     return ax
 
 def draw_sankey(labels, sources, targets, values, ax=None):
+    if len(sources) != len(targets) or len(sources) != len(values):
+        raise ValueError(
+            f"draw_sankey() needs one source, target and value per link, got "
+            f"{len(sources)} sources, {len(targets)} targets and {len(values)} values")
+    if len(labels) == 0:
+        raise ValueError("draw_sankey() has no node labels to name a link by")
+    out_of_range = [int(i) for i in list(sources) + list(targets)
+                    if not 0 <= int(i) < len(labels)]
+    if out_of_range:
+        raise ValueError(
+            f"draw_sankey() was given {len(labels)} labels (indices 0..{len(labels) - 1}) "
+            f"but {len(out_of_range)} link end(s) outside them, e.g. index "
+            f"{out_of_range[0]}")
     if ax is None:
         fig, ax = plt.subplots(figsize=(10,6))
+    if not len(values):
+        # max() of nothing used to raise ValueError from inside the drawing.
+        ax.set_title('Sankey Diagram (no flows to draw)')
+        ax.axis('off')
+        return ax
     max_val = max(values)
+    if max_val == 0:
+        print("   draw_sankey() every flow is zero; links are drawn at their minimum "
+              "width instead of scaled.")
     source_x = 0.2
     target_x = 0.8
     source_nodes = list(dict.fromkeys(labels[s] for s in sources))
@@ -135,15 +251,11 @@ def draw_sankey(labels, sources, targets, values, ax=None):
     for s_idx, t_idx, val in zip(sources, targets, values):
         src_node = labels[s_idx]
         tgt_node = labels[t_idx]
-        if src_node in source_nodes:
-            src_y = (source_nodes.index(src_node)+1)/(len(source_nodes)+1)
-        else:
-            continue
-        if tgt_node in target_nodes:
-            tgt_y = (target_nodes.index(tgt_node)+1)/(len(target_nodes)+1)
-        else:
-            continue
-        lw = 2 + 8 * val / max_val
+        # Both node lists were built from these very indices above, so a link can
+        # never be missing from the list its own endpoint went into.
+        src_y = (source_nodes.index(src_node)+1)/(len(source_nodes)+1)
+        tgt_y = (target_nodes.index(tgt_node)+1)/(len(target_nodes)+1)
+        lw = 2 + (8 * val / max_val if max_val else 0)
         patch = ConnectionPatch(xyA=(source_x, src_y), xyB=(target_x, tgt_y), coordsA='data', coordsB='data',
                                 arrowstyle='-', connectionstyle='arc3,rad=0.2', color='gray', alpha=0.6, linewidth=lw)
         ax.add_patch(patch)
@@ -155,7 +267,7 @@ def draw_sankey(labels, sources, targets, values, ax=None):
 
 def volcano_plot(pdf=None):
     print("\n--- Volcano Plot ---")
-    try:
+    with _demo('volcano_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         lfc, pvals = None, None
         if use_file == 'y':
@@ -171,24 +283,38 @@ def volcano_plot(pdf=None):
                     lfc_col = input("Log2FC column: ").strip()
                     p_col = input("P-value column: ").strip()
                     if lfc_col in df.columns and p_col in df.columns:
-                        lfc = pd.to_numeric(df[lfc_col], errors='coerce').dropna().values
-                        pvals = pd.to_numeric(df[p_col], errors='coerce').dropna().values
-                        if len(lfc) > config['downsample_threshold']:
-                            idx = np.random.choice(len(lfc), config['downsample_threshold'], replace=False)
-                            lfc = lfc[idx]
-                            pvals = pvals[idx]
+                        # One row per gene: dropping each column on its own would
+                        # pair gene i's fold change with gene i+1's p-value.
+                        pairs = df[[lfc_col, p_col]].apply(
+                            pd.to_numeric, errors='coerce').dropna()
+                        lfc = pairs[lfc_col].to_numpy()
+                        pvals = pairs[p_col].to_numpy()
+                        if len(lfc) == 0:
+                            print(f"   {path} has no numeric rows in "
+                                  f"{lfc_col!r} / {p_col!r}; nothing to plot.")
+                    else:
+                        missing = [c for c in (lfc_col, p_col) if c not in df.columns]
+                        print(f"   {path} has no column(s) {', '.join(repr(c) for c in missing)}; "
+                              f"its columns are {', '.join(map(str, df.columns))}.")
         if lfc is None or len(lfc) == 0:
+            print("   Drawing the built-in simulated data set (500 genes) instead — "
+                  "these points are not from your file.")
             np.random.seed(42)
             lfc = np.random.normal(0, 1.5, 500)
             pvals = np.random.uniform(0, 1, 500)
             pvals[:30] = np.random.uniform(1e-6, 0.05, 30)
         fc_thresh = safe_float_input("Fold-change threshold (default 1.0): ", 1.0, key='volcano_fc')
         p_thresh = safe_float_input("P-value threshold (default 0.05): ", 0.05, key='volcano_p')
+        # The counts describe the whole table; only the drawing is thinned, and
+        # maybe_downsample is the deterministic sampler every other plot uses.
+        # Before, an unseeded np.random.choice ran *before* the report, so the
+        # same file printed 79, then 85, then 83 significant genes.
+        report_volcano_stats(lfc, pvals, fc_thresh, p_thresh)
+        lfc, pvals = maybe_downsample(lfc, pvals)
         neg_log10 = -np.log10(pvals + 1e-300)
         sig = (np.abs(lfc) >= fc_thresh) & (pvals < p_thresh)
         up = sig & (lfc > 0)
         down = sig & (lfc < 0)
-        report_volcano_stats(lfc, pvals, fc_thresh, p_thresh)
         fig, ax = plt.subplots(figsize=(8,6))
         ax.scatter(lfc[~sig], neg_log10[~sig], s=10, alpha=0.5, label='Not sig', color='gray')
         ax.scatter(lfc[down], neg_log10[down], s=20, alpha=0.7, label='Down', color='blue')
@@ -202,13 +328,11 @@ def volcano_plot(pdf=None):
         ax.legend(framealpha=0.7)
         apply_glass_ax(ax)
         ask_save_plot('volcano', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def pca_plot(pdf=None):
     from sklearn.decomposition import PCA
     print("\n--- PCA Plot ---")
-    try:
+    with _demo('pca_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             last_path = session.get('last_pca_path', '')
@@ -221,17 +345,38 @@ def pca_plot(pdf=None):
                 df = load_dataframe_safe(path)
                 if df is not None:
                     numeric_df = df.select_dtypes(include=[np.number])
-                    if numeric_df.shape[1] >= 2:
+                    if numeric_df.shape[1] < 2:
+                        print(f"   {path} has {numeric_df.shape[1]} numeric column(s); "
+                              "PCA needs at least two features.")
+                    elif numeric_df.shape[0] < 2:
+                        print(f"   {path} has {numeric_df.shape[0]} sample row(s); PCA "
+                              "needs at least two samples.")
+                    else:
                         data = numeric_df.values
-                        if data.shape[0] > config['downsample_threshold']:
-                            idx = np.random.choice(data.shape[0], config['downsample_threshold'], replace=False)
-                            data = data[idx]
-                            df = df.iloc[idx]
                         group_col = input("Group column (optional): ").strip()
-                        groups = df[group_col].astype(str).values if group_col and group_col in df.columns else ['Sample']*data.shape[0]
+                        if group_col and group_col in df.columns:
+                            groups = df[group_col].astype(str).to_numpy()
+                        else:
+                            if group_col:
+                                print(f"   {group_col!r} is not a column of this table "
+                                      f"({', '.join(map(str, df.columns))}); every sample "
+                                      "is drawn in one group called 'Sample'.")
+                            groups = np.array(['Sample'] * data.shape[0])
+                        # The decomposition runs on every sample, so the variance
+                        # percentages describe the file; only the points drawn are
+                        # thinned, and the stride is the deterministic one
+                        # utils.maybe_downsample uses (an unseeded
+                        # np.random.choice made a different picture every run).
                         pca = PCA(n_components=2)
                         pc = pca.fit_transform(data)
                         report_pca_stats(pca)
+                        limit = config['downsample_threshold']
+                        if pc.shape[0] > limit:
+                            keep = np.unique(np.linspace(0, pc.shape[0] - 1, limit)
+                                             .round().astype(int))
+                            print(f"   Drawing {len(keep)} of {pc.shape[0]} samples "
+                                  "(the decomposition used all of them).")
+                            pc, groups = pc[keep], groups[keep]
                         df_pca = pd.DataFrame({'PC1': pc[:,0], 'PC2': pc[:,1], 'Group': groups})
                         fig, ax = plt.subplots(figsize=(7,6))
                         sns.scatterplot(x='PC1', y='PC2', hue='Group', data=df_pca, s=70, palette='Set1', ax=ax)
@@ -239,6 +384,8 @@ def pca_plot(pdf=None):
                         apply_glass_ax(ax)
                         ask_save_plot('pca', config['save_format'], config['default_dpi'], pdf)
                         return
+        print("   Drawing the built-in simulated data set (30 samples x 100 "
+              "features, two groups) — this is not your file.")
         np.random.seed(42)
         data = np.random.randn(30, 100)
         groups = ['Ctrl']*15 + ['Treat']*15
@@ -251,12 +398,10 @@ def pca_plot(pdf=None):
         ax.set_title(f'PCA (var: {pca.explained_variance_ratio_[0]:.2f}, {pca.explained_variance_ratio_[1]:.2f})')
         apply_glass_ax(ax)
         ask_save_plot('pca', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def manhattan_plot(pdf=None):
     print("\n--- Manhattan Plot ---")
-    try:
+    with _demo('manhattan_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         df = None
         if use_file == 'y':
@@ -309,12 +454,10 @@ def manhattan_plot(pdf=None):
         ax.legend(loc='upper right', ncol=2, framealpha=0.5)
         apply_glass_ax(ax)
         ask_save_plot('manhattan', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def ma_plot(pdf=None):
     print("\n--- MA Plot ---")
-    try:
+    with _demo('ma_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -328,6 +471,11 @@ def ma_plot(pdf=None):
                 else:
                     print("Invalid columns. Using defaults.")
                     use_file = 'n'
+            else:
+                # Without this the synthetic-data branch below is skipped and the
+                # plot line dies on unbound A and M, leaving its figure open.
+                print("Could not read the file. Using defaults.")
+                use_file = 'n'
         if use_file != 'y':
             np.random.seed(42)
             M = np.random.normal(0, 1, 500)
@@ -342,21 +490,19 @@ def ma_plot(pdf=None):
         ax.set_title('MA Plot')
         apply_glass_ax(ax)
         ask_save_plot('maplot', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def venn_diagram(pdf=None):
     print("\n--- Venn Diagram (internal) ---")
-    try:
+    with _demo('venn_diagram'):
         n_sets = input("Number of sets (2 or 3): ").strip()
         if n_sets == '2':
-            sizes = safe_list_input("Enter sizes a,b,ab (e.g., 10,15,4): ", float)
+            sizes = safe_list_input("Enter sizes a,b,ab (e.g., 10,15,4): ", int)
             if sizes is None or len(sizes) != 3:
                 sizes = [10,15,4]
             fig, ax = plt.subplots(figsize=(6,6))
             draw_venn2(sizes, set_labels=('Set A', 'Set B'), ax=ax)
         elif n_sets == '3':
-            sizes = safe_list_input("Enter sizes a,b,c,ab,ac,bc,abc: ", float)
+            sizes = safe_list_input("Enter sizes a,b,c,ab,ac,bc,abc: ", int)
             if sizes is None or len(sizes) != 7:
                 sizes = [8,8,8,3,3,3,1]
             fig, ax = plt.subplots(figsize=(6,6))
@@ -366,12 +512,10 @@ def venn_diagram(pdf=None):
             return
         apply_glass_ax(ax)
         ask_save_plot('venn', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def barplot_custom(pdf=None):
     print("\n--- Barplot ---")
-    try:
+    with _demo('barplot_custom'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         groups, values, errors = None, None, None
         if use_file == 'y':
@@ -382,28 +526,58 @@ def barplot_custom(pdf=None):
                 y_col = input("Value column: ").strip()
                 err_col = input("Error column (optional): ").strip()
                 if x_col in df.columns and y_col in df.columns:
-                    groups = df[x_col].astype(str).tolist()
-                    values = pd.to_numeric(df[y_col], errors='coerce').dropna().values
-                    if err_col and err_col in df.columns:
-                        errors = pd.to_numeric(df[err_col], errors='coerce').dropna().values
-        if groups is None:
+                    # One row per bar: dropping the value column on its own would
+                    # shift every label under the wrong height.
+                    has_errors = bool(err_col) and err_col in df.columns
+                    wanted = [x_col, y_col] + ([err_col] if has_errors else [])
+                    rows = df[wanted].copy()
+                    rows[y_col] = pd.to_numeric(rows[y_col], errors='coerce')
+                    if has_errors:
+                        rows[err_col] = pd.to_numeric(rows[err_col], errors='coerce')
+                    rows = rows.dropna(subset=[y_col])
+                    groups = rows[x_col].astype(str).tolist()
+                    values = rows[y_col].to_numpy()
+                    if has_errors:
+                        errors = rows[err_col].to_numpy()
+                        blank = int(np.isnan(errors).sum())
+                        if blank:
+                            print(f"   {blank} of {len(errors)} values in {err_col!r} "
+                                  "are not a number; those caps are absent.")
+                    elif err_col:
+                        print(f"   {err_col!r} is not a column of this table; the bars "
+                              "are drawn without error caps.")
+        if not groups:
+            print("   Drawing the built-in demo bars (Ctrl/TrA/TrB) — these bars are "
+                  "not from your file.")
             groups = ['Ctrl', 'TrA', 'TrB']
             values = np.array([5.2, 8.7, 3.4])
             errors = np.array([0.5, 0.8, 0.4])
         fig, ax = plt.subplots(figsize=(6,4))
-        sns.barplot(x=groups, y=values, palette='viridis', edgecolor='black', ax=ax)
-        if errors is not None and len(errors) == len(values):
-            ax.errorbar(x=range(len(groups)), y=values, yerr=errors, fmt='none', c='black', capsize=5)
+        # seaborn aggregates repeated categories into one bar holding their mean,
+        # while the caller's error column belongs to the rows.  Caps drawn at row
+        # positions on aggregated bars describe bars that do not exist, so they are
+        # only added when one row really is one bar.
+        unique_groups = list(dict.fromkeys(str(g) for g in groups))
+        duplicates = len(unique_groups) != len(groups)
+        sns.barplot(x=groups, y=values, hue=groups, palette='viridis',
+                    edgecolor='black', legend=False, ax=ax)
+        if errors is not None:
+            if duplicates:
+                print(f"   {len(groups)} rows collapse into {len(unique_groups)} "
+                      "categories, so each bar is a mean; the error column belongs to "
+                      "the rows and is not drawn. seaborn's own confidence interval is "
+                      "shown instead.")
+            else:
+                ax.errorbar(x=range(len(unique_groups)), y=values, yerr=errors,
+                            fmt='none', c='black', capsize=5)
         ax.set_ylabel('Expression')
         ax.set_title('Barplot')
         apply_glass_ax(ax)
         ask_save_plot('barplot', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def boxplot_custom(pdf=None):
     print("\n--- Boxplot ---")
-    try:
+    with _demo('boxplot_custom'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -414,7 +588,8 @@ def boxplot_custom(pdf=None):
                 if value_col in df.columns and group_col in df.columns:
                     df_plot = df[[group_col, value_col]].dropna()
                     fig, ax = plt.subplots(figsize=(6,5))
-                    sns.boxplot(x=group_col, y=value_col, data=df_plot, palette='Set2', ax=ax)
+                    sns.boxplot(x=group_col, y=value_col, data=df_plot, hue=group_col,
+                                palette='Set2', legend=False, ax=ax)
                     sns.stripplot(x=group_col, y=value_col, data=df_plot, color='black', alpha=0.6, size=4, ax=ax)
                     ax.set_title('Boxplot')
                     apply_glass_ax(ax)
@@ -423,23 +598,24 @@ def boxplot_custom(pdf=None):
                         add_ttest_to_boxplot(df_plot, group_col, value_col, ax)
                     ask_save_plot('boxplot', config['save_format'], config['default_dpi'], pdf)
                     return
+        print("   Drawing the built-in demo groups (Ctrl/Treat, 30 each) — this is "
+              "not your file.")
         ctrl = np.random.normal(5,1,30)
         treat = np.random.normal(7.5,1.2,30)
         df_plot = pd.DataFrame({'Group': ['Ctrl']*30 + ['Treat']*30, 'Value': np.concatenate([ctrl, treat])})
         fig, ax = plt.subplots(figsize=(6,5))
-        sns.boxplot(x='Group', y='Value', data=df_plot, palette='Set2', ax=ax)
+        sns.boxplot(x='Group', y='Value', data=df_plot, hue='Group', palette='Set2',
+                    legend=False, ax=ax)
         sns.stripplot(x='Group', y='Value', data=df_plot, color='black', alpha=0.6, size=4, ax=ax)
         ax.set_title('Boxplot')
         apply_glass_ax(ax)
         report_boxplot_stats(df_plot, 'Group', 'Value')
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         ask_save_plot('boxplot', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def heatmap_custom(pdf=None):
     print("\n--- Heatmap ---")
-    try:
+    with _demo('heatmap_custom'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -448,12 +624,27 @@ def heatmap_custom(pdf=None):
                 numeric_df = df.select_dtypes(include=[np.number])
                 if not numeric_df.empty:
                     corr = numeric_df.corr()
+                    # A column that never varies has no correlation with anything:
+                    # pandas writes NaN and seaborn leaves the cell blank, which
+                    # reads as "r = 0" to whoever is looking at it.
+                    blank = int(np.triu(corr.isna().to_numpy(), 1).sum())
+                    # corr() spreads a NaN across the dead column's whole row, so
+                    # reading the culprits back off corr would name every column it
+                    # touched.  The zero-variance columns come from the data.
+                    constant = [str(name) for name in numeric_df.columns
+                                if numeric_df[name].nunique(dropna=False) <= 1]
+                    if blank or constant:
+                        print(f"   {blank} column pair(s) have no correlation because a "
+                              f"column never varies"
+                              f"{': ' + ', '.join(constant) if constant else ''}. Those "
+                              "cells are blank — undefined, not zero.")
                     fig, ax = plt.subplots(figsize=(7,6))
                     sns.heatmap(corr, annot=True, cmap='coolwarm', center=0, ax=ax)
                     ax.set_title('Correlation Heatmap')
                     apply_glass_ax(ax)
                     ask_save_plot('heatmap', config['save_format'], config['default_dpi'], pdf)
                     return
+                print("That file has no numeric columns to correlate; drawing the demo matrix.")
         corr = np.array([[1,0.8,0.2,0.1],[0.8,1,0.3,0.2],[0.2,0.3,1,0.7],[0.1,0.2,0.7,1]])
         labels = ['Gene_A','Gene_B','Gene_C','Gene_D']
         fig, ax = plt.subplots(figsize=(7,6))
@@ -461,12 +652,10 @@ def heatmap_custom(pdf=None):
         ax.set_title('Gene Correlation')
         apply_glass_ax(ax)
         ask_save_plot('heatmap', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def scatter_custom(pdf=None):
     print("\n--- Scatter Plot ---")
-    try:
+    with _demo('scatter_custom'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         x, y = None, None
         corr_type = 'pearson'
@@ -485,34 +674,73 @@ def scatter_custom(pdf=None):
                     x_col = input("X column: ").strip()
                     y_col = input("Y column: ").strip()
                     if x_col in df.columns and y_col in df.columns:
-                        x = pd.to_numeric(df[x_col], errors='coerce').dropna().values
-                        y = pd.to_numeric(df[y_col], errors='coerce').dropna().values
-                        x, y = maybe_downsample(x, y)
+                        # One point per row: dropping each column on its own would
+                        # pair x from one row with y from the next.
+                        pairs = df[[x_col, y_col]].apply(
+                            pd.to_numeric, errors='coerce').dropna()
+                        x, y = maybe_downsample(pairs[x_col].to_numpy(),
+                                                pairs[y_col].to_numpy())
+                        if len(x) < 2:
+                            print(f"   {path} gives fewer than two usable "
+                                  f"{x_col!r}/{y_col!r} pairs; a line cannot be fitted.")
+                    else:
+                        missing = [c for c in (x_col, y_col) if c not in df.columns]
+                        print(f"   {path} has no column(s) "
+                              f"{', '.join(repr(c) for c in missing)}; its columns are "
+                              f"{', '.join(map(str, df.columns))}.")
         if x is None or len(x) < 2:
+            print("   Drawing the built-in simulated points (20 of them) instead — "
+                  "this is not your file.")
             np.random.seed(42)
             x = np.linspace(0,10,20)
             y = 2.5*x + np.random.normal(0,1.5,20)
-        fig, ax = plt.subplots(figsize=(7,5))
-        sns.regplot(x=x, y=y, ci=None, scatter_kws={'s':60, 'edgecolor':'black'}, line_kws={'color':'red','ls':'--'}, ax=ax)
-        ax.set_title('Scatter with Regression')
-        apply_glass_ax(ax)
+        # The statistic is worked out before any figure exists.  It used to be
+        # computed after regplot had already drawn, so a column of identical x
+        # values died inside linregress with an empty figure open, printed one
+        # "Error:" line and left the points unpainted.
+        distinct_x = len(np.unique(x))
+        fit = None
         if corr_type == 'spearman':
-            corr, pval = sp_stats.spearmanr(x, y)
-            print(f"\nScatter Statistics: Spearman rho = {corr:.3f}, p-value = {pval:.4f}")
-            eq = f'Spearman rho = {corr:.3f}, p = {pval:.4f}'
-            ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
+            if distinct_x < 2 or len(np.unique(y)) < 2:
+                print("   Spearman's rho needs two distinct values in both columns; "
+                      "the points are drawn without a statistic.")
+            else:
+                result = sp_stats.spearmanr(x, y)
+                fit = ('spearman', float(result.statistic), float(result.pvalue))
+        elif distinct_x < 2:
+            print(f"   Every x value is {float(x[0])!r}, so no line can be fitted; the "
+                  "points are drawn without one.")
         else:
-            slope, intercept, r_value, p_value, std_err = sp_stats.linregress(x, y)
+            slope, intercept, r_value, p_value, _stderr = sp_stats.linregress(x, y)
+            fit = ('pearson', slope, intercept, r_value, p_value)
+
+        fig, ax = plt.subplots(figsize=(7,5))
+        if fit is None:
+            sns.scatterplot(x=x, y=y, s=60, edgecolor='black', ax=ax)
+            ax.set_title('Scatter (no line fitted)')
+        else:
+            sns.regplot(x=x, y=y, ci=None, scatter_kws={'s':60, 'edgecolor':'black'},
+                        line_kws={'color':'red', 'ls':'--'}, ax=ax)
+            ax.set_title('Scatter with Regression')
+        apply_glass_ax(ax)
+        if fit is not None and fit[0] == 'spearman':
+            rho, pval = fit[1], fit[2]
+            print(f"\nScatter Statistics: Spearman rho = {rho:.3f}, p-value = {pval:.4f}")
+            eq = f'Spearman rho = {rho:.3f}, p = {pval:.4f}'
+            ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9,
+                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
+        elif fit is not None:
+            _slope, _intercept, r_value, p_value = fit[1], fit[2], fit[3], fit[4]
             print(f"\nScatter Statistics: Pearson r = {r_value:.3f}, p-value = {p_value:.4f}")
-            eq = f'y = {slope:.3f}x + {intercept:.3f}\nR² = {r_value**2:.3f}, p = {p_value:.4f}'
-            ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
+            eq = (f'y = {fit[1]:.3f}x + {fit[2]:.3f}\n'
+                  f'R² = {r_value ** 2:.3f}, p = {p_value:.4f}')
+            ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9,
+                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
         ask_save_plot('scatter', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def timeseries_plot(pdf=None):
     print("\n--- Time Series ---")
-    try:
+    with _demo('timeseries_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -521,15 +749,23 @@ def timeseries_plot(pdf=None):
                 time_col = input("Time column: ").strip()
                 val_col = input("Value column: ").strip()
                 if time_col in df.columns and val_col in df.columns:
-                    times = pd.to_numeric(df[time_col], errors='coerce').dropna().values
-                    values = pd.to_numeric(df[val_col], errors='coerce').dropna().values
-                    if len(times) == len(values):
+                    # One point per row, and a line needs two of them: dropping
+                    # each column on its own used to leave the two arrays a
+                    # different length, which silently plotted the demo curve
+                    # over the user's file.
+                    pairs = df[[time_col, val_col]].apply(
+                        pd.to_numeric, errors='coerce').dropna()
+                    times = pairs[time_col].to_numpy()
+                    values = pairs[val_col].to_numpy()
+                    if len(times) >= 2:
                         fig, ax = plt.subplots(figsize=(8,5))
                         sns.lineplot(x=times, y=values, marker='o', color='green', ax=ax)
                         ax.set_title('Time Series')
                         apply_glass_ax(ax)
                         ask_save_plot('timeseries', config['save_format'], config['default_dpi'], pdf)
                         return
+                    print("File has fewer than two complete time/value pairs. "
+                          "Using defaults.")
         times = np.arange(0,24,2)
         values = np.exp(-0.1*times) + np.random.normal(0,0.05,len(times))
         fig, ax = plt.subplots(figsize=(8,5))
@@ -537,12 +773,10 @@ def timeseries_plot(pdf=None):
         ax.set_title('Time Series')
         apply_glass_ax(ax)
         ask_save_plot('timeseries', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def qq_plot(pdf=None):
     print("\n--- QQ-plot (Normality Check) ---")
-    try:
+    with _demo('qq_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         data = None
         if use_file == 'y':
@@ -553,6 +787,8 @@ def qq_plot(pdf=None):
                 if col in df.columns:
                     data = pd.to_numeric(df[col], errors='coerce').dropna().values
         if data is None or len(data) == 0:
+            print("   No usable column arrived, so the QQ-plot shows 200 simulated "
+                  "standard-normal draws — not your data.")
             np.random.seed(42)
             data = np.random.normal(0, 1, 200)
         if len(data) > config['downsample_threshold']:
@@ -562,12 +798,10 @@ def qq_plot(pdf=None):
         ax.set_title('QQ-plot (Normal Distribution)')
         apply_glass_ax(ax)
         ask_save_plot('qqplot', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def clustered_heatmap(pdf=None):
     print("\n--- Clustered Heatmap with Dendrograms ---")
-    try:
+    with _demo('clustered_heatmap'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         data = None
         if use_file == 'y':
@@ -590,12 +824,10 @@ def clustered_heatmap(pdf=None):
                            cbar_pos=(0.02, 0.8, 0.03, 0.18))
         g.ax_heatmap.set_title('Clustered Heatmap')
         ask_save_plot('clustered_heatmap', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def circos_plot(pdf=None):
     print("\n--- Simple Circos Plot (internal) ---")
-    try:
+    with _demo('circos_plot'):
         use_default = input("Use default data? (y/n): ").strip().lower()
         if use_default == 'n':
             sectors = {}
@@ -603,6 +835,10 @@ def circos_plot(pdf=None):
             for i in range(n):
                 name = input(f"Sector {i+1} name: ").strip()
                 size = safe_float_input(f"Size of {name}: ", 10)
+                if name in sectors:
+                    print(f"   Sector name {name!r} was given twice; the earlier size "
+                          f"is replaced, so {len(sectors)} of the {n} sectors asked "
+                          "for survive.")
                 sectors[name] = size
             links = []
             n_links = safe_int_input("Number of links: ", 2)
@@ -613,8 +849,13 @@ def circos_plot(pdf=None):
         else:
             sectors = {"Gene_A": 10, "Gene_B": 8, "Gene_C": 12, "Gene_D": 6}
             links = [("Gene_A", "Gene_B"), ("Gene_B", "Gene_C"), ("Gene_C", "Gene_D"), ("Gene_D", "Gene_A")]
-        fig, ax = plt.subplots(figsize=(8,8), subplot_kw={'projection': 'polar'})
         total = sum(sectors.values())
+        if not sectors or total <= 0:
+            print(f"   Circos needs a positive total angle budget; the sectors given "
+                  f"sum to {total!r}"
+                  f"{', so nothing is drawn' if not sectors else ''}.")
+            return
+        fig, ax = plt.subplots(figsize=(8,8), subplot_kw={'projection': 'polar'})
         start = 0
         colors = plt.cm.tab20(np.linspace(0,1,len(sectors)))
         sector_names = list(sectors.keys())
@@ -624,8 +865,10 @@ def circos_plot(pdf=None):
                    color=color, edgecolor='black', alpha=0.7, align='edge')
             ax.text(start + (end-start)/2, 0.8, name, ha='center', va='center', fontsize=8)
             start = end
+        dropped = []
         for (s1, s2) in links:
             if s1 not in sector_names or s2 not in sector_names:
+                dropped.append((s1, s2))
                 continue
             i1 = sector_names.index(s1)
             i2 = sector_names.index(s2)
@@ -639,18 +882,19 @@ def circos_plot(pdf=None):
             rad = np.linspace(theta1, theta2, 100)
             r = np.linspace(1.0, 1.0, 100)
             ax.plot(rad, r, color='red', alpha=0.6, linewidth=1)
+        if dropped:
+            print(f"   {len(dropped)} link(s) named a sector that does not exist and "
+                  f"were not drawn: {', '.join(f'{a}->{b}' for a, b in dropped[:5])}.")
         ax.set_ylim(0,1.2)
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title("Simple Circos Plot")
         apply_glass_ax(ax)
         ask_save_plot('circos', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def alignment_viewer(pdf=None):
     print("\n--- Alignment Viewer ---")
-    try:
+    with _demo('alignment_viewer'):
         use_default = input("Use default alignment? (y/n): ").strip().lower()
         sequences = []
         if use_default == 'n':
@@ -667,7 +911,17 @@ def alignment_viewer(pdf=None):
             sequences = ["ATCGATCG", "ATCGATCG", "ATCGGTCG", "ATCGATAG", "ATCGATGG"]
         max_len = max(len(s) for s in sequences)
         aligned = [list(s.ljust(max_len, '-')) for s in sequences]
-        fig, ax = plt.subplots(figsize=(max_len*0.3, len(sequences)*0.4))
+        # One cell per base at 0.3in per column made a 2000-column alignment a
+        # 600-inch-wide figure; the canvas is capped and the cap is said out loud.
+        width = min(max_len * 0.3, 42.0)
+        height = min(len(sequences) * 0.4, 30.0)
+        if max_len * 0.3 > width or len(sequences) * 0.4 > height:
+            print(f"   {len(sequences)} sequences x {max_len} columns need "
+                  f"{round(max_len * 0.3, 1)} x {round(len(sequences) * 0.4, 1)} inches "
+                  f"at one cell per base; the figure is capped at "
+                  f"{width} x {height} inches, so the cells shrink. Subset the "
+                  "alignment to read it comfortably.")
+        fig, ax = plt.subplots(figsize=(width, height))
         ax.set_xlim(-0.5, max_len-0.5)
         ax.set_ylim(-0.5, len(sequences)-0.5)
         for i, row in enumerate(aligned):
@@ -683,12 +937,10 @@ def alignment_viewer(pdf=None):
         ax.set_title("Alignment Viewer")
         apply_glass_ax(ax)
         ask_save_plot('alignment', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def violin_plot(pdf=None):
     print("\n--- Violin Plot (Enhanced Distribution) ---")
-    try:
+    with _demo('violin_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -699,7 +951,9 @@ def violin_plot(pdf=None):
                 if value_col in df.columns and group_col in df.columns:
                     df_plot = df[[group_col, value_col]].dropna()
                     fig, ax = plt.subplots(figsize=(8,6))
-                    sns.violinplot(x=group_col, y=value_col, data=df_plot, inner='quartile', palette='muted')
+                    sns.violinplot(x=group_col, y=value_col, data=df_plot,
+                                   inner='quartile', hue=group_col, palette='muted',
+                                   legend=False, ax=ax)
                     sns.stripplot(x=group_col, y=value_col, data=df_plot, color='black', alpha=0.5, size=3)
                     ax.set_title('Violin Plot with Quartiles')
                     if len(df_plot[group_col].unique()) >= 2:
@@ -707,22 +961,23 @@ def violin_plot(pdf=None):
                     apply_glass_ax(ax)
                     ask_save_plot('violin', config['save_format'], config['default_dpi'], pdf)
                     return
+        print("   Drawing the built-in demo groups (Ctrl/Treat, 50 each) — this is "
+              "not your file.")
         ctrl = np.random.normal(5,1,50)
         treat = np.random.normal(7.5,1.2,50)
         df_plot = pd.DataFrame({'Group': ['Ctrl']*50 + ['Treat']*50, 'Value': np.concatenate([ctrl, treat])})
         fig, ax = plt.subplots(figsize=(8,6))
-        sns.violinplot(x='Group', y='Value', data=df_plot, inner='quartile', palette='muted')
+        sns.violinplot(x='Group', y='Value', data=df_plot, inner='quartile',
+                       hue='Group', palette='muted', legend=False, ax=ax)
         sns.stripplot(x='Group', y='Value', data=df_plot, color='black', alpha=0.5, size=3)
         ax.set_title('Violin Plot (Demo)')
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         apply_glass_ax(ax)
         ask_save_plot('violin', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def raincloud_plot(pdf=None):
     print("\n--- Raincloud Plot (Box+Violin+Swarm) ---")
-    try:
+    with _demo('raincloud_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -733,7 +988,9 @@ def raincloud_plot(pdf=None):
                 if value_col in df.columns and group_col in df.columns:
                     df_plot = df[[group_col, value_col]].dropna()
                     fig, ax = plt.subplots(figsize=(8,6))
-                    sns.violinplot(x=group_col, y=value_col, data=df_plot, inner=None, palette='muted', alpha=0.5)
+                    sns.violinplot(x=group_col, y=value_col, data=df_plot, inner=None,
+                                   hue=group_col, palette='muted', alpha=0.5,
+                                   legend=False, ax=ax)
                     sns.boxplot(x=group_col, y=value_col, data=df_plot, width=0.2, boxprops=dict(alpha=0.5), showfliers=False)
                     sns.swarmplot(x=group_col, y=value_col, data=df_plot, color='black', alpha=0.6, size=4)
                     ax.set_title('Raincloud Plot')
@@ -742,23 +999,24 @@ def raincloud_plot(pdf=None):
                     apply_glass_ax(ax)
                     ask_save_plot('raincloud', config['save_format'], config['default_dpi'], pdf)
                     return
+        print("   Drawing the built-in demo groups (Ctrl/Treat, 50 each) — this is "
+              "not your file.")
         ctrl = np.random.normal(5,1,50)
         treat = np.random.normal(7.5,1.2,50)
         df_plot = pd.DataFrame({'Group': ['Ctrl']*50 + ['Treat']*50, 'Value': np.concatenate([ctrl, treat])})
         fig, ax = plt.subplots(figsize=(8,6))
-        sns.violinplot(x='Group', y='Value', data=df_plot, inner=None, palette='muted', alpha=0.5)
+        sns.violinplot(x='Group', y='Value', data=df_plot, inner=None, hue='Group',
+                       palette='muted', alpha=0.5, legend=False, ax=ax)
         sns.boxplot(x='Group', y='Value', data=df_plot, width=0.2, boxprops=dict(alpha=0.5), showfliers=False)
         sns.swarmplot(x='Group', y='Value', data=df_plot, color='black', alpha=0.6, size=4)
         ax.set_title('Raincloud Plot (Demo)')
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)
         apply_glass_ax(ax)
         ask_save_plot('raincloud', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def ridge_plot(pdf=None):
     print("\n--- Ridge Plot (Overlapping KDEs) ---")
-    try:
+    with _demo('ridge_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -768,22 +1026,35 @@ def ridge_plot(pdf=None):
                 group_col = input("Group column: ").strip()
                 if value_col in df.columns and group_col in df.columns:
                     df_plot = df[[group_col, value_col]].dropna()
-                    groups = df_plot[group_col].unique()
-                    fig, ax = plt.subplots(figsize=(8,6))
-                    for i, grp in enumerate(groups):
-                        subset = df_plot[df_plot[group_col] == grp][value_col].dropna()
-                        if len(subset) == 0:
-                            continue
-                        density = sp_stats.gaussian_kde(subset)
-                        xs = np.linspace(subset.min(), subset.max(), 200)
-                        ys = density(xs) + i
-                        ax.fill_between(xs, ys, i, alpha=0.5, label=grp)
-                    ax.set_xlabel(value_col)
-                    ax.set_ylabel('Density shift')
-                    ax.set_title('Ridge Plot')
-                    apply_glass_ax(ax)
-                    ask_save_plot('ridge', config['save_format'], config['default_dpi'], pdf)
-                    return
+                    # A kernel density estimate needs two points.  One group with a
+                    # single value used to abort the whole plot from inside
+                    # gaussian_kde ("'dataset' input should have multiple elements").
+                    counts = df_plot.groupby(group_col)[value_col].transform('size')
+                    drawable = df_plot[counts >= 2]
+                    skipped = sorted(set(df_plot[group_col]) - set(drawable[group_col]),
+                                     key=str)
+                    if skipped:
+                        print("  Groups with a single value, no density drawn: "
+                              f"{', '.join(str(g) for g in skipped)}")
+                    if drawable.empty:
+                        print("No group has the two values a density needs. "
+                              "Using defaults.")
+                    else:
+                        fig, ax = plt.subplots(figsize=(8,6))
+                        for i, grp in enumerate(drawable[group_col].unique()):
+                            subset = drawable[drawable[group_col] == grp][value_col]
+                            density = sp_stats.gaussian_kde(subset)
+                            xs = np.linspace(subset.min(), subset.max(), 200)
+                            ys = density(xs) + i
+                            ax.fill_between(xs, ys, i, alpha=0.5, label=grp)
+                        ax.set_xlabel(value_col)
+                        ax.set_ylabel('Density shift')
+                        ax.set_title('Ridge Plot')
+                        apply_glass_ax(ax)
+                        ask_save_plot('ridge', config['save_format'], config['default_dpi'], pdf)
+                        return
+        print("   Drawing the built-in demo ridges (two groups of 200) — this is not "
+              "your file.")
         np.random.seed(42)
         g1 = np.random.normal(5,1,200)
         g2 = np.random.normal(7,1.2,200)
@@ -803,12 +1074,10 @@ def ridge_plot(pdf=None):
         ax.set_title('Ridge Plot (Demo)')
         apply_glass_ax(ax)
         ask_save_plot('ridge', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
 def dot_plot(pdf=None):
     print("\n--- Dot Plot (Single-cell style) ---")
-    try:
+    with _demo('dot_plot'):
         use_file = input("Load data from file? (y/n): ").strip().lower()
         if use_file == 'y':
             path = input("File path: ").strip()
@@ -819,10 +1088,24 @@ def dot_plot(pdf=None):
                 pct_col = input("Percent expressed column: ").strip()
                 exp_col = input("Average expression column: ").strip()
                 if all(c in df.columns for c in [gene_col, cluster_col, pct_col, exp_col]):
+                    cells = df.groupby([gene_col, cluster_col]).size()
+                    repeats = int((cells > 1).sum())
+                    if repeats:
+                        print(f"   {repeats} gene/cluster cell(s) hold more than one "
+                              "row; they are averaged. Pass one row per gene and "
+                              "cluster if you meant something else.")
                     genes = df[gene_col].unique()
                     clusters = df[cluster_col].unique()
-                    pivot_pct = df.pivot(index=gene_col, columns=cluster_col, values=pct_col).fillna(0)
-                    pivot_exp = df.pivot(index=gene_col, columns=cluster_col, values=exp_col).fillna(0)
+                    pivot_pct = df.pivot_table(index=gene_col, columns=cluster_col,
+                                               values=pct_col, aggfunc='mean').fillna(0)
+                    pivot_exp = df.pivot_table(index=gene_col, columns=cluster_col,
+                                               values=exp_col, aggfunc='mean').fillna(0)
+                    if float(pivot_pct.to_numpy().max(initial=0.0)) > 1.0:
+                        # size = 20 + pct*80, so a 0-100 column becomes balloons.
+                        print("   The percent-expressed column is on a 0-100 scale; "
+                              "marker area is computed from a 0-1 fraction, so it is "
+                              "divided by 100 for this plot.")
+                        pivot_pct = pivot_pct / 100.0
                     fig, ax = plt.subplots(figsize=(len(clusters)*0.8, len(genes)*0.4))
                     for i, gene in enumerate(genes):
                         for j, cl in enumerate(clusters):
@@ -869,12 +1152,19 @@ def dot_plot(pdf=None):
         plt.colorbar(ax.collections[0], ax=ax, label='Avg Expression')
         apply_glass_ax(ax)
         ask_save_plot('dotplot', config['save_format'], config['default_dpi'], pdf)
-    except Exception as e:
-        print(f"Error: {e}")
 
-def export_all_to_folder(folder_name="biosuite_export"):
-    import builtins
+def _batch_plot_functions():
+    """Every demo the batch exporters run, in export order.
 
+    Both exporters used to carry their own copy of this list and their own
+    answer map, and they drifted: the PDF export answered the "Number of sets"
+    question with an empty string, so Venn quietly skipped itself out of the
+    report while the folder export still wrote its PNG.
+
+    ``math_plots`` and ``specialized_plots`` are imported here rather than at
+    module scope because ``specialized_plots`` pulls drawing helpers out of
+    this module, which would make the top-level import circular.
+    """
     from .math_plots import (
         cosine_plot,
         cubic_plot,
@@ -885,6 +1175,37 @@ def export_all_to_folder(folder_name="biosuite_export"):
         sine_plot,
     )
     from .specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
+
+    return [
+        volcano_plot, pca_plot, manhattan_plot, ma_plot, venn_diagram,
+        barplot_custom, boxplot_custom, heatmap_custom, scatter_custom, timeseries_plot,
+        sine_plot, cosine_plot, linear_plot, quadratic_plot, cubic_plot,
+        exponential_plot, logistic_plot, gsea_plot, motif_logo, sankey_diagram,
+        qq_plot, clustered_heatmap, circos_plot, alignment_viewer, umap_plot,
+        violin_plot, raincloud_plot, ridge_plot, dot_plot
+    ]
+
+
+def _batch_default_input(prompt):
+    """Answer a demo's questions the way a batch run means them: defaults only.
+
+    The batch saves through ``auto_save_plot`` below and never loads a file, so the
+    questions a file or a saver would ask (correlation type, one sequence per line,
+    "Save this plot?") cannot reach this responder; anything else it is handed is
+    answered with the empty line that means "take the default".
+    """
+    if "Load data from file?" in prompt:
+        return 'n'
+    if "Number of sets" in prompt:
+        return '2'
+    if "Use default" in prompt or "Use default alignment" in prompt:
+        return 'y'
+    return ''
+
+
+def export_all_to_folder(folder_name="biosuite_export"):
+    import builtins
+
     print(f"\nExporting all plots to folder: {folder_name}")
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -893,48 +1214,29 @@ def export_all_to_folder(folder_name="biosuite_export"):
     config['save_format'] = 'png'
     config['quiet'] = True
 
-    plot_funcs = [
-        volcano_plot, pca_plot, manhattan_plot, ma_plot, venn_diagram,
-        barplot_custom, boxplot_custom, heatmap_custom, scatter_custom, timeseries_plot,
-        sine_plot, cosine_plot, linear_plot, quadratic_plot, cubic_plot,
-        exponential_plot, logistic_plot, gsea_plot, motif_logo, sankey_diagram,
-        qq_plot, clustered_heatmap, circos_plot, alignment_viewer, umap_plot,
-        violin_plot, raincloud_plot, ridge_plot, dot_plot
-    ]
+    plot_funcs = _batch_plot_functions()
     original_cwd = os.getcwd()
     os.chdir(folder_name)
 
-    def default_input(prompt):
-        if "Load data from file?" in prompt or "Show data summary" in prompt:
-            return 'n'
-        if "Number of sets" in prompt:
-            return '2'
-        if "Use default" in prompt or "Use default alignment" in prompt:
-            return 'y'
-        if "Save as HTML" in prompt or "Save this plot?" in prompt:
-            return 'n'
-        if "Enter sequences" in prompt:
-            return ''
-        if "Switch to" in prompt:
-            return ''
-        if "Correlation type" in prompt:
-            return 'pearson'
-        return ''
-
     original_input = builtins.input
-    builtins.input = default_input
+    builtins.input = _batch_default_input
 
     _orig_ask_save = ask_save_plot
     def auto_save_plot(default_name, save_format=None, dpi=None, pdf=None, story=None):
+        # Replaces utils.ask_save_plot for the batch, so it owes the same release.
+        fig = plt.gcf()
         try:
-            plt.tight_layout()
-            plt.savefig(f"{default_name}.png", dpi=config['default_dpi'],
-                        bbox_inches='tight', facecolor=plt.rcParams['figure.facecolor'])
-            print(f"   Auto-saved: {default_name}.png")
-        except OSError as exc:
-            # Printing nothing at all left the user believing the batch export
-            # had produced a file for every plot.
-            print(f"   FAILED to save {default_name}.png: {exc}")
+            try:
+                plt.tight_layout()
+                plt.savefig(f"{default_name}.png", dpi=config['default_dpi'],
+                            bbox_inches='tight', facecolor=plt.rcParams['figure.facecolor'])
+                print(f"   Auto-saved: {default_name}.png")
+            except OSError as exc:
+                # Printing nothing at all left the user believing the batch export
+                # had produced a file for every plot.
+                print(f"   FAILED to save {default_name}.png: {exc}")
+        finally:
+            plt.close(fig)
 
     # Patch the auto-saver into EVERY module that IMPORTS ask_save_plot
     # (math_plots / specialized_plots imported the symbol into their own
@@ -944,9 +1246,8 @@ def export_all_to_folder(folder_name="biosuite_export"):
     from . import specialized_plots as _sp
     _orig_map = {}
     for _mod in (_mp, _sp):
-        if hasattr(_mod, 'ask_save_plot'):
-            _orig_map[_mod] = _mod.ask_save_plot
-            _mod.ask_save_plot = auto_save_plot
+        _orig_map[_mod] = _mod.ask_save_plot
+        _mod.ask_save_plot = auto_save_plot
     import biosuite.plotting.biological_plots as bp_mod
     bp_mod.ask_save_plot = auto_save_plot
 
@@ -978,41 +1279,39 @@ def generate_markdown_story(plot_names, output_path="story.md"):
         "## Plots",
         ""
     ]
+    missing = []
     for name in plot_names:
         img_path = f"{name}.png"
-        lines.append(f"### {name.replace('_', ' ').title()}")
-        lines.append(f"![{name}]({img_path})")
+        # A square bracket in the name would end the alt text early and turn the
+        # line into broken markup, and a name whose PNG was never written made the
+        # story advertise a plot the export failed to produce.
+        safe = str(name).replace('[', '\\[').replace(']', '\\]')
+        lines.append(f"### {str(name).replace('_', ' ').title()}")
+        # <…> is the CommonMark form of a link destination, and the only one that
+        # survives a file name holding ']' or '(' — without it the first ']' closed
+        # the link and the line stopped being markup.  Ordinary names are left as
+        # they were, so a normal story still reads ![volcano](volcano.png).
+        special = any(ch in img_path for ch in '[]() ')
+        destination = f"<{img_path}>" if special else img_path
+        lines.append(f"![{safe}]({destination})")
         lines.append("")
-    with open(output_path, 'w') as f:
+        if not os.path.exists(img_path):
+            missing.append(img_path)
+    if missing:
+        print(f"   {len(missing)} of {len(plot_names)} referenced images are not in "
+              f"this folder: {', '.join(missing[:5])}. The story links to them "
+              "anyway; open it from the folder that holds them.")
+    with open(output_path, 'w', encoding="utf-8") as f:
         f.write('\n'.join(lines))
     print(f"Story report saved to {output_path}")
 
 def batch_export_to_pdf(pdf_path="biosuite_report.pdf"):
     import builtins
 
-    from .math_plots import (
-        cosine_plot,
-        cubic_plot,
-        exponential_plot,
-        linear_plot,
-        logistic_plot,
-        quadratic_plot,
-        sine_plot,
-    )
-    from .specialized_plots import gsea_plot, motif_logo, sankey_diagram, umap_plot
     print(f"\nBatch exporting all plots to {pdf_path}...")
-    plot_funcs = [
-        volcano_plot, pca_plot, manhattan_plot, ma_plot, venn_diagram,
-        barplot_custom, boxplot_custom, heatmap_custom, scatter_custom, timeseries_plot,
-        sine_plot, cosine_plot, linear_plot, quadratic_plot, cubic_plot,
-        exponential_plot, logistic_plot, gsea_plot, motif_logo, sankey_diagram,
-        qq_plot, clustered_heatmap, circos_plot, alignment_viewer, umap_plot,
-        violin_plot, raincloud_plot, ridge_plot, dot_plot
-    ]
+    plot_funcs = _batch_plot_functions()
     original_input = builtins.input
-    def default_input(prompt):
-        return ''
-    builtins.input = default_input
+    builtins.input = _batch_default_input
     original_quiet = config.get('quiet', False)
     config['quiet'] = True
     try:

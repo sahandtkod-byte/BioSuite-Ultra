@@ -35,8 +35,8 @@ see [Scientific scope and limitations](#scientific-scope-and-limitations).
   pipelines are seedable and re-runnable.
 - **Graceful degradation, honestly labelled.** Optional accelerators are used when present;
   the pure-Python fallbacks state their approximations rather than hiding them.
-- **Tested and scanned on every change.** 2,493 tests run on Python 3.10, 3.11 and 3.12, with
-  Ruff, a dedicated security-regression suite and CodeQL in the same pipeline.
+- **Tested and scanned on every change.** The suite runs on Python 3.10, 3.11 and 3.12 in
+  CI, with Ruff linting, a dedicated security-regression suite and a package build.
 
 ---
 
@@ -59,7 +59,7 @@ see [Scientific scope and limitations](#scientific-scope-and-limitations).
 | Workflows | Declarative pipelines, batch processing across samples, report generation |
 | Provenance | Parameter/input capture and audit records for reproducible runs |
 | Databases | NCBI/Ensembl-style lookups and a local GO browser |
-| Interfaces | Python library, interactive CLI (99 menu options, 19 direct subcommands), CustomTkinter GUI (11 tabs), FastAPI REST API (38 endpoints) |
+| Interfaces | Python library, interactive CLI (117 menu options, 20 direct subcommands), CustomTkinter GUI (11 tabs), FastAPI REST API (38 endpoints) |
 
 ---
 
@@ -150,7 +150,7 @@ results are identical whichever you choose.
 
 ### Command line
 
-The `biosuite` console script runs an interactive menu with 99 options, or executes a
+The `biosuite` console script runs an interactive menu with 117 options, or executes a
 subcommand directly:
 
 ```bash
@@ -184,8 +184,8 @@ pip install "biosuite-ultra[api]"
 python -m biosuite.api.server        # or: biosuite api --port 8000
 ```
 
-The API exposes 38 endpoints under `/api/*`, plus `/health`. It **will not start without
-credentials configured** — see [Security](#security).
+The API exposes 38 endpoints under `/api/*`, plus an unauthenticated `/health` liveness
+probe. It **will not start without credentials configured** — see [Security](#security).
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/sequence/gc-content" \
@@ -275,9 +275,12 @@ The API is designed to fail closed.
   password and no fallback signing secret. Importing the `app` object in-process without them
   (as tests do) generates ephemeral random values and warns; those never serve traffic and do
   not survive a restart.
-- **Layered authentication.** All endpoints require an `X-API-Key` header; `/api/v1/admin/*`
-  additionally requires a JWT bearer token from `/api/v1/admin/login`. Login attempts are
-  rate-limited.
+- **Layered authentication.** Every endpoint requires an `X-API-Key` header except the
+  liveness probe: `GET /health` answers without a credential and returns only
+  `{"status", "timestamp"}`, so a monitoring agent needs no secret and a busy API cannot
+  throttle it. Version and module inventory on `/health` still require the key.
+  `/api/v1/admin/*` additionally requires a JWT bearer token from `/api/v1/admin/login`.
+  Login attempts are rate-limited.
 - **Confined file access.** File endpoints resolve paths only inside `BIOSUITE_DATA_DIR`.
   Absolute paths, `..` traversal, percent-encoded traversal, dotfiles and symlinks that escape
   the directory are rejected.
@@ -301,22 +304,23 @@ To report a vulnerability, see [SECURITY.md](.github/SECURITY.md).
 
 ## Testing and quality
 
-Every push and pull request runs the full suite on three interpreters, plus linting, a
-security-regression suite, a package build and CodeQL analysis.
+Every push and pull request runs the full suite on three interpreters, plus Ruff linting,
+a security-regression suite, a coverage job and a package build. The job list is in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): `test`, `security`, `lint`, `build`.
 
-| Check | Status at the latest verified run |
+| Check | Status at the last run measured in this checkout |
 |---|---|
-| Tests — Python 3.10 | 2493 passed, 14 skipped, 0 failed |
-| Tests — Python 3.11 | 2493 passed, 14 skipped, 0 failed |
-| Tests — Python 3.12 | 2493 passed, 14 skipped, 0 failed |
-| Ruff (`E9,F,B` as a hard gate) | pass |
-| Security regression suite | pass |
-| Package build (`build` + `twine check`) | pass |
-| CodeQL (python + actions) | pass, zero alerts |
+| Tests — Python 3.13.3, extras installed here | 9068 passed, 17 skipped, 0 failed in 16:09 |
+| Branch coverage of `biosuite/` | 100 % — 21,711 statements, 7,022 branches, nothing partial |
+| Security regression suite (both `security` job lists) | 257 tests, 1 skipped, no failures |
+| Ruff (`E9,F,B` as a hard gate) | configured in `ci.yml`; ruff itself is not installed offline, so it was not run here |
+| Package build (`build` + `twine check`) | configured in `ci.yml`; not run from this checkout |
 
-The 14 skips are optional scientific dependencies (`scanpy`, `gseapy`, `torch`/ESM,
-`umap-learn`) that are not installed in CI. Coverage is measured on every CI run; the project
-does not claim full coverage.
+The 17 skips are 13 optional scientific extras (scanpy, goatools, ESM/torch), 2 tests that
+need POSIX mode bits and 2 modules whose engine is absent; `pytest -rs` reports each one.
+CI installs Tk bindings so the GUI tests can run there, so its own totals differ from the
+local figure above — the workflow file states what is checked, and this table states what
+was measured here.
 
 Run the suite locally with:
 
@@ -333,7 +337,7 @@ ruff check biosuite/ --select E9,F,B
 | Python | 3.10, 3.11, 3.12 |
 | OS | ubuntu-latest |
 | Linting | Ruff (`E9,F,B` blocking; broader rule set advisory) |
-| Static analysis | CodeQL — `python` and `actions` |
+| Coverage | `pytest --cov=biosuite`, uploaded as an artifact |
 | Packaging | `python -m build` and `twine check` |
 
 ---
@@ -358,9 +362,10 @@ No part of this project is validated for clinical or diagnostic use.
 
 ## Project status
 
-The current development version is **5.5.0**, which is **not yet published to PyPI** — the
-latest released version is **5.5.0**. Version 5.5.0 is a correctness, security and
-reproducibility release; see [CHANGELOG.md](CHANGELOG.md) for the full list of changes.
+The current development version is **6.0.0**. It is a correctness, security and
+reproducibility release built from a nine-pass audit; see [CHANGELOG.md](CHANGELOG.md)
+for the full list of changes. The version published to PyPI is older — `docs/deployment/DEPLOY.md`
+records which, and it is not re-checked from this machine.
 
 ---
 
@@ -403,7 +408,7 @@ If you use BioSuite Ultra in your research, please cite it using the metadata in
   author  = {Sahand Touri},
   title   = {BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform},
   year    = {2026},
-  version = {5.5.0},
+  version = {6.0.0},
   doi     = {10.5281/zenodo.21256296},
   url     = {https://github.com/sahandtkod-byte/BioSuite-Ultra}
 }

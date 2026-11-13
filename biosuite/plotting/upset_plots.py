@@ -3,10 +3,46 @@ UpSet plots for multi-set intersections.
 Better than Venn diagrams for 3+ sets — shows all intersection sizes.
 Pure Python implementation using matplotlib.
 """
+import operator
+from collections.abc import Mapping, Set as AbstractSet
 from itertools import combinations
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+
+# Public surface. ``biosuite/plotting/__init__.py`` star-imports this
+# module, and without this list it re-exports the module's own imports
+# (numpy, pandas, os, plotly, ...) as package-level names too.
+__all__ = [
+    'compute_upset_matrix',
+    'plot_upset',
+    'upset_from_sets',
+    'compute_set_statistics',
+    'plot_set_sizes',
+]
+
+#: Every extra set doubles the table: 17 sets already mean 131,071 rows.
+_MAX_SETS = 16
+
+
+def _whole_number(value, label):
+    try:
+        return operator.index(value)
+    except TypeError:
+        raise ValueError(f"{label} must be a whole number, got {value!r}") from None
+
+
+def _checked_sets(sets_dict, label="sets_dict"):
+    if not isinstance(sets_dict, Mapping):
+        raise ValueError(
+            f"{label} must be a mapping of set names to sets, "
+            f"got {type(sets_dict).__name__}")
+    for name, members in sets_dict.items():
+        if not isinstance(members, AbstractSet):
+            raise TypeError(
+                f"set {name!r} must be a set of elements, got {type(members).__name__}")
+    return sets_dict
 
 
 def compute_upset_matrix(sets_dict):
@@ -20,9 +56,19 @@ def compute_upset_matrix(sets_dict):
         labels: list of sorted set names
         matrix: boolean matrix (2^n x n) where row i = binary repr of subset
         counts: exclusive intersection size for each row
+
+    Raises:
+        TypeError: if a value is not a set.
+        ValueError: if the table would need more than 16 sets' worth of rows.
     """
+    sets_dict = _checked_sets(sets_dict)
     labels = sorted(sets_dict.keys())
     n = len(labels)
+    if n > _MAX_SETS:
+        raise ValueError(
+            f"compute_upset_matrix checks 2^n - 1 combinations; {n} sets need "
+            f"{2 ** n - 1:,} rows, so it accepts at most {_MAX_SETS}. "
+            "Pass fewer sets.")
     sets_list = [sets_dict[k] for k in labels]
 
     # Build all 2^n - 1 non-empty subsets with exclusive counts
@@ -54,23 +100,44 @@ def plot_upset(sets_dict, title="UpSet Plot", max_sets=10, figsize=(10, 7),
                bar_color='#00ff88', dot_color='#00cc66', ax=None):
     """Plot an UpSet diagram.
 
+    The diagram is two panels (intersection sizes and the dot matrix) in a
+    figure of its own.  ``ax`` is only usable when there is nothing to draw:
+    then the "No intersections" note goes on it.  Passing ``ax`` together with
+    data raises, because one axes cannot hold both panels.
+
     Args:
-        sets_dict: dict mapping set_name -> set of elements.
-        title: plot title.
-        max_sets: max number of sets to display.
+        sets_dict: dict mapping set name -> set of elements.
+        title: plot title; when sets are dropped, the title records how many
+            of how many were kept.
+        max_sets: max number of sets to display (the largest are kept).
         figsize: figure size if ax is None.
         bar_color: color of the intersection size bars.
         dot_color: color of the dot matrix.
-        ax: optional matplotlib axes for the bar chart.
-    """
-    labels, matrix, counts = compute_upset_matrix(sets_dict)
+        ax: optional axes for the "No intersections" note.
 
-    if len(labels) > max_sets:
+    Returns:
+        The figure, or None when every set is empty.
+
+    Raises:
+        ValueError: if the mapping is empty or the limit is not a positive
+            whole number, or if a drawn diagram is asked to share one axes.
+        TypeError: if a value is not a set.
+    """
+    sets_dict = _checked_sets(sets_dict)
+    if not sets_dict:
+        raise ValueError("plot_upset needs at least one set; the mapping is empty")
+    max_sets = _whole_number(max_sets, "max_sets")
+    if max_sets < 1:
+        raise ValueError(f"max_sets must be at least 1, got {max_sets}")
+
+    n_given = len(sets_dict)
+    if n_given > max_sets:
         # Keep only the top sets by size
         set_sizes = {k: len(v) for k, v in sets_dict.items()}
         top = sorted(set_sizes, key=set_sizes.get, reverse=True)[:max_sets]
         sets_dict = {k: sets_dict[k] for k in top}
-        labels, matrix, counts = compute_upset_matrix(sets_dict)
+
+    labels, matrix, counts = compute_upset_matrix(sets_dict)
 
     n_sets = len(labels)
     n_rows = len(matrix)
@@ -79,7 +146,15 @@ def plot_upset(sets_dict, title="UpSet Plot", max_sets=10, figsize=(10, 7),
         if ax is not None:
             ax.text(0.5, 0.5, "No intersections", ha='center', va='center',
                     transform=ax.transAxes, color='gray')
-        return
+        return None
+
+    if ax is not None:
+        raise ValueError(
+            "plot_upset draws a bar panel and a dot matrix; it cannot draw both "
+            "on one supplied axes. Call it without ax.")
+
+    if n_given > max_sets:
+        title = f"{title} (top {max_sets} of {n_given} sets)"
 
     # Create layout: top = bars, bottom = dot matrix
     fig = plt.figure(figsize=figsize)
@@ -95,7 +170,7 @@ def plot_upset(sets_dict, title="UpSet Plot", max_sets=10, figsize=(10, 7),
     ax_bar.spines['top'].set_visible(False)
     ax_bar.spines['right'].set_visible(False)
 
-    max_count = max(counts) if counts else 1
+    max_count = max(counts)
     for i, c in enumerate(counts):
         ax_bar.text(i, c + max_count * 0.02, str(c), ha='center', va='bottom',
                     fontsize=9, fontweight='bold')
@@ -125,7 +200,6 @@ def plot_upset(sets_dict, title="UpSet Plot", max_sets=10, figsize=(10, 7),
     ax_matrix.spines['left'].set_visible(False)
     ax_matrix.set_ylabel("")
 
-    plt.tight_layout()
     return fig
 
 
@@ -135,9 +209,27 @@ def upset_from_sets(*sets, names=None):
     Args:
         *sets: variable number of set-like objects.
         names: optional list of names for each set.
+
+    Raises:
+        ValueError: if no set is given, the names do not pair one-to-one with
+            the sets, or a name repeats.
     """
+    if not sets:
+        raise ValueError("upset_from_sets needs at least one set")
     if names is None:
         names = [f"Set {i+1}" for i in range(len(sets))]
+    else:
+        names = list(names)
+        if len(names) != len(sets):
+            raise ValueError(
+                f"upset_from_sets got {len(sets)} sets but {len(names)} name(s); "
+                "pass one name per set")
+    for index, name in enumerate(names):
+        if not isinstance(name, str) or not name:
+            raise ValueError(f"name {index + 1} is not a non-empty string: {name!r}")
+    if len(set(names)) != len(names):
+        repeated = sorted({n for n in names if names.count(n) > 1})
+        raise ValueError(f"set names repeat: {repeated}")
     d = {n: set(s) for n, s in zip(names, sets)}
     return plot_upset(d)
 
@@ -146,7 +238,11 @@ def compute_set_statistics(sets_dict):
     """Compute basic statistics for a collection of sets.
 
     Returns dict with: sizes, pairwise_jaccard, total_union, unique_per_set.
+
+    Raises:
+        TypeError: if a value is not a set.
     """
+    sets_dict = _checked_sets(sets_dict)
     labels = sorted(sets_dict.keys())
     sizes = {k: len(v) for k, v in sets_dict.items()}
     total_union = len(set().union(*sets_dict.values()))
@@ -173,7 +269,15 @@ def compute_set_statistics(sets_dict):
 
 
 def plot_set_sizes(sets_dict, title="Set Sizes", figsize=(8, 4), ax=None):
-    """Simple bar chart of set sizes."""
+    """Simple bar chart of set sizes.
+
+    Returns the axes it drew on (the caller's axes when one is supplied).
+
+    Raises:
+        ValueError: if the mapping is empty.
+    """
+    if not sets_dict:
+        raise ValueError("plot_set_sizes needs at least one set; the mapping is empty")
     labels = sorted(sets_dict.keys())
     sizes = [len(sets_dict[k]) for k in labels]
 

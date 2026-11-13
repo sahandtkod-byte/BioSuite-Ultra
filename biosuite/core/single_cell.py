@@ -8,8 +8,15 @@ Requires: scanpy, anndata (pip installable).
 import os
 from dataclasses import dataclass, field
 
+import numpy as np
+
 try:
-    import anndata as ad  # noqa: F401 — availability probe (see HAS_SCANPY)
+    import anndata as ad  # noqa: F401 — availability probe (see HAS_ANNDATA)
+    HAS_ANNDATA = True
+except ImportError:
+    HAS_ANNDATA = False
+
+try:
     import scanpy as sc
     HAS_SCANPY = True
 except ImportError:
@@ -28,7 +35,12 @@ class SingleCellReport:
 
 
 def check_single_cell_tools():
-    return {'scanpy': HAS_SCANPY, 'anndata': HAS_SCANPY}
+    """Report each engine by what actually imported.
+
+    ``anndata`` used to be reported as ``HAS_SCANPY``: with anndata installed and
+    scanpy missing, the probe said neither was available.
+    """
+    return {'scanpy': HAS_SCANPY, 'anndata': HAS_ANNDATA}
 
 
 def load_count_matrix(filepath, file_format='auto'):
@@ -92,10 +104,21 @@ def find_highly_variable_genes(adata, n_top_genes=2000):
 
 
 def scale_and_pca(adata, n_pcs=50):
+    """Scale and reduce to ``n_pcs`` principal components.
+
+    arpack cannot return more components than the smaller matrix dimension, so the
+    request is capped by the gene count *and* the cell count; capping by genes
+    alone crashed on a well-measured panel of few cells.
+    """
     if not HAS_SCANPY:
         return adata
+    if adata.n_obs < 2 or adata.n_vars < 2:
+        raise ValueError(
+            f"PCA needs at least two cells and two genes, got {adata.n_obs} cells "
+            f"and {adata.n_vars} genes.")
     sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack', n_comps=min(n_pcs, adata.n_vars - 1))
+    n_comps = min(n_pcs, adata.n_vars - 1, adata.n_obs - 1)
+    sc.tl.pca(adata, svd_solver='arpack', n_comps=n_comps)
     return adata
 
 
@@ -141,9 +164,19 @@ def find_marker_genes(adata, groupby='leiden', n_genes=10):
 
 
 def compute_pseudotime(adata, n_nodes=10):
+    """Diffusion maps and diffusion pseudotime.
+
+    scanpy's ``dpt()`` reads ``adata.uns['iroot']`` and raises KeyError when it is
+    absent, so this used to fail on any object the caller had not rooted by hand.
+    When no root was set, the cell furthest along PC1 is used — the convention the
+    scanpy tutorial applies — and an existing ``iroot`` is never overwritten.
+    """
     if not HAS_SCANPY:
         return adata
     sc.tl.diffmap(adata)
+    if 'iroot' not in adata.uns:
+        pca = adata.obsm.get('X_pca')
+        adata.uns['iroot'] = int(np.argmax(pca[:, 0])) if pca is not None and pca.size else 0
     sc.tl.dpt(adata, n_dcs=n_nodes)
     return adata
 

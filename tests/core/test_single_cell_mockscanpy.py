@@ -27,6 +27,10 @@ class _FakeAnnData:
     def n_vars(self):
         return self.X.shape[1]
 
+    @property
+    def T(self):
+        return _FakeAnnData(self.X.T)
+
 
 @pytest.fixture
 def fake_scanpy(monkeypatch):
@@ -34,7 +38,7 @@ def fake_scanpy(monkeypatch):
 
     def read_csv(fp, sep=','):
         df = pd.read_csv(fp, sep=sep, index_col=0)
-        return _FakeAnnData(df.values.T if False else df.values)
+        return _FakeAnnData(df.values)
 
     def read_10x_mtx(fp, *a, **kw):
         return _FakeAnnData(np.ones((5, 3)))
@@ -48,31 +52,34 @@ def fake_scanpy(monkeypatch):
     return sc
 
 
-def test_load_count_matrix_missing_dep():
+def test_load_count_matrix_missing_dep(monkeypatch):
     import biosuite.core.single_cell as scm
-    # exercise the graceful path without touching HAS state of other tests
-    rep = scm.load_count_matrix('/nonexistent/x.csv') if scm.HAS_SCANPY else \
-        scm.load_count_matrix('/nonexistent/x.csv')
-    assert rep is not None
+    monkeypatch.setattr(scm, 'HAS_SCANPY', False)
+    rep = scm.load_count_matrix('/nonexistent/x.csv')
+    assert rep == (None, 'scanpy not installed. Run: pip install scanpy anndata')
 
 
-def test_load_count_matrix_with_fake_scanpy(fake_scanpy, tmp_path):
+def test_load_count_matrix_with_fake_scanpy(fake_scanpy, tmp_path, monkeypatch):
     import biosuite.core.single_cell as scm
-    original = scm.HAS_SCANPY
-    scm.HAS_SCANPY = True
-    try:
-        f = tmp_path / 'counts.csv'
-        pd.DataFrame({'g1': [1, 2, 3], 'g2': [2, 1, 0]}).to_csv(f)
-        out = scm.load_count_matrix(str(f))
-        assert out is not None
-    finally:
-        scm.HAS_SCANPY = original
+    monkeypatch.setattr(scm, 'sc', fake_scanpy, raising=False)  # sc is unbound without scanpy
+    monkeypatch.setattr(scm, 'HAS_SCANPY', True)
+    f = tmp_path / 'counts.csv'
+    pd.DataFrame({'g1': [1, 2, 3], 'g2': [2, 1, 0]}).to_csv(f)
+    out = scm.load_count_matrix(str(f))
+    assert out[1] is None
+    assert out[0].X.shape == (2, 3)  # genes x cells after the .T
 
 
 def test_pipeline_missing_scanpy_graceful():
     import biosuite.core.single_cell as scm
     report = scm.SingleCellReport()
-    assert isinstance(report, scm.SingleCellReport)
+    assert report.num_cells == 0
+    assert report.num_genes == 0
+    assert report.num_clusters == 0
+    assert report.message == ''
+    assert report.cluster_counts == {}
+    assert report.top_markers == []
+    assert report.qc_stats == {}
 
 
 def test_check_single_cell_tools_shape():

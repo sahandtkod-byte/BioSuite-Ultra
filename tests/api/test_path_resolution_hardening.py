@@ -75,6 +75,49 @@ def test_dotfile_present_in_the_data_dir_is_still_refused(tmp_path, monkeypatch)
     _expect_status(".env", 400, tmp_path, monkeypatch)
 
 
+def test_a_non_string_path_is_refused_before_anything_touches_it(tmp_path, monkeypatch):
+    """The resolver is private, so it guards its own input rather than trusting one.
+
+    Nothing on the API can reach this (Starlette hands over a ``str``), but a
+    confinement helper must not become unsafe because a future caller forgot to
+    validate — that is the whole reason the allowlist runs before any filesystem
+    call.
+    """
+    for payload in (None, 123, b"regions.bed", ["a"]):
+        _expect_status(payload, 400, tmp_path, monkeypatch)
+
+
+@pytest.mark.parametrize("payload", [
+    "%252525252e%252525252e%252fetc%252fpasswd",     # 5 layers: more than the loop unwraps
+    "%25252525252e%25252525252e",
+])
+def test_encoding_deeper_than_the_unwrap_limit_is_still_rejected(payload, tmp_path,
+                                                                monkeypatch):
+    """The decoder stops after four rounds; what is left must fail the allowlist.
+
+    Anything else would let an attacker out-encode the fixed-point loop, so the
+    residual string — not the decoded one — has to satisfy the same rules.
+    """
+    _expect_status(payload, 400, tmp_path, monkeypatch)
+
+
+def test_a_path_underneath_a_file_is_404_not_a_crash(tmp_path, monkeypatch):
+    """``notes.txt/anything`` walks into a non-directory: NotADirectoryError → 404."""
+    (tmp_path / "notes.txt").write_text("hello\n")
+
+    _expect_status("notes.txt/anything", 404, tmp_path, monkeypatch)
+
+
+def test_a_component_that_only_exists_in_the_listing_is_accepted(tmp_path, monkeypatch):
+    """The name is matched against the real directory entry, never concatenated."""
+    (tmp_path / "regions.bed").write_text("chr1\t1\t2\tx\n")
+
+    monkeypatch.setenv("BIOSUITE_DATA_DIR", str(tmp_path))
+    resolved = resolve_user_path("regions.bed")
+
+    assert resolved == (tmp_path / "regions.bed").resolve()
+
+
 def test_nul_byte_is_rejected_by_the_resolver(tmp_path, monkeypatch):
     """Measured old behaviour: no resolver check, 422 from the file reader."""
     _expect_status("sample\x00.fasta", 400, tmp_path, monkeypatch)

@@ -35,6 +35,18 @@ class TestHealthAndInfo:
         resp = client.get("/")
         assert "BioSuite" in resp.text
 
+    def test_the_modules_list_counts_the_real_endpoint_surface(self):
+        """``total_endpoints`` must be derived from the registered routes; a
+        hard-coded number drifts the moment a route is added or removed."""
+        resp = client.get("/api/v1/modules")
+        assert resp.status_code == 200
+        data = resp.json()
+        expected = sum(1 for r in app.routes
+                       if getattr(r, "path", "").startswith("/api/v1"))
+        assert expected >= 38, "the surface shrank without a docs re-pin"
+        assert data["total_endpoints"] == expected
+        assert len(data["modules"]) == 10
+
     def test_health_healthy(self):
         """GET /health should report healthy status."""
         resp = client.get("/health")
@@ -393,24 +405,26 @@ class TestGWASDemoEndpoint:
     """GET /api/v1/gwas/demo."""
 
     def test_gwas_demo(self):
-        """Demo GWAS data should contain SNP records."""
+        """The default demo is 2,000 SNPs, previewed at 100 records."""
         resp = client.get("/api/v1/gwas/demo")
         assert resp.status_code == 200
         data = resp.json()
-        assert "data" in data
-        assert "total" in data
-        assert data["total"] > 0
+        assert data["total"] == 2000
+        assert len(data["data"]) == 100
+        assert {"chrom", "pos", "snp_id", "case_alt", "ctrl_alt"} <= set(data["data"][0])
 
     def test_gwas_demo_custom_size(self):
-        """Demo GWAS with custom n_snps.
+        """``n_snps`` is a request, not a suggestion.
 
-        generate_gwas_data may filter some SNPs (e.g. non-autosomal),
-        so total may differ from the requested count.
+        This used to accept "at least 50" of 100 asked for, on the strength of a
+        comment claiming SNPs were filtered — in fact ``n_snps // n_chromosomes``
+        truncated the count to the nearest multiple of 22.
         """
         resp = client.get("/api/v1/gwas/demo?n_snps=100")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] >= 50  # At least some SNPs returned
+        assert data["total"] == 100
+        assert len(data["data"]) == 100
         assert len(data["data"]) > 0
 
 

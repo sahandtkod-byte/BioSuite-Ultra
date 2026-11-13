@@ -41,7 +41,10 @@ class PeakReport:
     message: str = ""
 
 
+from .log import get_logger
 from .utils import has_tool as _has_tool, secure_temp_path
+
+logger = get_logger(__name__)
 
 
 def check_peak_tools():
@@ -50,7 +53,7 @@ def check_peak_tools():
 
 def _read_sam_positions(sam_file, min_mapq=20):
     positions = defaultdict(list)
-    with open(sam_file) as f:
+    with open(sam_file, encoding="utf-8") as f:
         for line in f:
             if line.startswith('@'):
                 continue
@@ -209,6 +212,10 @@ def _find_peaks_from_coverage(positions, min_score=5, min_distance=200,
         Poisson p-value and a Benjamini-Hochberg q-value.  Enrichment is
         expressed over the Poisson background, not over a quantile of the
         sample's own signal.
+
+    A chromosome whose reads all start at one position has no spread, so its
+    Poisson background equals the pile itself and it can never be called;
+    ``_builtin_call_peaks`` names such chromosomes in its report message.
     """
     peaks = []
     for chrom, starts in positions.items():
@@ -223,9 +230,10 @@ def _find_peaks_from_coverage(positions, min_score=5, min_distance=200,
         # and stitch runs that straddle a chunk boundary.  The previous
         # implementation stepped through every base of the genome in Python.
         pending = None      # (start, max, summit) of a run open at chunk end
+        # Every chunk the generator yields covers at least one base: it stops as
+        # soon as offset reaches max_pos, so `end - offset` is never zero and an
+        # empty `smoothed` array cannot arrive here.
         for off, smoothed in _chunked_smoothed_coverage(starts, window=window):
-            if smoothed.size == 0:
-                continue
             mask = smoothed > cut
             # A run left open by the previous chunk ends exactly at this
             # chunk's first base unless the enrichment continues into it.
@@ -312,13 +320,40 @@ def _builtin_call_peaks(sam_file, output_bed=None, min_score=5):
     if not positions:
         return PeakReport(engine='builtin', message="No mapped reads found.")
 
-    peaks = _find_peaks_from_coverage(positions, min_score=min_score)
+    # A single-locus pile has no spread: its Poisson background equals the pile
+    # itself, so the derived threshold can never be exceeded and the strongest
+    # possible signal would silently answer "0 peaks".  Name such chromosomes
+    # in the message instead, and call the rest.
+    piled = {chrom: int(min(starts))
+             for chrom, starts in positions.items()
+             if starts and min(starts) == max(starts)}
+    callable_positions = {chrom: starts
+                          for chrom, starts in positions.items()
+                          if chrom not in piled}
+
+    if not callable_positions:
+        detail = ", ".join(f"{chrom} (all {len(positions[chrom])} reads at "
+                           f"position {pos})"
+                           for chrom, pos in sorted(piled.items()))
+        return PeakReport(engine='builtin', message=(
+            f"No peaks were called: {detail} is a single-locus pile, and its "
+            "Poisson background equals the pile itself; the built-in caller "
+            "needs reads spread over at least two positions."))
+
+    peaks = _find_peaks_from_coverage(callable_positions, min_score=min_score)
+    message = f"Built-in peak caller: {len(peaks)} peaks found"
+    if piled:
+        detail = ", ".join(f"{chrom} (all {len(positions[chrom])} reads at "
+                           f"position {pos})"
+                           for chrom, pos in sorted(piled.items()))
+        message += (f". Skipped {detail}: a single-locus pile has no spread "
+                    "for the Poisson background")
 
     report = PeakReport(
         engine='builtin',
         total_peaks=len(peaks),
         peaks=peaks,
-        message=f"Built-in peak caller: {len(peaks)} peaks found"
+        message=message,
     )
 
     if output_bed:
@@ -329,7 +364,7 @@ def _builtin_call_peaks(sam_file, output_bed=None, min_score=5):
 
 
 def _write_bed(peaks, output_file):
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding="utf-8") as f:
         for p in peaks:
             f.write(f"{p.chrom}\t{p.start}\t{p.end}\t{p.name}\t{p.score}\t.\n")
 
@@ -337,18 +372,43 @@ def _write_bed(peaks, output_file):
 # ── MACS2 Wrapper ───────────────────────────────────────────────────────────
 
 def _macs2_call_peaks(bam_file, output_dir, name='chipseq', genome='hs'):
+    """Run MACS2; return True only when it exits 0.
+
+    ``genome`` is MACS2's ``-g`` genome size (a shortcut such as 'hs' or 'mm', or
+    a base-pair count): the background model and band parameters are derived from
+    it, so a wrong value silently mis-calls peaks.
+    """
     cmd = ['macs2', 'callpeak', '-t', bam_file, '-f', 'BAM',
            '-g', genome, '--outdir', output_dir, '-n', name]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+        if r.returncode != 0:
+            logger.warning("MACS2 failed (exit %s): %s", r.returncode,
+                           (r.stderr or '')[:300])
         return r.returncode == 0
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("MACS2 could not be run: %s", exc)
         return False
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
 def call_peaks(input_file, output_bed=None, genome='hs', tool='auto'):
+    """Call ChIP-seq peaks, preferring MACS2 when it is installed.
+
+    Args:
+        input_file: BAM/SAM file of the ChIP sample.
+        output_bed: path for the built-in caller's BED output.
+        genome: MACS2 ``-g`` genome size, a shortcut ('hs', 'mm', 'dm') or a base
+            count.  It is forwarded to MACS2; the built-in caller needs no genome
+            size because it models the background from the pileup itself.
+        tool: 'auto' or 'macs2' or 'builtin'.
+    Raises:
+        ValueError: If ``tool`` names no known engine.
+    """
+    if tool not in ('auto', 'macs2', 'builtin'):
+        raise ValueError(f"Unknown tool: {tool}. Use 'auto', 'macs2' or 'builtin'.")
+
     if not os.path.exists(input_file):
         return PeakReport(engine='none', message=f"File not found: {input_file}")
 
@@ -356,9 +416,14 @@ def call_peaks(input_file, output_bed=None, genome='hs', tool='auto'):
 
     if tool in ('macs2', 'auto') and tools['macs2']:
         out_dir = tempfile.mkdtemp()
-        if _macs2_call_peaks(input_file, out_dir):
+        if _macs2_call_peaks(input_file, out_dir, genome=genome):
             return PeakReport(engine='macs2', output_bed=out_dir,
-                             message="Using MACS2 (external)")
+                              message=f"Using MACS2 (external, genome={genome})")
+        if tool == 'macs2':
+            return PeakReport(
+                engine='none',
+                message=f"MACS2 was requested but its run failed; see the "
+                        f"biosuite.core.peak_calling log for its stderr.")
 
     if output_bed is None:
         output_bed = secure_temp_path(suffix='.bed')
@@ -367,7 +432,7 @@ def call_peaks(input_file, output_bed=None, genome='hs', tool='auto'):
 
 def annotate_peaks_with_genes(peaks, gene_bed_file):
     genes = []
-    with open(gene_bed_file) as f:
+    with open(gene_bed_file, encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split('\t')
             if len(parts) >= 4:

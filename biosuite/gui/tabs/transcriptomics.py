@@ -32,6 +32,10 @@ class TranscriptomicsTabMixin:
         self.expr_conds = self._input_entry(inner, "control,control,treat,treat")
         self.expr_conds.pack(fill='x', pady=(0, 8))
         self._action_button(inner, "Run Differential Expression", self._run_expr).pack(pady=(0, 8))
+        extra_row = ctk.CTkFrame(inner, fg_color='transparent')
+        extra_row.pack(fill='x', pady=(0, 8))
+        self._action_button(extra_row, "Fold Change", self._run_fold_change).pack(side='left', padx=(0, 8))
+        self._action_button(extra_row, "Effect Size", self._run_effect_size, 'accent_dim').pack(side='left')
         self.expr_result = self._text_box(inner, height=200)
         self.expr_result.pack(fill='both', expand=True)
 
@@ -41,29 +45,47 @@ class TranscriptomicsTabMixin:
             entry.delete(0, 'end')
             entry.insert(0, path)
 
+    def _expr_read_counts(self):
+        """Read the count matrix and validate conditions, or None after a complaint."""
+        import numpy as np
+
+        from ...core.expression import read_counts_matrix
+        path = self.expr_path.get().strip()
+        if not path:
+            self._msg_warning("No file", "Select a count matrix first.")
+            return None
+        conds_str = self.expr_conds.get().strip()
+        if not conds_str:
+            self._msg_warning("No conditions", "Enter conditions.")
+            return None
+        conditions = [c.strip() for c in conds_str.split(',')]
+        if any(not c for c in conditions):
+            self._msg_error("Error", "Condition labels must not be blank.")
+            return None
+        try:
+            counts = read_counts_matrix(path)
+        except Exception as e:
+            self._msg_error("Error", str(e))
+            return None
+        if counts is None:
+            self._msg_error("Error", "Failed to read counts matrix.")
+            return None
+        num_numeric = counts.select_dtypes(include=[np.number]).shape[1]
+        if len(conditions) != num_numeric:
+            self._msg_error("Mismatch", f"Conditions ({len(conditions)}) != numeric columns ({num_numeric}).")
+            return None
+        return counts, conditions
+
     def _run_expr(self):
         import matplotlib.pyplot as plt
         import numpy as np
 
-        from ...core.expression import differential_expression, read_counts_matrix
-        path = self.expr_path.get().strip()
-        if not path:
-            self._msg_warning("No file", "Select a count matrix first.")
+        from ...core.expression import differential_expression
+        loaded = self._expr_read_counts()
+        if loaded is None:
             return
-        conds_str = self.expr_conds.get().strip()
-        if not conds_str:
-            self._msg_warning("No conditions", "Enter conditions.")
-            return
+        counts, conditions = loaded
         try:
-            counts = read_counts_matrix(path)
-            if counts is None:
-                self._msg_error("Error", "Failed to read counts matrix.")
-                return
-            conditions = [c.strip() for c in conds_str.split(',')]
-            num_numeric = counts.select_dtypes(include=[np.number]).shape[1]
-            if len(conditions) != num_numeric:
-                self._msg_error("Mismatch", f"Conditions ({len(conditions)}) != numeric columns ({num_numeric}).")
-                return
             de = differential_expression(counts, conditions)
             self.expr_result.delete("1.0", "end")
             self.expr_result.insert("end", "DE Results (top 20, BH-corrected):\n\n")
@@ -85,6 +107,38 @@ class TranscriptomicsTabMixin:
             self._set_status(f"DE complete: {sig.sum()} significant genes (FDR < 0.05)")
         except Exception as e:
             self._msg_error("Error", str(e))
+
+    def _run_fold_change(self):
+        from ...core.expression import calculate_fold_change
+        loaded = self._expr_read_counts()
+        if loaded is None:
+            return
+        counts, conditions = loaded
+        try:
+            table = calculate_fold_change(counts, conditions)
+        except Exception as e:
+            self._msg_error("Error", str(e))
+            return
+        self.expr_result.delete("1.0", "end")
+        self.expr_result.insert("end", "Fold change (top 20):\n\n")
+        self.expr_result.insert("end", table.head(20).to_string())
+        self._set_status(f"Fold change: {len(table)} genes")
+
+    def _run_effect_size(self):
+        from ...core.expression import calculate_effect_size
+        loaded = self._expr_read_counts()
+        if loaded is None:
+            return
+        counts, conditions = loaded
+        try:
+            table = calculate_effect_size(counts, conditions)
+        except Exception as e:
+            self._msg_error("Error", str(e))
+            return
+        self.expr_result.delete("1.0", "end")
+        self.expr_result.insert("end", "Effect size (top 20):\n\n")
+        self.expr_result.insert("end", table.head(20).to_string())
+        self._set_status(f"Effect size: {len(table)} genes")
 
     # ─── Trimming Tab ────────────────────────────────────────────────────────
 
@@ -124,10 +178,28 @@ class TranscriptomicsTabMixin:
         if not path:
             self._msg_warning("No file", "Select a FASTQ file.")
             return
+        quality_text = self.trim_qual.get().strip() or "20"
+        minlen_text = self.trim_minlen.get().strip() or "36"
+        try:
+            qual = int(quality_text)
+        except ValueError:
+            self._msg_error("Error",
+                            f"Quality threshold must be a whole number (got {quality_text!r}).")
+            return
+        try:
+            minlen = int(minlen_text)
+        except ValueError:
+            self._msg_error("Error",
+                            f"Min length must be a whole number (got {minlen_text!r}).")
+            return
+        if qual < 0:
+            self._msg_error("Error", "Quality threshold must be zero or greater.")
+            return
+        if minlen < 0:
+            self._msg_error("Error", "Min length must be zero or greater.")
+            return
         try:
             from ...core.trimming import format_trim_report, trim_fastq
-            qual = int(self.trim_qual.get().strip() or "20")
-            minlen = int(self.trim_minlen.get().strip() or "36")
             out = os.path.splitext(path)[0] + '_trimmed.fastq'
             report = trim_fastq(path, out, quality_threshold=qual, min_length=minlen)
             self.trim_result.delete("1.0", "end")

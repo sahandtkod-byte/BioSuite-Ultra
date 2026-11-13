@@ -4,7 +4,7 @@
 - **Package name:** `biosuite-ultra`
 - **Internal module:** `biosuite`
 - **PyPI page:** https://pypi.org/project/biosuite-ultra/
-- **Source:** `C:\Users\SAHAND\Desktop\python\BioSuite-Ultra`
+- **Source:** the repository root of this working tree (referred to below as `<repo-root>`)
 - **Python:** 3.10+ (tested on 3.10, 3.11, 3.12)
 - **Build system:** setuptools + wheel
 
@@ -31,7 +31,7 @@ Remove-Item "biosuite-ultra.egg-info" -Recurse -Force -ErrorAction SilentlyConti
 
 ### Step 3: Build
 ```bash
-cd C:\Users\SAHAND\Desktop\python\BioSuite-Ultra
+cd <repo-root>
 python -m build
 ```
 
@@ -44,7 +44,7 @@ Creates two files in `dist/`:
 twine upload dist/biosuite-ultra-X.Y.Z*
 ```
 
-Credentials are stored in `C:\Users\SAHAND\.pypirc` (API token). No prompt needed.
+Credentials are read by twine from your user-level PyPI config (`~/.pypirc`). No prompt needed.
 
 ### Step 5: Verify
 - Check: https://pypi.org/project/biosuite-ultra/X.Y.Z/
@@ -95,10 +95,10 @@ pip install "biosuite-ultra[full]"      # all optional features
 | `twine: command not found` | Run `pip install twine` |
 
 ## Current Version
-**v5.5.0** — see [CHANGELOG.md](../../CHANGELOG.md) for the full entry.
+**v6.0.0** — see [CHANGELOG.md](../../CHANGELOG.md) for the full entry.
 
-Note that 5.5.0 is the version in this source tree; the latest version published to PyPI is
-5.0.3.
+Note that 6.0.0 is the version in this source tree; the latest version published to PyPI is
+recorded as 5.0.3 here and has not been re-verified from this machine.
 
 ### What's New
 - Scientific correctness fixes to pairwise alignment, ChIP-seq peak calling and coverage,
@@ -107,4 +107,5 @@ Note that 5.5.0 is the version in this source tree; the latest version published
   authenticated documentation endpoints
 - 169 restriction enzymes for molecular cloning
 - Reproducible workflows with provenance tracking
-- CI on Python 3.10, 3.11 and 3.12 with Ruff, a security regression suite and CodeQL
+- CI on Python 3.10, 3.11 and 3.12 with Ruff linting, a security regression suite,
+  a coverage job and a package build

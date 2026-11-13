@@ -4,9 +4,27 @@ with gene expression overlays. Pure Python/matplotlib.
 """
 from collections import OrderedDict
 
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import FancyBboxPatch
+
+from .log import get_logger
+
+logger = get_logger(__name__)
+
+# down-regulated / unchanged / up-regulated.  The scale is interpolated between
+# these anchors so that two adjacent values never land on opposite sides of a
+# visible band edge, and so that "no change" is a neutral grey rather than a
+# saturated hue a reader would take for mild up-regulation.
+EXPRESSION_ANCHORS = ((30, 80, 220), (235, 235, 235), (230, 30, 20))
+DEFAULT_NODE_COLOR = '#4ecdc4'
+
+
+def _scale_value(value, label):
+    """A finite number for the expression scale, or a named refusal."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, np.floating)):
+        raise TypeError(f"{label} must be a number, got {type(value).__name__}: {value!r}")
+    if not np.isfinite(value):
+        raise ValueError(f"{label} must be a finite number, got {value!r}")
+    return float(value)
 
 
 class PathwayNode:
@@ -24,18 +42,26 @@ class PathwayNode:
         self.color = None
 
     def set_expression(self, value, vmin=-2, vmax=2):
-        self.expression = value
-        norm = np.clip((value - vmin) / (vmax - vmin), 0, 1)
-        if norm < 0.5:
-            # Blue (downregulated)
-            r = int(30 + norm * 2 * 200)
-            g = int(80 + norm * 2 * 100)
-            b = int(220 - norm * 2 * 50)
-        else:
-            # Red (upregulated)
-            r = int(230)
-            g = int(230 - (norm - 0.5) * 2 * 200)
-            b = int(170 - (norm - 0.5) * 2 * 150)
+        """Record an expression value and the colour the scale gives it.
+
+        The bounds have to be two different finite numbers: equal bounds divided
+        by zero, and reversed ones painted the opposite of what the values mean.
+        """
+        low = _scale_value(vmin, "vmin")
+        high = _scale_value(vmax, "vmax")
+        if high <= low:
+            raise ValueError(f"the colour scale needs vmax above vmin, got vmin={low!r}, "
+                             f"vmax={high!r}")
+        number = _scale_value(value, "expression value")
+        self.expression = number
+        norm = min(1.0, max(0.0, (number - low) / (high - low)))
+        # Piecewise-linear blue -> grey -> red, continuous across the midpoint.
+        half = len(EXPRESSION_ANCHORS) - 1
+        segment = min(int(norm * half), half - 1)
+        local = norm * half - segment
+        start = np.array(EXPRESSION_ANCHORS[segment], dtype=float)
+        end = np.array(EXPRESSION_ANCHORS[segment + 1], dtype=float)
+        r, g, b = (start + (end - start) * local).round().astype(int)
         self.color = f'#{r:02x}{g:02x}{b:02x}'
 
 
@@ -67,13 +93,29 @@ class PathwayMap:
         self.edges.append(PathwayEdge(source, target, edge_type, label))
         return self
 
+    def unresolvable_edges(self):
+        """Edges naming a node that is not in this map.
+
+        They cannot be drawn, and they are not counted as drawn: a report that
+        said 'Edges: 3' above a list of one connection left the reader to discover
+        the difference by counting.
+        """
+        return [edge for edge in self.edges
+                if edge.source not in self.nodes or edge.target not in self.nodes]
+
     def set_expression(self, expr_dict, vmin=-2, vmax=2):
         for node_id, value in expr_dict.items():
             if node_id in self.nodes:
                 self.nodes[node_id].set_expression(value, vmin, vmax)
 
     def layout_grid(self, n_cols=3, spacing_x=3, spacing_y=2):
-        """Arrange nodes in a grid."""
+        """Arrange nodes in a grid.
+
+        ``n_cols`` is a whole number of at least 1: zero divided by zero, and a
+        fraction stacked every node into one column while reporting success.
+        """
+        if isinstance(n_cols, bool) or not isinstance(n_cols, int) or n_cols < 1:
+            raise ValueError(f"n_cols must be a whole number of at least 1, got {n_cols!r}")
         for i, (_nid, node) in enumerate(self.nodes.items()):
             row = i // n_cols
             col = i % n_cols
@@ -88,7 +130,7 @@ class PathwayMap:
 
 
 def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
-                 show_labels=True, node_colors=True, cmap_center=0):
+                 show_labels=True, node_colors=True):
     """Draw a pathway map.
 
     Args:
@@ -99,10 +141,20 @@ def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
         show_labels: show node names.
         node_colors: color nodes by expression.
     """
+    import matplotlib.pyplot as plt
+
+    from matplotlib.patches import FancyBboxPatch
+
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     else:
         fig = ax.figure
+
+    skipped = pathway_map.unresolvable_edges()
+    if skipped:
+        logger.warning("%s: %d edge(s) name a node that is not in the map and were "
+                       "not drawn: %s", pathway_map.name, len(skipped),
+                       ", ".join(f"{e.source}->{e.target}" for e in skipped[:5]))
 
     # Draw edges first
     for edge in pathway_map.edges:
@@ -113,8 +165,6 @@ def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
 
         style = '-' if edge.edge_type == 'activation' else '--'
         color = 'green' if edge.edge_type == 'activation' else 'red'
-        if edge.edge_type == 'inhibition':
-            color = 'red'
 
         ax.annotate('', xy=(tgt.x, tgt.y), xytext=(src.x, src.y),
                      arrowprops=dict(arrowstyle='->', color=color, lw=1.5,
@@ -127,7 +177,7 @@ def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
 
     # Draw nodes
     for _nid, node in pathway_map.nodes.items():
-        color = node.color if (node_colors and node.color) else '#4ecdc4'
+        color = node.color if (node_colors and node.color) else DEFAULT_NODE_COLOR
         rect = FancyBboxPatch((node.x - node.width / 2, node.y - node.height / 2),
                                node.width, node.height,
                                boxstyle="round,pad=0.1",
@@ -193,33 +243,58 @@ def create_custom_pathway(gene_names, connections=None):
 
     Returns:
         PathwayMap instance.
+
+    Raises:
+        ValueError: when a connection indexes outside the gene list.  An index that
+        names no gene used to become an edge between two node ids that do not exist,
+        which the drawing silently left out and the report still counted as an edge.
     """
     pm = PathwayMap("Custom Pathway")
-    for i, gene in enumerate(gene_names):
+    names = list(gene_names)
+    for i, gene in enumerate(names):
         pm.add_node(f"g{i}", gene, x=i * 3, y=0)
 
     if connections:
         for src, tgt in connections:
+            for index, label in ((src, "source"), (tgt, "target")):
+                if not isinstance(index, int) or isinstance(index, bool) \
+                        or not 0 <= index < len(names):
+                    raise ValueError(
+                        f"connection ({src}, {tgt}) has a {label} index of {index!r}, "
+                        f"which is not a gene position in a list of {len(names)} names")
             pm.add_edge(f"g{src}", f"g{tgt}")
     else:
-        for i in range(len(gene_names) - 1):
+        for i in range(len(names) - 1):
             pm.add_edge(f"g{i}", f"g{i+1}")
 
     return pm
 
 
 def format_pathway_report(pathway_map):
-    """Format pathway info as text."""
+    """Format pathway info as text.
+
+    Edges that name a node the map does not hold are counted apart, because
+    `draw_pathway` leaves them out: an 'Edges' line that includes them would be a
+    number the picture does not show.
+    """
+    skipped = pathway_map.unresolvable_edges()
+    edge_line = f"Edges: {len(pathway_map.edges)}"
+    if skipped:
+        edge_line += f" ({len(skipped)} not drawn: their endpoints are not in the map)"
     lines = [f"Pathway: {pathway_map.name}",
              f"Nodes: {len(pathway_map.nodes)}",
-             f"Edges: {len(pathway_map.edges)}", ""]
+             edge_line, ""]
     for _nid, node in pathway_map.nodes.items():
         expr = f" (expr={node.expression:.2f})" if node.expression is not None else ""
         lines.append(f"  {node.name}{expr}")
     lines.append("\nConnections:")
+    drawn = 0
     for edge in pathway_map.edges:
         src = pathway_map.nodes.get(edge.source)
         tgt = pathway_map.nodes.get(edge.target)
         if src and tgt:
             lines.append(f"  {src.name} --{edge.edge_type}--> {tgt.name}")
+            drawn += 1
+    if not drawn:
+        lines.append("  (none: no edge has both of its nodes in this map)")
     return "\n".join(lines)

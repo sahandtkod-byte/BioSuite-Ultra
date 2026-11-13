@@ -58,16 +58,25 @@ def kmer_composition(sequence, k=3):
 
 
 def sequence_complexity(sequence, window=20):
-    """Sliding-window linguistic complexity of a nucleotide sequence."""
+    """Sliding-window linguistic complexity of a nucleotide sequence.
+
+    A sequence shorter than one window is measured over the whole of it rather
+    than skipped: reporting 0.0 and ``is_low_complexity=True`` for 'ACGTACGT'
+    claimed a diverse sequence was an artifact, because no 20-base window fit.
+    With fewer than two characters no dinucleotide exists at all, and the score
+    is 0.0 by definition.
+    """
     from .sequence import validate_nucleotide_sequence
     seq = validate_nucleotide_sequence(sequence, name="sequence").upper()
     if not isinstance(window, int) or isinstance(window, bool) or window < 2:
         raise ValueError(f"window must be an integer >= 2, got {window!r}")
+    if 2 <= len(seq) < window:
+        window = len(seq)
     complexities = []
-    for i in range(0, len(seq) - window + 1, window // 2):
+    for i in range(0, len(seq) - window + 1, max(window // 2, 1)):
+        # Every start in that range leaves a full window of characters, so the
+        # chunk is never empty and no break-on-empty is needed.
         chunk = seq[i:i+window]
-        if not chunk:
-            break
         unique_kmers = len(set(chunk[j:j+2] for j in range(len(chunk)-1)))
         max_possible = min(16, len(chunk)-1)
         complexity = unique_kmers / max_possible if max_possible > 0 else 0

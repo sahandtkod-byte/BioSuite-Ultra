@@ -8,7 +8,6 @@ text — only a PBKDF2-SHA256 hash is kept in memory, and login is disabled
 outright when no password is configured.  See :mod:`biosuite.api.config`.
 """
 import hmac
-import logging
 import os
 import time
 from typing import Optional
@@ -23,8 +22,9 @@ from .config import (
     resolve_secret,
     verify_password,
 )
+from ..core.log import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 JWT_SECRET, JWT_SECRET_CONFIGURED = resolve_secret(
     "BIOSUITE_JWT_SECRET", DEV_JWT_SECRET, "JWT signing secret")
