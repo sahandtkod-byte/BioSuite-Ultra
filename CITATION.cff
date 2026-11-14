@@ -36,8 +36,8 @@ keywords:
   - single-cell
   - scientific-computing
 license: MIT
-version: 6.0.0
-date-released: "2026-11-13"
+version: 6.0.1
+date-released: "2026-11-14"
 preferred-citation:
   type: software
   title: "BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform"
@@ -45,6 +45,6 @@ preferred-citation:
     - family-names: Touri
       given-names: Sahand
   year: 2026
-  version: 6.0.0
+  version: 6.0.1
   doi: "10.5281/zenodo.21256296"
   url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"

@@ -1,5 +1,44 @@
 # Changelog
 
+## [6.0.1] - 2026-11-14
+
+Patch release. Fixes the CI regressions found after v6.0.0 was tagged; no API or
+behaviour changes beyond the corrections below. The full suite stays at 100% branch
+coverage of `biosuite/` (21,712 statements / 7,022 branches), and CI is green on
+Python 3.10, 3.11 and 3.12 (tests, lint, security regression, package build).
+
+### Fixed
+
+- **GO enrichment ORA returned nothing when goatools was installed**
+  (`enrichment.run_ora`): the study was constructed with `cutoff=`, but goatools names
+  that parameter `alpha=` and rejects `cutoff=`, so over-representation analysis silently
+  returned zero results on any install with the engine present (including CI). Now passes
+  `alpha=`, and the local mocks match the real signature so the suite catches this class
+  of bug.
+- **A flat regression series was annotated as a fit on older scipy**
+  (`utils.add_regression_eq`): the guard suppressed the annotation only when scipy
+  returned a NaN r-value. Older scipy (the Python 3.10 CI resolver) answers a degenerate
+  flat y-series with finite coefficients (slope 0, r-value 0, p-value 1), so a meaningless
+  "y = 0.000x + 3.000, R² = 0.000" line was drawn as a fit. The guard now rejects on the
+  y variance directly, mirroring the existing distinct-x guard, on every scipy version.
+  A regression test mocks the finite old-scipy answer to prove the guard does not rely on
+  NaN; the existing flat-series test is unchanged.
+
+### Changed
+
+- Behavior-preserving lint fixes across 23 `biosuite` modules to clear the Ruff `E9,F,B`
+  hard gate: `zip(strict=False)` (B905), `warnings` `stacklevel=2` (B028), removed
+  placeholder-free f-strings (F541), and unused loop variables renamed (B007). In
+  `sequence_viewer` the row index is captured before `break` so the rename keeps post-loop
+  behavior.
+- Hardened 15 environment-specific test assertions without weakening any check (Newick
+  branch-length formatting, Python error wording, platform errno text, matplotlib 3.11
+  `labels` removal, 3.13 docstring dedent, headless `-alpha`, and goatools/umap/Windows
+  preconditions forced deterministically instead of assumed from the host). Refactored a
+  3.12-only multi-line f-string to 3.10-compatible form and bound the mocked umap reducer
+  with `raising=False` so the downsampling positive control runs without umap-learn
+  installed.
+
 ## [6.0.0] - 2026-09-30
 
 Audit-remediation release. Every item below was either reproduced in code before being

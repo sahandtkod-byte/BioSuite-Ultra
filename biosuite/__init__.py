@@ -6,5 +6,5 @@ toolkit with 169 restriction enzymes, plasmid maps, virtual gel
 electrophoresis, a sequence viewer and parallel processing helpers.
 Usable as a Python library, a CLI, a desktop GUI and a REST API.
 """
-__version__ = "6.0.0"
+__version__ = "6.0.1"
 __author__ = "Sahand Touri"

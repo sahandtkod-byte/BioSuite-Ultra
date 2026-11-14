@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "6.0.0"
+version = "6.0.1"
 description = "Integrated pure-Python bioinformatics platform: 47 analysis modules for sequence, genomics, transcriptomics and population genetics, 105 plotting functions, molecular cloning with 169 restriction enzymes, and a library/CLI/GUI/REST-API interface set"
 readme = "README.md"
 license = {text = "MIT"}

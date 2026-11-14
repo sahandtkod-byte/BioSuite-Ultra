@@ -123,9 +123,9 @@
             "url": "https://matplotlib.org"
         }
     ],
-    "version": "6.0.0",
+    "version": "6.0.1",
     "dateCreated": "2026-01-01",
-    "dateModified": "2026-09-05",
+    "dateModified": "2026-11-14",
     "isSourceCode": true,
     "codeRepository": "https://github.com/sahandtkod-byte/BioSuite-Ultra",
     "downloadUrl": "https://pypi.org/project/biosuite-ultra/",

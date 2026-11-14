@@ -58,7 +58,7 @@ pytest tests/ --cov=biosuite     # coverage
 The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY`.
 
 ## Current Status
-- Version: **6.0.0**
+- Version: **6.0.1**
 - Last measured run: **9,069 passed, 17 skipped, 0 failed** in 15:33 on Python 3.13.3,
   collected 9,086 (`coverage run --branch --source=biosuite -m pytest tests -q`, this
   checkout — the instrumented run is the one quoted, so the coverage figures below come
