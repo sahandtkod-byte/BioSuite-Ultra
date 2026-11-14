@@ -8,7 +8,7 @@ measured from the tree — keep them accurate if you change the code.
 - **12 plotting modules** exposing **167 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
 - **11 GUI tabs**, **117 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **42,665 lines** of Python across 90 modules in `biosuite/`
+- **42,667 lines** of Python across 90 modules in `biosuite/`
 - **460 test files**; the run recorded under Current Status is the authoritative figure
 
 ## Architecture

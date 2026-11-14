@@ -6,6 +6,7 @@ absent, unreadable, empty, one sequence, ragged, or a directory — and each has
 come back saying which it was instead of returning an empty tree or a traceback.
 """
 import os
+import re
 
 import pytest
 
@@ -13,6 +14,11 @@ from biosuite.core import ml_phylogeny as mp
 
 SEQS = [("s1", "ACGTACGTAA"), ("s2", "ACGTACGTAC"), ("s3", "ACGAACGTAA"),
         ("s4", "ACGTGCGTAA")]
+
+
+def _canonical_newick(text):
+    """Normalise branch-length formatting ('0' vs '0.00000') across Biopython versions."""
+    return re.sub(r":([0-9.eE+-]+)", lambda m: f":{float(m.group(1)):.5f}", text)
 
 
 @pytest.fixture
@@ -84,7 +90,7 @@ def test_one_sequence_is_a_tree_of_one_taxon(tmp_path):
     result = mp._builtin_phylogeny(_write(tmp_path, "one.fasta", ">s1\nACGTACGTAA\n"),
                                    bootstrap=0)
     assert result.engine == "builtin"
-    assert result.newick_tree == "s1:0.00000;"
+    assert _canonical_newick(result.newick_tree) == "s1:0.00000;"
     assert result.support_values == {}
 
 
@@ -98,7 +104,7 @@ def test_two_identical_sequences_produce_no_split(tmp_path):
 
 def test_four_sequences_produce_a_resolved_tree(alignment_file):
     result = mp._builtin_phylogeny(alignment_file, bootstrap=0)
-    assert result.newick_tree == \
+    assert _canonical_newick(result.newick_tree) == \
         "((s1:0.00000,s2:0.10000)Inner1:0.00000,s3:0.10000,s4:0.10000)Inner2:0.00000;"
 
 

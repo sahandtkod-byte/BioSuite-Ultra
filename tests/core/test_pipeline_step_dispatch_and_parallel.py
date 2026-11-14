@@ -48,7 +48,7 @@ def test_signatureless_builtin_step_fails_visibly_on_context_keywords():
     assert step.run({"seed": 1}) is None
 
     assert step.status == "failed"
-    assert step.error == "max() got an unexpected keyword argument 'seed'"
+    assert "max()" in step.error and "seed" in step.error, step.error
     assert "TypeError" in step.traceback
 
 

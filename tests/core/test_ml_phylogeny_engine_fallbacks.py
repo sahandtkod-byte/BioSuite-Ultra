@@ -8,6 +8,7 @@ the warning that must accompany each failure instead of a silent NJ result.
 import importlib.util
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import warnings
@@ -19,6 +20,11 @@ from biosuite.core import ml_phylogeny as mp
 from biosuite.core.utils import PerformanceWarning
 
 SEQS = [("s1", "ACGTACGTAA"), ("s2", "ACGTACGTAC"), ("s3", "ACGAACGTAA"), ("s4", "ACGTGCGTAA")]
+
+
+def _canonical_newick(text):
+    """Normalise branch-length formatting ('0' vs '0.00000') across Biopython versions."""
+    return re.sub(r":([0-9.eE+-]+)", lambda m: f":{float(m.group(1)):.5f}", text)
 
 
 @pytest.fixture
@@ -78,7 +84,7 @@ def test_neighbour_joining_builds_a_four_taxon_tree_serialised_as_newick(alignme
     assert error is None
     assert [t.name for t in tree.get_terminals()] == ["s1", "s2", "s3", "s4"]
     newick = mp._newick_from_tree(tree)
-    assert newick == "((s1:0.00000,s2:0.10000)Inner1:0.00000,s3:0.10000,s4:0.10000)Inner2:0.00000;"
+    assert _canonical_newick(newick) == "((s1:0.00000,s2:0.10000)Inner1:0.00000,s3:0.10000,s4:0.10000)Inner2:0.00000;"
     assert [t.name for t in mp.parse_newick(newick).get_terminals()] == ["s1", "s2", "s3", "s4"]
 
 

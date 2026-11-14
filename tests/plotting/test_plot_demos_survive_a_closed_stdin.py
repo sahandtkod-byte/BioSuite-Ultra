@@ -56,7 +56,10 @@ def closed_stdin(monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("module,name", DEMOS, ids=IDS)
-def test_a_demo_without_input_reports_instead_of_raising(module, name, capsys):
+def test_a_demo_without_input_reports_instead_of_raising(module, name, capsys, monkeypatch):
+    if name == "umap_plot":
+        # umap absent returns before stdin; force the prompt path to test the guard.
+        monkeypatch.setattr(specialized_plots, "HAS_UMAP", True)
     figures_before = set(plt.get_fignums())
 
     result = getattr(module, name)()

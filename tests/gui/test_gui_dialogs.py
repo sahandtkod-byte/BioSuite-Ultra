@@ -459,8 +459,22 @@ def test_the_splash_shows_the_version_it_was_built_with(dialog):
     assert f"Ultra v{__version__}" in _label_texts(d)
 
 
-def test_the_splash_fades_one_step_per_tick_and_closes_at_the_floor(dialog):
+def test_the_splash_fades_one_step_per_tick_and_closes_at_the_floor(dialog, monkeypatch):
     d = dialog(BioSplashScreen)
+    # A headless WM (xvfb) ignores '-alpha'; track it here so the fade arithmetic is tested.
+    alpha = {"value": 1.0}
+    real_attributes = d.attributes
+
+    def attributes(*args):
+        if args[:1] == ("-alpha",):
+            if len(args) == 2:
+                alpha["value"] = args[1]
+            else:
+                return alpha["value"]
+        else:
+            return real_attributes(*args)
+
+    monkeypatch.setattr(d, "attributes", attributes)
     d.attributes("-alpha", 1.0)
 
     d.animate_out()

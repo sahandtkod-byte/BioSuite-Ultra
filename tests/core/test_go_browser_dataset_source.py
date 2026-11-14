@@ -27,8 +27,8 @@ def test_no_obo_file_means_no_warning_because_nothing_was_asked_for(caplog):
 
 @pytest.mark.parametrize("obo_file", [None, "", "/data/go-basic.obo"])
 def test_an_obo_argument_with_goatools_missing_loads_the_subset_and_says_which(
-        caplog, obo_file):
-    assert gb.HAS_GOATOOLS is False, "goatools is absent in this environment"
+        caplog, obo_file, monkeypatch):
+    monkeypatch.setattr(gb, "HAS_GOATOOLS", False)
     with caplog.at_level("WARNING", logger="biosuite.core.go_browser"):
         browser = GOBrowser(obo_file)
     assert len(browser.terms) == len(BASIC_GO_TERMS)

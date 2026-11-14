@@ -8,6 +8,7 @@ reads; and the ``TrimReport`` docstring described ``reads_in``, ``reads_out`` an
 ``bases_trimmed`` - "Total bases removed by quality/adapter cuts" - three fields the
 dataclass never had, in a module that never counted bases.
 """
+import inspect
 import re
 
 import pytest
@@ -55,12 +56,13 @@ def test_the_paired_report_prints_the_means_it_measured(tmp_path):
 
 def test_the_trim_report_docstring_names_only_fields_that_exist():
     fields = set(tr.TrimReport.__dataclass_fields__)
-    documented = re.findall(r"^\s{4}([\w/]+):", tr.TrimReport.__doc__, re.MULTILINE)
+    doc = inspect.cleandoc(tr.TrimReport.__doc__)
+    documented = re.findall(r"^\s{4}([\w/]+):", doc, re.MULTILINE)
     names = {part for entry in documented for part in entry.split('/')}
     assert names, "the docstring stopped describing the fields"
     assert names <= fields, f"documented but absent: {sorted(names - fields)}"
-    assert 'bases_trimmed' not in tr.TrimReport.__doc__
-    assert 'reads_in' not in tr.TrimReport.__doc__
+    assert 'bases_trimmed' not in doc
+    assert 'reads_in' not in doc
 
 
 def test_the_quality_profile_counts_the_records_it_actually_profiled(tmp_path):

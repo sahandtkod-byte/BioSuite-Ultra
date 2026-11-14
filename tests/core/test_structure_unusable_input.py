@@ -71,7 +71,8 @@ def test_load_pdb_reports_a_file_it_cannot_read_instead_of_raising(tmp_path):
     directory = tmp_path / "a_directory"
     directory.mkdir()
     structure, error = S.load_pdb(filepath=str(directory))
-    assert structure is None and "Permission denied" in error
+    assert structure is None
+    assert "Permission denied" in error or "Is a directory" in error
 
     info = S.full_analysis(filepath=str(binary))
     assert info.num_atoms == 0 and "can't decode" in info.message

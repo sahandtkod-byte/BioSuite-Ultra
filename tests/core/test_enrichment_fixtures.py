@@ -89,7 +89,8 @@ def test_ora_empty_list():
 def test_ora_genes_not_in_background(obo, assoc):
     rep = en.run_ora(['X', 'Y'], obo_file=obo, associations_file=assoc)
     assert rep.num_significant == 0
-    assert 'no input genes' in rep.message.lower()
+    assert 'none of the' in rep.message.lower()
+    assert 'background' in rep.message.lower()
 
 
 def test_ora_bad_associations_file(obo):

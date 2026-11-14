@@ -25,9 +25,9 @@ def _study(monkeypatch, records):
     class Study:
         last = None
 
-        def __init__(self, population, associations, obodag, methods=None, cutoff=None):
+        def __init__(self, population, associations, obodag, methods=None, alpha=None):
             Study.last = {"population": list(population), "methods": list(methods),
-                          "cutoff": cutoff}
+                          "alpha": alpha}
 
         def run_study(self, study_genes):
             return list(records)
@@ -124,7 +124,7 @@ def test_the_engine_is_asked_for_the_named_correction_and_both_known_ones(
     en.run_ora(GENES, associations_file=_associations(tmp_path), method="sidak")
 
     assert Study.last["methods"] == ["bonferroni", "fdr_bh", "sidak"], Study.last
-    assert Study.last["cutoff"] == 0.05
+    assert Study.last["alpha"] == 0.05
 
 
 def test_the_cutoff_decides_instead_of_a_hardcoded_five_percent(tmp_path, monkeypatch):

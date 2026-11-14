@@ -45,13 +45,18 @@ def _declared_floor(text, name='matplotlib'):
 def test_the_installed_library_names_the_version_that_renamed_the_keyword():
     """The evidence the floor change rests on, taken from matplotlib itself."""
     fig, ax = plt.subplots()
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter('always')
-        ax.boxplot([[1.0, 2.0], [3.0, 4.0]], labels=['a', 'b'])
-    texts = [str(w.message) for w in caught]
-    plt.close(fig)
-
-    assert any("renamed 'tick_labels' since Matplotlib 3.9" in t for t in texts), texts
+    try:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            ax.boxplot([[1.0, 2.0], [3.0, 4.0]], labels=['a', 'b'])
+        texts = [str(w.message) for w in caught]
+        assert any("renamed 'tick_labels' since Matplotlib 3.9" in t for t in texts), texts
+    except TypeError as exc:
+        # matplotlib 3.11 removed 'labels'; tick_labels working is the same evidence.
+        assert "labels" in str(exc)
+        ax.boxplot([[1.0, 2.0], [3.0, 4.0]], tick_labels=['a', 'b'])
+    finally:
+        plt.close(fig)
 
 
 @pytest.mark.parametrize('keyword,minimum,reason', VERSION_SENSITIVE)

@@ -99,6 +99,12 @@ def posix(monkeypatch):
 
 
 @pytest.fixture
+def windows(monkeypatch):
+    """Look like Windows so the thread-preference branch is exercised on any OS."""
+    monkeypatch.setattr(parallel.sys, "platform", "win32")
+
+
+@pytest.fixture
 def process_pool(monkeypatch, posix):
     RecordingPool.created.clear()
     monkeypatch.setattr(parallel, "ProcessPoolExecutor", RecordingPool)
@@ -182,7 +188,7 @@ def test_is_picklable_catches_every_failure_mode_pickle_can_raise(label, value, 
     assert _is_picklable(value) is False
 
 
-def test_threads_are_preferred_on_windows_even_for_a_picklable_function():
+def test_threads_are_preferred_on_windows_even_for_a_picklable_function(windows):
     assert _threads_preferred([double], io_bound=False) is True
 
 

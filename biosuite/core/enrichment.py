@@ -363,12 +363,13 @@ def run_ora(
         # (the DEFAULT!) produces records that lack p_fdr_bh, so every
         # default call used to die with AttributeError and surface as
         # "ORA analysis error" with zero results.
+        # goatools names its significance threshold 'alpha', not 'cutoff'.
         goeaobj = GOEnrichmentStudy(
             background,
             associations,
             obodag,
             methods=sorted({method, 'bonferroni', 'fdr_bh'}),
-            cutoff=cutoff
+            alpha=cutoff
         )
 
         goea_results = goeaobj.run_study(matched)

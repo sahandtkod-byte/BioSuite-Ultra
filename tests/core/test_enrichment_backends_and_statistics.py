@@ -116,12 +116,12 @@ class FakeGoatoolsStudy:
     #: set by the test factory, read back by the assertions
     last = None
 
-    def __init__(self, population, associations, obodag, methods=None, cutoff=0.05):
+    def __init__(self, population, associations, obodag, methods=None, alpha=0.05):
         self.population = sorted(population)
         self.associations = associations
         self.obodag = obodag
         self.methods = list(methods) if methods else []
-        self.cutoff = cutoff
+        self.alpha = alpha
         self.studied = None
         FakeGoatoolsStudy.last = self
 
@@ -494,13 +494,13 @@ def test_ora_asks_for_both_corrections_whichever_method_the_caller_named(monkeyp
     dag = _goatools_fixture(monkeypatch)
     en.run_ora(STUDY, obo_file=_obo_file(tmp_path), associations_file=_association_file(tmp_path))
     assert FakeGoatoolsStudy.last.methods == ["bonferroni", "fdr_bh"]
-    assert FakeGoatoolsStudy.last.cutoff == 0.05
+    assert FakeGoatoolsStudy.last.alpha == 0.05
     assert FakeGoatoolsStudy.last.studied == set(STUDY)
     assert sorted(FakeGoatoolsStudy.last.population) == sorted(BACKGROUND)
     en.run_ora(STUDY, obo_file=_obo_file(tmp_path), associations_file=_association_file(tmp_path),
                method="sidak", cutoff=0.001)
     assert FakeGoatoolsStudy.last.methods == ["bonferroni", "fdr_bh", "sidak"]
-    assert FakeGoatoolsStudy.last.cutoff == 0.001
+    assert FakeGoatoolsStudy.last.alpha == 0.001
     assert dag["GO:0000002"].depth == 2
 
 
