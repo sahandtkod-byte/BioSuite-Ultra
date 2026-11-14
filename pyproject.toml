@@ -44,7 +44,7 @@ dependencies = [
     "tqdm>=4.65,<5",
     "biopython>=1.81,<2",
     "networkx>=3.0,<4",
-    "plotly>=5.0,<7",
+    "plotly>=5.0,<8",
 ]
 
 [project.optional-dependencies]
@@ -65,7 +65,7 @@ bio = [
 gui = [
     # The desktop GUI additionally needs the Tk bindings for your Python
     # (python3-tk on Debian/Ubuntu), which cannot be installed from PyPI.
-    "customtkinter>=5.2,<6",
+    "customtkinter>=5.2,<7",
 ]
 cloning = [
     # Core deps (numpy, matplotlib, biopython) already in main dependencies
