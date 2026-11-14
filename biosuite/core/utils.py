@@ -1045,7 +1045,9 @@ def add_regression_eq(x: List[float], y: List[float], ax: Any) -> None:
         return
     fit = sp_stats.linregress(x, y)
     values = (fit.slope, fit.intercept, fit.rvalue, fit.pvalue)
-    if not all(math.isfinite(v) for v in values):
+    # A flat y-series is a degenerate fit (R² = 0/0); scipy returns NaN for it on
+    # some versions and 0.0 on others, so guard on the variance, not finiteness alone.
+    if np.unique(y).size < 2 or not all(math.isfinite(v) for v in values):
         logger.info("Regression did not produce finite coefficients; nothing annotated.")
         return
     eq = (f'y = {fit.slope:.3f}x + {fit.intercept:.3f}\n'

@@ -171,9 +171,26 @@ def test_a_fitted_line_is_written_with_r_squared_and_p(axes):
 
 
 def test_a_flat_y_series_is_not_annotated_as_a_fit(caplog, axes):
-    """Two usable points with the same value: scipy answers with a NaN coefficient
-    of determination rather than raising, so the finite check is what keeps the
-    figure honest."""
+    """Two usable points with the same value are a degenerate fit (R² is 0/0).
+    The guard checks the y variance directly, so the flat series is rejected on
+    every scipy version rather than only where scipy happens to answer NaN."""
+    with caplog.at_level(logging.INFO):
+        utils.add_regression_eq([1.0, 2.0], [3.0, 3.0], axes)
+    assert texts(axes) == []
+    assert "Regression did not produce finite coefficients" in caplog.text
+
+
+def test_a_flat_y_series_is_rejected_even_when_scipy_reports_finite_coefficients(caplog, axes, monkeypatch):
+    """Older scipy answers a flat y-series with finite coefficients (slope 0,
+    rvalue 0, pvalue 1) instead of NaN — the exact answer that drew a fake
+    'y = 0.000x + 3.000' line on Python 3.10 CI.  Mock that finite result to prove
+    the variance guard rejects the degenerate fit without relying on scipy's NaN."""
+    from types import SimpleNamespace
+
+    import scipy.stats as sp_stats
+    monkeypatch.setattr(sp_stats, "linregress",
+                        lambda *a, **k: SimpleNamespace(slope=0.0, intercept=3.0,
+                                                        rvalue=0.0, pvalue=1.0))
     with caplog.at_level(logging.INFO):
         utils.add_regression_eq([1.0, 2.0], [3.0, 3.0], axes)
     assert texts(axes) == []

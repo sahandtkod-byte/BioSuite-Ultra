@@ -310,8 +310,8 @@ a security-regression suite, a coverage job and a package build. The job list is
 
 | Check | Status at the last run measured in this checkout |
 |---|---|
-| Tests — Python 3.13.3, extras installed here | 9068 passed, 17 skipped, 0 failed in 16:09 |
-| Branch coverage of `biosuite/` | 100 % — 21,711 statements, 7,022 branches, nothing partial |
+| Tests — Python 3.13.3, extras installed here | 9069 passed, 17 skipped, 0 failed in 15:33 |
+| Branch coverage of `biosuite/` | 100 % — 21,712 statements, 7,022 branches, nothing partial |
 | Security regression suite (both `security` job lists) | 257 tests, 1 skipped, no failures |
 | Ruff (`E9,F,B` as a hard gate) | configured in `ci.yml`; ruff itself is not installed offline, so it was not run here |
 | Package build (`build` + `twine check`) | configured in `ci.yml`; not run from this checkout |

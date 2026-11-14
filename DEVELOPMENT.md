@@ -8,7 +8,7 @@ measured from the tree — keep them accurate if you change the code.
 - **12 plotting modules** exposing **167 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
 - **11 GUI tabs**, **117 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **42,667 lines** of Python across 90 modules in `biosuite/`
+- **42,669 lines** of Python across 90 modules in `biosuite/`
 - **460 test files**; the run recorded under Current Status is the authoritative figure
 
 ## Architecture
@@ -59,12 +59,12 @@ The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY
 
 ## Current Status
 - Version: **6.0.0**
-- Last measured run: **9,068 passed, 17 skipped, 0 failed** in 16:09 on Python 3.13.3,
-  collected 9,085 (`coverage run --branch --source=biosuite -m pytest tests -q`, this
+- Last measured run: **9,069 passed, 17 skipped, 0 failed** in 15:33 on Python 3.13.3,
+  collected 9,086 (`coverage run --branch --source=biosuite -m pytest tests -q`, this
   checkout — the instrumented run is the one quoted, so the coverage figures below come
   from the same pass; `audit_output/PROGRESS.md` records how each cluster's run was
   measured and re-pinned).
-- Branch coverage of `biosuite/`: **100 %** — 21,711 statements with 0 missed and
+- Branch coverage of `biosuite/`: **100 %** — 21,712 statements with 0 missed and
   7,022 branches with 0 partial, measured over the same tree with
   `coverage run --branch --source=biosuite -m pytest tests -q`.
 - The 17 skips are 13 optional scientific extras (7 scanpy, 4 goatools, 2 ESM/torch),
