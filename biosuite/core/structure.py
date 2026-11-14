@@ -14,7 +14,7 @@ from .utils import has_tool as _has_tool
 
 try:
     from Bio.PDB import DSSP, SASA, NeighborSearch, PDBParser, PPBuilder
-    from Bio.PDB.PDBExceptions import PDBException, PDBConstructionException
+    from Bio.PDB.PDBExceptions import PDBConstructionException, PDBException
     HAS_BIO = True
     # A PDB read fails in exactly three ways: the path is unusable (OSError), the
     # bytes are not text or the file is empty (ValueError), or a record is

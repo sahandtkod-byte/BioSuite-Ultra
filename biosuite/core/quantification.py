@@ -9,14 +9,14 @@ import os
 import subprocess
 import tempfile
 import warnings
-
-from .utils import has_tool, secure_temp_path, smart_open, wrote_output
-from .log import get_logger
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
+from .log import get_logger
+from .utils import has_tool, secure_temp_path, smart_open, wrote_output
 
 logger = get_logger(__name__)
 

@@ -435,7 +435,7 @@ def gff_to_dataframe(records):
 def format_bed_summary(records):
     lines = ["=== BED File Summary ===", f"Records: {len(records)}"]
     if records:
-        chroms = set(r.chrom for r in records)
+        chroms = {r.chrom for r in records}
         lines.append(f"Chromosomes: {len(chroms)}")
         total_bp = sum(r.end - r.start for r in records)
         lines.append(f"Total bp: {total_bp:,}")

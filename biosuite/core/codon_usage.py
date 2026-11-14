@@ -77,7 +77,7 @@ def sequence_complexity(sequence, window=20):
         # Every start in that range leaves a full window of characters, so the
         # chunk is never empty and no break-on-empty is needed.
         chunk = seq[i:i+window]
-        unique_kmers = len(set(chunk[j:j+2] for j in range(len(chunk)-1)))
+        unique_kmers = len({chunk[j:j+2] for j in range(len(chunk)-1)})
         max_possible = min(16, len(chunk)-1)
         complexity = unique_kmers / max_possible if max_possible > 0 else 0
         complexities.append({'position': i, 'complexity': round(complexity, 4)})

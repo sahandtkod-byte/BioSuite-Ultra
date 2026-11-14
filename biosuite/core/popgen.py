@@ -4,9 +4,8 @@ Population genetics analysis.
 Pure Python implementations of Hardy-Weinberg, FST, nucleotide diversity,
 Tajima's D, PCA, and linkage disequilibrium. All pip-installable dependencies.
 """
-from dataclasses import dataclass, field
-
 import math
+from dataclasses import dataclass, field
 
 import numpy as np
 from scipy import stats as sp_stats

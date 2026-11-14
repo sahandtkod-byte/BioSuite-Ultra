@@ -156,7 +156,7 @@ def _upgma_tree(dist_matrix: List[List[float]], n: int) -> Tuple[Any, ...]:
     clusters = {i: [i] for i in range(n)}
     merged = set()
     parent = {}
-    heights = {i: 0.0 for i in range(n)}
+    heights = dict.fromkeys(range(n), 0.0)
     next_id = n
     mat = np.asarray(dist_matrix, dtype=float)   # docstring promises nested lists
 

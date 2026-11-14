@@ -128,7 +128,7 @@ def _code_class(code: str) -> str:
     return bases if len(bases) == 1 else f"[{bases}]"
 
 
-def _site_regex(site: str) -> "re.Pattern[str]":
+def _site_regex(site: str) -> re.Pattern[str]:
     """Compile a recognition site so each IUPAC code matches the bases it stands for.
 
     Wrapped in a lookahead so overlapping sites are all reported — a plain
@@ -141,7 +141,7 @@ def _site_regex(site: str) -> "re.Pattern[str]":
     return re.compile("(?=" + body + ")")
 
 
-def _binding_regex(primer: str) -> "re.Pattern[str]":
+def _binding_regex(primer: str) -> re.Pattern[str]:
     """Compile a primer so each position matches a compatible template base.
 
     A consensus primer is a *set of sequences* by convention (``R`` means the

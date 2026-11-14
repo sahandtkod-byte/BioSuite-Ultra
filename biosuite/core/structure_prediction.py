@@ -5,11 +5,12 @@ Pure Python ESMFold via the esm library as default, AlphaFold DB API as optional
 Both are free for academic use.
 """
 
-from .utils import secure_temp_path
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
 
 import numpy as np
+
+from .utils import secure_temp_path
 
 try:
     import esm

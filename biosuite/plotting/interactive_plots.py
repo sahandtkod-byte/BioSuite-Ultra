@@ -116,7 +116,7 @@ def interactive_scatter(x, y, labels=None, color_col=None, title="Scatter Plot",
             fig.add_trace(go.Scatter(
                 x=x, y=y, mode='markers',
                 text=hover, hoverinfo='text',
-                marker=dict(size=8, color='#00ff88')
+                marker={'size': 8, 'color': '#00ff88'}
             ))
         fig.update_layout(title=title, xaxis_title=x_label, yaxis_title=y_label,
                           template='plotly_dark')
@@ -160,7 +160,7 @@ def interactive_bar(categories, values, errors=None, title="Bar Chart",
 
     if HAS_PLOTLY:
         fig = go.Figure()
-        error_y = dict(type='data', array=errors) if errors is not None else None
+        error_y = {'type': 'data', 'array': errors} if errors is not None else None
         fig.add_trace(go.Bar(
             x=categories, y=values, error_y=error_y,
             marker_color='#00ff88', marker_line_color='white', marker_line_width=1.5
@@ -256,7 +256,7 @@ def interactive_volcano(lfc, pvals, gene_names=None, fc_thresh=1.0, p_thresh=0.0
         fig.add_trace(go.Scatter(
             x=lfc[~sig], y=neg_log10[~sig],
             mode='markers', name='Not significant',
-            marker=dict(size=5, color='gray', opacity=0.5),
+            marker={'size': 5, 'color': 'gray', 'opacity': 0.5},
             text=["Not sig"] * int(np.sum(~sig)), hoverinfo='text'
         ))
         # Significant
@@ -270,7 +270,7 @@ def interactive_volcano(lfc, pvals, gene_names=None, fc_thresh=1.0, p_thresh=0.0
         fig.add_trace(go.Scatter(
             x=lfc[sig], y=neg_log10[sig],
             mode='markers', name='Significant',
-            marker=dict(size=7, color='red'),
+            marker={'size': 7, 'color': 'red'},
             text=np.array(labels)[sig].tolist(), hoverinfo='text'
         ))
         fig.update_layout(title=title, xaxis_title='Log2 Fold Change',
@@ -359,7 +359,7 @@ def interactive_3d_scatter(x, y, z, labels=None, color_col=None,
     else:
         fig.add_trace(go.Scatter3d(
             x=x, y=y, z=z, mode='markers',
-            marker=dict(size=4, color='#00ff88'),
+            marker={'size': 4, 'color': '#00ff88'},
             text=labels, hoverinfo='text'
         ))
     fig.update_layout(title=title, template='plotly_dark')
@@ -385,7 +385,7 @@ def interactive_pie(labels, values, title="Pie Chart", output_html=None):
     if HAS_PLOTLY:
         fig = go.Figure(data=go.Pie(
             labels=labels, values=values, hole=0.3,
-            textinfo='label+percent', marker=dict(colors=plt.cm.Set3.colors)
+            textinfo='label+percent', marker={'colors': plt.cm.Set3.colors}
         ))
         fig.update_layout(title=title, template='plotly_dark')
         _write_html(fig, output_html)
@@ -524,7 +524,7 @@ def interactive_pca(coords, variance_explained=None, labels=None,
                 fig.add_trace(go.Scatter(
                     x=coords[mask, 0], y=coords[mask, 1],
                     mode='markers', name=str(cat), text=hover, hoverinfo='text',
-                    marker=dict(size=10)
+                    marker={'size': 10}
                 ))
         else:
             hover = [labels[i] if labels else f"PC1={c[0]:.2f}, PC2={c[1]:.2f}"
@@ -532,7 +532,7 @@ def interactive_pca(coords, variance_explained=None, labels=None,
             fig.add_trace(go.Scatter(
                 x=coords[:, 0], y=coords[:, 1], mode='markers',
                 text=hover, hoverinfo='text',
-                marker=dict(size=10, color='#00ff88')
+                marker={'size': 10, 'color': '#00ff88'}
             ))
         fig.update_layout(title=title, xaxis_title=x_label, yaxis_title=y_label,
                           template='plotly_dark')
@@ -591,7 +591,7 @@ def interactive_manhattan(chromosomes, positions, neg_log10_pvals,
             y_vals = np.array(neg_log10_pvals)[mask]
             fig.add_trace(go.Scatter(
                 x=x_vals, y=y_vals, mode='markers', name=str(chrom),
-                marker=dict(size=4, color=colors[i % 2]),
+                marker={'size': 4, 'color': colors[i % 2]},
                 text=[f"{chrom}:{int(x)}" for x in x_vals],
                 hoverinfo='text+y'
             ))
@@ -653,7 +653,7 @@ def interactive_ma(mean_expression, log_fc, sig=None, gene_names=None,
         fig.add_trace(go.Scatter(
             x=mean_expression[~sig], y=log_fc[~sig],
             mode='markers', name='Not significant',
-            marker=dict(size=5, color='gray', opacity=0.5)
+            marker={'size': 5, 'color': 'gray', 'opacity': 0.5}
         ))
         labels = []
         for i in range(len(log_fc)):
@@ -665,7 +665,7 @@ def interactive_ma(mean_expression, log_fc, sig=None, gene_names=None,
         fig.add_trace(go.Scatter(
             x=mean_expression[sig], y=log_fc[sig],
             mode='markers', name='Significant',
-            marker=dict(size=7, color='#00ff88'),
+            marker={'size': 7, 'color': '#00ff88'},
             text=np.array(labels)[sig].tolist(), hoverinfo='text'
         ))
         fig.add_hline(y=0, line_color="black", line_width=0.5)
@@ -718,14 +718,14 @@ def interactive_qq(pvalues, title="Q-Q Plot", output_html=None, figsize=(7, 7)):
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=expected, y=observed, mode='markers',
-            marker=dict(size=6, color='#00ff88'),
+            marker={'size': 6, 'color': '#00ff88'},
             text=[f"p={p:.2e}" for p in sorted_p], hoverinfo='text+x'
         ))
         min_val = min(expected.min(), observed.min())
         max_val = max(expected.max(), observed.max())
         fig.add_trace(go.Scatter(
             x=[min_val, max_val], y=[min_val, max_val],
-            mode='lines', name='Expected', line=dict(dash='dash', color='red')
+            mode='lines', name='Expected', line={'dash': 'dash', 'color': 'red'}
         ))
         fig.update_layout(title=title, xaxis_title='Expected',
                           yaxis_title='Observed', template='plotly_dark')
@@ -810,13 +810,13 @@ def interactive_dotplot(categories, genes, values, sizes=None,
         _sizes = list(sizes) if sizes is not None else [10] * len(genes)
         fig.add_trace(go.Scatter(
             x=categories, y=genes, mode='markers',
-            marker=dict(
-                size=_sizes,
-                color=values,
-                colorscale='Viridis',
-                showscale=True,
-                colorbar=dict(title="Expression")
-            ),
+            marker={
+                'size': _sizes,
+                'color': values,
+                'colorscale': 'Viridis',
+                'showscale': True,
+                'colorbar': {'title': "Expression"}
+            },
             text=[f"{cat}: {gene}<br>Expr: {v:.2f}<br>%: {s:.0f}%"
                   for cat, gene, v, s in zip(categories, genes, values, _sizes, strict=False)],
             hoverinfo='text'
@@ -863,7 +863,7 @@ def interactive_upset_sunburst(set_sizes, intersections, title="UpSet (Sunburst)
         values = list(intersections.values()) + list(set_sizes.values())
         fig = go.Figure(go.Sunburst(
             labels=labels, parents=parents, values=values,
-            branchvalues='total', marker=dict(colors=plt.cm.Set3.colors[:len(labels)])
+            branchvalues='total', marker={'colors': plt.cm.Set3.colors[:len(labels)]}
         ))
         fig.update_layout(title=title, template='plotly_dark')
         _write_html(fig, output_html)

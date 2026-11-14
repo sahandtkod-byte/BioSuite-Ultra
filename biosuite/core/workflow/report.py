@@ -2,8 +2,8 @@
 HTML report generator — combine results, plots, and tables into styled reports.
 """
 import base64
-import io
 import html
+import io
 import re
 from datetime import datetime
 

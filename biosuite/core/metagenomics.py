@@ -14,12 +14,8 @@ import numpy as np
 import pandas as pd
 
 from .log import get_logger
-from .utils import (
-    PerformanceWarning,
-    has_tool as _has_tool,
-    secure_temp_path,
-    wrote_output,
-)
+from .utils import PerformanceWarning, secure_temp_path, wrote_output
+from .utils import has_tool as _has_tool
 
 logger = get_logger(__name__)
 

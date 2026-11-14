@@ -14,7 +14,8 @@ import warnings
 from dataclasses import dataclass, field
 
 from .log import get_logger
-from .utils import PerformanceWarning, has_tool as _has_tool
+from .utils import PerformanceWarning
+from .utils import has_tool as _has_tool
 
 logger = get_logger(__name__)
 
@@ -133,7 +134,7 @@ def _bootstrap_support(alignment, n_replicates=100, seed=None):
     def _clade_splits(tree):
         """Non-trivial splits: frozenset of terminals under each internal clade."""
         splits = set()
-        all_terms = set(t.name for t in tree.get_terminals())
+        all_terms = {t.name for t in tree.get_terminals()}
         for clade in tree.get_nonterminals():
             names = frozenset(t.name for t in clade.get_terminals())
             if 1 < len(names) < len(all_terms):

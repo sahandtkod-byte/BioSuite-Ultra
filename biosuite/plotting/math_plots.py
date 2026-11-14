@@ -11,7 +11,6 @@ from ..core.utils import (
 )
 from ._demo_guard import demo_guard as _demo
 
-
 # Public surface. ``biosuite/plotting/__init__.py`` star-imports this
 # module, and without this list it re-exports the module's own imports
 # (numpy, pandas, os, plotly, ...) as package-level names too.

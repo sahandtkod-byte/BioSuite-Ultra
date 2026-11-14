@@ -28,8 +28,8 @@ import json
 import re
 import threading
 import time
-from datetime import datetime, timezone
 from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional
 
@@ -230,7 +230,7 @@ def _cache_key(*args) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _cache_hit(result: "DBResult") -> "DBResult":
+def _cache_hit(result: DBResult) -> DBResult:
     """Hand a stored result back marked as served from cache.
 
     ``DBResult.cached`` documents "Whether the result was served from cache",
@@ -385,7 +385,7 @@ def _query_segment(value: str, name: str) -> str:
     return _checked_segment(value, name, re.compile(r"[/?#%]"))
 
 
-def _checked_segment(value: str, name: str, breaks: "re.Pattern[str]") -> str:
+def _checked_segment(value: str, name: str, breaks: re.Pattern[str]) -> str:
     text = str(value).strip()
     if not text:
         raise ValueError(f"{name} is empty")

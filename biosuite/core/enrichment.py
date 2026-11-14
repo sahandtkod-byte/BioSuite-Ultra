@@ -8,8 +8,8 @@ All tools are free and open source:
 - goatools: https://github.com/tanghaibao/goatools
 - gseapy: https://github.com/zqfang/GSEApy
 """
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 
 import pandas as pd
 

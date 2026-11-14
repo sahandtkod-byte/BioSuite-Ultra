@@ -101,6 +101,26 @@ def test_an_absent_engine_reports_the_import_error_it_actually_got():
     assert "not installed." not in text, text
 
 
+def test_run_ora_reports_the_missing_goatools_engine(monkeypatch):
+    """``run_ora`` with goatools absent returns the advice, not an analysis.
+
+    CI installs goatools, so the ``if not HAS_GOATOOLS`` return is never reached
+    there; forcing the flag off exercises it.  ``num_input_genes == 2`` is the
+    positive control: the empty-list path returns 0, so this proves the genes
+    were read and the engine — not the input — is what stopped the run.
+    """
+    monkeypatch.setattr(en, "HAS_GOATOOLS", False)
+
+    report = en.run_ora(["672", "7157"])
+
+    assert report.analysis_type == "ORA"
+    assert report.num_input_genes == 2
+    assert report.num_significant == 0
+    assert report.results == []
+    assert report.message.startswith(
+        "goatools is not usable. Run: pip install goatools"), report.message
+
+
 def test_the_import_failure_is_logged_while_the_module_loads(caplog):
     """The reason has to reach the log, not only the message of one call."""
     with caplog.at_level(logging.DEBUG, logger="biosuite.core.enrichment"):

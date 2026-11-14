@@ -4,7 +4,8 @@ Better than Venn diagrams for 3+ sets — shows all intersection sizes.
 Pure Python implementation using matplotlib.
 """
 import operator
-from collections.abc import Mapping, Set as AbstractSet
+from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
 from itertools import combinations
 
 import matplotlib.pyplot as plt

@@ -72,8 +72,7 @@ def hash_password(password: str, salt: Optional[bytes] = None) -> str:
     """Return ``pbkdf2_sha256$rounds$salt$hash`` for *password*."""
     salt = salt or secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ROUNDS)
-    return "pbkdf2_sha256${}${}${}".format(
-        _PBKDF2_ROUNDS, binascii.hexlify(salt).decode(), binascii.hexlify(digest).decode())
+    return f"pbkdf2_sha256${_PBKDF2_ROUNDS}${binascii.hexlify(salt).decode()}${binascii.hexlify(digest).decode()}"
 
 
 def verify_password(password: str, encoded: Optional[str]) -> bool:

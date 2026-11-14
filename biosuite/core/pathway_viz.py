@@ -142,7 +142,6 @@ def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
         node_colors: color nodes by expression.
     """
     import matplotlib.pyplot as plt
-
     from matplotlib.patches import FancyBboxPatch
 
     if ax is None:
@@ -167,8 +166,8 @@ def draw_pathway(pathway_map, title=None, figsize=(12, 8), ax=None,
         color = 'green' if edge.edge_type == 'activation' else 'red'
 
         ax.annotate('', xy=(tgt.x, tgt.y), xytext=(src.x, src.y),
-                     arrowprops=dict(arrowstyle='->', color=color, lw=1.5,
-                                     connectionstyle='arc3,rad=0.1', linestyle=style))
+                     arrowprops={'arrowstyle': '->', 'color': color, 'lw': 1.5,
+                                     'connectionstyle': 'arc3,rad=0.1', 'linestyle': style})
 
         if edge.label:
             mx = (src.x + tgt.x) / 2

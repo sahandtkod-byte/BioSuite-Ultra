@@ -328,7 +328,7 @@ class VisualizationTabMixin:
             line = line.strip()
             if ':' in line:
                 name, elems = line.split(':', 1)
-                sets_dict[name.strip()] = set(e.strip() for e in elems.split(','))
+                sets_dict[name.strip()] = {e.strip() for e in elems.split(',')}
         if not sets_dict:
             self._msg_warning("No data", "Invalid format. Use Name:elem1,elem2")
             return

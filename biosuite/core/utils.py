@@ -357,7 +357,7 @@ def load_config() -> dict:
         if not os.path.exists(path):
             continue
         try:
-            with open(path, 'r', encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 stored = json.load(f)
         except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
             logger.warning("Could not read %s (%s: %s); trying the next location.",
@@ -413,7 +413,7 @@ def load_session() -> dict :
     session_file = get_session_file()
     if os.path.exists(session_file):
         try:
-            with open(session_file, 'r', encoding="utf-8") as f:
+            with open(session_file, encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError):
             return {}
@@ -1053,7 +1053,7 @@ def add_regression_eq(x: List[float], y: List[float], ax: Any) -> None:
     eq = (f'y = {fit.slope:.3f}x + {fit.intercept:.3f}\n'
           f'R² = {fit.rvalue**2:.3f}, p = {fit.pvalue:.4f}')
     ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9, verticalalignment='top',
-            bbox=dict(facecolor='white', alpha=0.7))
+            bbox={'facecolor': 'white', 'alpha': 0.7})
 
 
 # ── Shared Constants & Helpers ───────────────────────────────────────────────

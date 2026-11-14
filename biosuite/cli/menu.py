@@ -1016,13 +1016,14 @@ def _handle_menu_choice(choice):
         print(format_assembly_report(assemble(input("  Reads FASTQ: ").strip())))
 
     elif choice == '44':
+        import matplotlib.pyplot as plt
+
         from ..core.msa import read_fasta_for_msa
         from ..core.phylogeny import (
             distance_matrix,
             plot_phylogenetic_tree,
             upgma_tree,
         )
-        import matplotlib.pyplot as plt
 
         seqs = read_fasta_for_msa(input("  Aligned FASTA: ").strip())
         if not seqs:
@@ -1047,8 +1048,9 @@ def _handle_menu_choice(choice):
         print(format_bayesian_report(run_bayesian(input("  Aligned FASTA: ").strip())))
 
     elif choice == '47':
-        from ..core.ngs import manhattan_from_vcf, read_vcf
         import matplotlib.pyplot as plt
+
+        from ..core.ngs import manhattan_from_vcf, read_vcf
 
         df = read_vcf(input("  VCF file: ").strip())
         if df is None:
@@ -1333,7 +1335,7 @@ def _handle_menu_choice(choice):
             parts = line.split(',', 1)
             if len(parts) == 2:
                 name = parts[0].strip()
-                elements = set(x.strip() for x in parts[1].split(','))
+                elements = {x.strip() for x in parts[1].split(',')}
                 sets_dict[name] = elements
             else:
                 print(f"  Ignored line {line!r}: expected 'name,element,element'.")

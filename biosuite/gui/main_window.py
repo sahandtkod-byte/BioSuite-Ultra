@@ -943,7 +943,7 @@ class BioSuiteApp(
 
     def _card(self, parent, **kwargs):
         T = self.T
-        d = dict(fg_color=T['card'], corner_radius=12, border_width=1, border_color=T['border'])
+        d = {'fg_color': T['card'], 'corner_radius': 12, 'border_width': 1, 'border_color': T['border']}
         d.update(kwargs)
         c = ctk.CTkFrame(parent, **d)
         self.all_cards.append(c)
@@ -967,16 +967,16 @@ class BioSuiteApp(
 
     def _input_entry(self, parent, placeholder, **kwargs):
         T = self.T
-        d = dict(height=36, font=(FONT_FAMILY, 12), corner_radius=8, fg_color=T['input_bg'],
-                 border_color=T['border'], text_color=T['text'],
-                 placeholder_text=placeholder, placeholder_text_color=T['text_muted'])
+        d = {'height': 36, 'font': (FONT_FAMILY, 12), 'corner_radius': 8, 'fg_color': T['input_bg'],
+                 'border_color': T['border'], 'text_color': T['text'],
+                 'placeholder_text': placeholder, 'placeholder_text_color': T['text_muted']}
         d.update(kwargs)
         return ctk.CTkEntry(parent, **d)
 
     def _text_box(self, parent, height=200, **kwargs):
         T = self.T
-        d = dict(height=height, font=('Consolas', 11), corner_radius=8, fg_color=T['input_bg'],
-                 border_color=T['border'], text_color=T['text'], border_width=1)
+        d = {'height': height, 'font': ('Consolas', 11), 'corner_radius': 8, 'fg_color': T['input_bg'],
+                 'border_color': T['border'], 'text_color': T['text'], 'border_width': 1}
         d.update(kwargs)
         return ctk.CTkTextbox(parent, **d)
 

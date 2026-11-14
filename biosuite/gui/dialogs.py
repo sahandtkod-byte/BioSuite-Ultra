@@ -2,8 +2,9 @@
 Custom themed dialogs and splash screen for BioSuite GUI.
 No native Windows widgets — all styled with the active theme.
 """
-import customtkinter as ctk
 import tkinter as tk
+
+import customtkinter as ctk
 
 from .. import __version__
 from .themes import FONT_BODY, FONT_BUTTON, FONT_FAMILY, FONT_MONO, FONT_SMALL

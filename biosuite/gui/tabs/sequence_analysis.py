@@ -297,7 +297,7 @@ class SequenceAnalysisTabMixin:
         if len(seqs) < 2:
             self._msg_error("Error", "Need at least 2 sequences.")
             return
-        if len(set(len(s) for s in seqs)) != 1:
+        if len({len(s) for s in seqs}) != 1:
             self._msg_error("Error", "Sequences must be same length (aligned).")
             return
         # A trailing '>name' with no sequence of its own leaves one more name than

@@ -16,13 +16,13 @@ from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
+from ..core.log import get_logger
 from .config import (
     DEV_JWT_SECRET,
     resolve_admin_password_hash,
     resolve_secret,
     verify_password,
 )
-from ..core.log import get_logger
 
 logger = get_logger(__name__)
 

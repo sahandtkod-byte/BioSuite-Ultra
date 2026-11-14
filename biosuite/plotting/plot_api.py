@@ -324,7 +324,7 @@ def volcano(log2fc, pvalues, gene_names=None, fc_thresh=1.0, p_thresh=0.05,
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=log2fc[~sig], y=neg_log10[~sig], mode='markers',
-            name='Not significant', marker=dict(size=5, color='gray', opacity=0.5)
+            name='Not significant', marker={'size': 5, 'color': 'gray', 'opacity': 0.5}
         ))
         labels = []
         for i in range(len(log2fc)):
@@ -335,7 +335,7 @@ def volcano(log2fc, pvalues, gene_names=None, fc_thresh=1.0, p_thresh=0.05,
                 labels.append("")
         fig.add_trace(go.Scatter(
             x=log2fc[sig], y=neg_log10[sig], mode='markers',
-            name='Significant', marker=dict(size=7, color='red'),
+            name='Significant', marker={'size': 7, 'color': 'red'},
             text=np.array(labels)[sig].tolist(), hoverinfo='text'
         ))
         fig.update_layout(title=title, xaxis_title='Log2 Fold Change',
@@ -454,7 +454,7 @@ def pca(data, labels=None, group_col=None, n_components=2,
         else:
             fig.add_trace(go.Scatter(
                 x=coords[:, 0], y=coords[:, 1] if n_components > 1 else [0]*len(coords),
-                mode='markers', marker=dict(size=10, color='#00ff88')
+                mode='markers', marker={'size': 10, 'color': '#00ff88'}
             ))
         fig.update_layout(title=title, xaxis_title=x_label, yaxis_title=y_label, template=PLOTLY_TEMPLATE)
         if output_html:
@@ -542,7 +542,7 @@ def manhattan(chromosomes, positions, pvalues, threshold=5e-8,
             mask = chromosomes == chrom
             fig.add_trace(go.Scatter(
                 x=cumpos[mask], y=neg_log10[mask], mode='markers', name=str(chrom),
-                marker=dict(size=4, color=colors[i % 2]),
+                marker={'size': 4, 'color': colors[i % 2]},
                 text=[f"{chrom}:{int(p)}" for p in positions[mask]], hoverinfo='text+y'
             ))
         fig.add_hline(y=-np.log10(threshold), line_dash="dash", line_color="red")
@@ -609,7 +609,7 @@ def ma(mean_expression, log_fc, sig=None, gene_names=None,
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=mean_expression[~sig], y=log_fc[~sig], mode='markers',
-            name='Not significant', marker=dict(size=5, color='gray', opacity=0.5)
+            name='Not significant', marker={'size': 5, 'color': 'gray', 'opacity': 0.5}
         ))
         labels = []
         for i in range(len(log_fc)):
@@ -620,7 +620,7 @@ def ma(mean_expression, log_fc, sig=None, gene_names=None,
                 labels.append("")
         fig.add_trace(go.Scatter(
             x=mean_expression[sig], y=log_fc[sig], mode='markers',
-            name='Significant', marker=dict(size=7, color='#00ff88'),
+            name='Significant', marker={'size': 7, 'color': '#00ff88'},
             text=np.array(labels)[sig].tolist(), hoverinfo='text'
         ))
         fig.update_layout(title=title, xaxis_title='Mean Expression (log)',
@@ -819,12 +819,12 @@ def scatter(x, y, labels=None, title="Scatter Plot", xlabel="X", ylabel="Y",
         hover = labels if labels else [f"x={xi:.2f}, y={yi:.2f}" for xi, yi in zip(x, y, strict=False)]
         fig.add_trace(go.Scatter(
             x=x, y=y, mode='markers', text=hover, hoverinfo='text',
-            marker=dict(size=8, color='#00ff88')
+            marker={'size': 8, 'color': '#00ff88'}
         ))
         if fit is not None:
             fig.add_trace(go.Scatter(
                 x=x_line, y=y_line, mode='lines',
-                name=f'R²={fit.rvalue**2:.3f}', line=dict(color='red', dash='dash')
+                name=f'R²={fit.rvalue**2:.3f}', line={'color': 'red', 'dash': 'dash'}
             ))
         fig.update_layout(title=title, xaxis_title=xlabel, yaxis_title=ylabel, template=PLOTLY_TEMPLATE)
         if output_html:
@@ -885,7 +885,7 @@ def barplot(categories, values, errors=None, title="Barplot", ylabel="Value",
 
     if interactive and _plotly_available(interactive):
         fig = go.Figure()
-        error_y = dict(type='data', array=errors) if errors is not None else None
+        error_y = {'type': 'data', 'array': errors} if errors is not None else None
         fig.add_trace(go.Bar(
             x=categories, y=values, error_y=error_y,
             marker_color='#00ff88', marker_line_color='white', marker_line_width=1.5
@@ -1065,14 +1065,14 @@ def qqplot(pvalues, title="Q-Q Plot", interactive=False, output_html=None):
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=expected, y=observed, mode='markers',
-            marker=dict(size=6, color='#00ff88'),
+            marker={'size': 6, 'color': '#00ff88'},
             text=[f"p={p:.2e}" for p in sorted_p], hoverinfo='text+x'
         ))
         min_val = min(expected.min(), observed.min())
         max_val = max(expected.max(), observed.max())
         fig.add_trace(go.Scatter(
             x=[min_val, max_val], y=[min_val, max_val],
-            mode='lines', name='Expected', line=dict(dash='dash', color='red')
+            mode='lines', name='Expected', line={'dash': 'dash', 'color': 'red'}
         ))
         fig.update_layout(title=title, xaxis_title='Expected', yaxis_title='Observed',
                           template=PLOTLY_TEMPLATE)

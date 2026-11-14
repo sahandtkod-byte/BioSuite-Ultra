@@ -11,8 +11,8 @@ from typing import Any, Callable, Set
 from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 
-from .config import DEV_API_KEY, resolve_secret
 from ..core.log import get_logger
+from .config import DEV_API_KEY, resolve_secret
 
 logger = get_logger(__name__)
 

@@ -59,7 +59,7 @@ def read_vcf(vcf_path, max_variants=None):
     try:
         data = []
         count = 0
-        with open(vcf_path, 'r', encoding="utf-8") as f:
+        with open(vcf_path, encoding="utf-8") as f:
             for line in f:
                 if line.startswith('#'):
                     continue
@@ -140,7 +140,7 @@ def read_sam(sam_path):
         return None
     try:
         reads = []
-        with open(sam_path, 'r', encoding="utf-8") as fh:
+        with open(sam_path, encoding="utf-8") as fh:
             for line in fh:
                 if line.startswith('@'):
                     continue  # skip header
@@ -182,13 +182,13 @@ def parse_sam_header(sam_path):
     every grouping query; ``raw`` keeps the original lines for callers that
     need them verbatim.)
     """
-    
+
     if not os.path.exists(sam_path):
         logger.error(f"SAM file not found: {sam_path}")
         return None
     header = {'@HD': {}, '@SQ': [], '@RG': [], '@PG': [], 'raw': []}
     try:
-        with open(sam_path, 'r', encoding="utf-8") as fh:
+        with open(sam_path, encoding="utf-8") as fh:
             for line in fh:
                 if not line.startswith('@'):
                     break
@@ -356,7 +356,7 @@ def _parse_bed(bed_path):
     Handles BED3 through BED12; only the first three columns are used.
     """
     intervals = []
-    with open(bed_path, 'r', encoding="utf-8") as f:
+    with open(bed_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith('#') or line.startswith('track'):
@@ -373,7 +373,7 @@ def _parse_vcf_intervals(vcf_path):
     Each variant record becomes a 1-base interval at POS.
     """
     intervals = []
-    with open(vcf_path, 'r', encoding="utf-8") as f:
+    with open(vcf_path, encoding="utf-8") as f:
         for line in f:
             if line.startswith('#'):
                 continue
@@ -534,7 +534,7 @@ def vcf_summary(vcf_path):
     _pyrimidines = set('CT')
 
     try:
-        with open(vcf_path, 'r', encoding="utf-8") as f:
+        with open(vcf_path, encoding="utf-8") as f:
             for line in f:
                 if line.startswith('#'):
                     continue
@@ -623,7 +623,7 @@ def compute_ts_tv_ratio(vcf_path):
     tv = 0
 
     try:
-        with open(vcf_path, 'r', encoding="utf-8") as f:
+        with open(vcf_path, encoding="utf-8") as f:
             for line in f:
                 if line.startswith('#'):
                     continue

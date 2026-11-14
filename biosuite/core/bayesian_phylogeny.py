@@ -159,7 +159,7 @@ class TreeSampler:
         # creating the attribute inside log_likelihood (and deleting it again on the
         # way out) made a direct _pruning call on an internal node raise
         # AttributeError: 'TreeSampler' object has no attribute '_p_cache'.
-        self._p_cache: 'dict' = {}
+        self._p_cache: dict = {}
 
     # ── Felsenstein's pruning algorithm ────────────────────────────────
 

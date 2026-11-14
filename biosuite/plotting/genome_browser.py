@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 
-
 # Public surface. ``biosuite/plotting/__init__.py`` star-imports this
 # module, and without this list it re-exports the module's own imports
 # (numpy, pandas, os, plotly, ...) as package-level names too.

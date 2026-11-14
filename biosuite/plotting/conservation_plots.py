@@ -9,7 +9,6 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 # Public surface. ``biosuite/plotting/__init__.py`` star-imports this
 # module, and without this list it re-exports the module's own imports
 # (numpy, pandas, os, plotly, ...) as package-level names too.

@@ -213,7 +213,7 @@ def _call_variants_from_pileup(piles, min_depth=4, min_allele_freq=0.25, referen
                 variant_type='SNP' if len(ref_base) == 1 and all(
                     len(a) == 1 for a in alleles) else 'MNP',
                 filter_status=filter_status,
-                allele_counts={base: count for base, count in alt_counts}
+                allele_counts=dict(alt_counts)
             ))
 
     return variants

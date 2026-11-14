@@ -31,7 +31,8 @@ except ImportError:
     HAS_BIO = False
 
 from .log import get_logger
-from .utils import PerformanceWarning, has_tool as _has_tool, wrote_output
+from .utils import PerformanceWarning, wrote_output
+from .utils import has_tool as _has_tool
 
 logger = get_logger(__name__)
 

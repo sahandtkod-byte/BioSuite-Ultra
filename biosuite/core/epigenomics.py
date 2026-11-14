@@ -211,7 +211,7 @@ def atac_peak_stats(peaks):
         'total_bp': sum(lengths),
         'mean_length': np.mean(lengths),
         'median_length': np.median(lengths),
-        'chromosomes': len(set(p['chrom'] for p in peaks)),
+        'chromosomes': len({p['chrom'] for p in peaks}),
     }
 
 

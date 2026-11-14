@@ -19,10 +19,9 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import matplotlib.patches as mpatches
-from matplotlib.colors import LinearSegmentedColormap
-
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 
 from ..core.sequence import reverse_complement, validate_nucleotide_sequence
 from ..core.utils import GENETIC_CODE

@@ -256,7 +256,7 @@ def parse_pdb(pdb_path: str, alt_loc_strategy: str = 'first') -> PDBStructure:
     coerced_serial = 0
     coerced_res_seq = 0
 
-    with open(pdb_path, 'r', encoding="utf-8") as f:
+    with open(pdb_path, encoding="utf-8") as f:
         for number, raw in enumerate(f, start=1):
             line = raw.rstrip('\n\r')
             record = line[:6].strip()

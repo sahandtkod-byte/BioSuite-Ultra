@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import matplotlib.patches as mpatches
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -50,14 +49,14 @@ __all__ = [
 #: used to be two ninety-line copies that had already drifted (0.07 vs 0.09 band
 #: widths, 0.28 vs 0.32 label radius).
 _STYLES = {
-    False: dict(band_outer=0.07, band_inner=0.07, label_r=0.28, label_size=8,
-                label_position=False, alpha=0.75, backbone_lw=1.5, marker_size=5,
-                marker_offset=0.08, centre_size=12, ylim=1.6, arc_step=0.005,
-                arc_min=30),
-    True: dict(band_outer=0.09, band_inner=0.05, label_r=0.32, label_size=7,
-               label_position=True, alpha=0.8, backbone_lw=1.8, marker_size=4.5,
-               marker_offset=0.09, centre_size=11, ylim=1.7, arc_step=0.004,
-               arc_min=40),
+    False: {'band_outer': 0.07, 'band_inner': 0.07, 'label_r': 0.28, 'label_size': 8,
+                'label_position': False, 'alpha': 0.75, 'backbone_lw': 1.5, 'marker_size': 5,
+                'marker_offset': 0.08, 'centre_size': 12, 'ylim': 1.6, 'arc_step': 0.005,
+                'arc_min': 30},
+    True: {'band_outer': 0.09, 'band_inner': 0.05, 'label_r': 0.32, 'label_size': 7,
+               'label_position': True, 'alpha': 0.8, 'backbone_lw': 1.8, 'marker_size': 4.5,
+               'marker_offset': 0.09, 'centre_size': 11, 'ylim': 1.7, 'arc_step': 0.004,
+               'arc_min': 40},
 }
 
 #: Extra radii a colliding label may move out to, in axis units.
@@ -249,8 +248,8 @@ def _draw_map(plasmid_map: PlasmidMap, ax, annotated: bool):
         back_angle = arrow_angle - (0.08 if feat.strand == 1 else -0.08)
         ax.annotate("", xy=(arrow_angle, r_backbone),
                     xytext=(back_angle, r_backbone),
-                    arrowprops=dict(arrowstyle="-|>", color=feat.color,
-                                    lw=2, mutation_scale=16),
+                    arrowprops={'arrowstyle': "-|>", 'color': feat.color,
+                                    'lw': 2, 'mutation_scale': 16},
                     zorder=5)
 
         label_text = (f"{feat.label} ({feat.start}-{feat.end})"
@@ -258,10 +257,10 @@ def _draw_map(plasmid_map: PlasmidMap, ax, annotated: bool):
         ax.text(mid_angle, label_r, label_text, fontsize=style['label_size'],
                 fontweight="bold", ha="center", va="center", color=feat.color,
                 zorder=6,
-                bbox=dict(boxstyle="round,pad=0.15", fc="white",
-                          ec=feat.color if style['label_position'] else "none",
-                          alpha=0.9 if style['label_position'] else 0.8,
-                          linewidth=0.5))
+                bbox={'boxstyle': "round,pad=0.15", 'fc': "white",
+                          'ec': feat.color if style['label_position'] else "none",
+                          'alpha': 0.9 if style['label_position'] else 0.8,
+                          'linewidth': 0.5})
 
     # Size markers every 500 bp
     for bp in range(0, total, 500):
@@ -275,7 +274,7 @@ def _draw_map(plasmid_map: PlasmidMap, ax, annotated: bool):
     # Centre label
     ax.text(0, 0, f"{plasmid_map.name}\n{total} bp", fontsize=style['centre_size'],
             fontweight="bold", ha="center", va="center", zorder=10,
-            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9))
+            bbox={'boxstyle': "round,pad=0.3", 'fc': "white", 'ec': "gray", 'alpha': 0.9})
 
     # Legend, one entry per feature type
     legend_handles = []

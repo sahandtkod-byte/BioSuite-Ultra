@@ -88,6 +88,7 @@ jobs:
           set -o pipefail
           xvfb-run -a pytest tests/ -q -rf --tb=short \
             --cov=biosuite --cov-report=xml --cov-report=term-missing \
+            --cov-fail-under=100 \
             2>&1 | tee /tmp/pytest-${{ matrix.python-version }}.log
 
       - name: Surface the test summary as annotations

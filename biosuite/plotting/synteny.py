@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 
-
 # Public surface. ``biosuite/plotting/__init__.py`` star-imports this
 # module, and without this list it re-exports the module's own imports
 # (numpy, pandas, os, plotly, ...) as package-level names too.
@@ -390,7 +389,7 @@ def plot_synteny(genes1, genes2, genome1_name="Genome 1", genome2_name="Genome 2
         color = gene_colors[g]
         ax1.annotate('', xy=(i2 + 0.5, 1), xycoords=ax2.transData,
                      xytext=(i1 + 0.5, 0), textcoords=ax1.transData,
-                     arrowprops=dict(arrowstyle='-', color=color, alpha=0.5, lw=1.5))
+                     arrowprops={'arrowstyle': '-', 'color': color, 'alpha': 0.5, 'lw': 1.5})
 
     fig.suptitle(title, fontsize=14)
     return fig

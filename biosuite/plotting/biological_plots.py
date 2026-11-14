@@ -54,8 +54,6 @@ except ImportError:
 # Every demo runs inside one shared guard: report a failure, name it in the log,
 # and release the figures it opened.  ``specialized_plots`` runs its four demos
 # through the same object rather than keeping a second, leakier copy.
-from ._demo_guard import demo_guard as _demo
-
 from ..core.log import get_logger
 from ..core.utils import (
     add_ttest_to_boxplot,
@@ -74,6 +72,7 @@ from ..core.utils import (
     safe_list_input,
     session,
 )
+from ._demo_guard import demo_guard as _demo
 
 logger = get_logger(__name__)
 
@@ -728,14 +727,14 @@ def scatter_custom(pdf=None):
             print(f"\nScatter Statistics: Spearman rho = {rho:.3f}, p-value = {pval:.4f}")
             eq = f'Spearman rho = {rho:.3f}, p = {pval:.4f}'
             ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9,
-                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
+                    verticalalignment='top', bbox={'facecolor': 'white', 'alpha': 0.7})
         elif fit is not None:
             _slope, _intercept, r_value, p_value = fit[1], fit[2], fit[3], fit[4]
             print(f"\nScatter Statistics: Pearson r = {r_value:.3f}, p-value = {p_value:.4f}")
             eq = (f'y = {fit[1]:.3f}x + {fit[2]:.3f}\n'
                   f'R² = {r_value ** 2:.3f}, p = {p_value:.4f}')
             ax.text(0.05, 0.95, eq, transform=ax.transAxes, fontsize=9,
-                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7))
+                    verticalalignment='top', bbox={'facecolor': 'white', 'alpha': 0.7})
         ask_save_plot('scatter', config['save_format'], config['default_dpi'], pdf)
 
 def timeseries_plot(pdf=None):
@@ -991,7 +990,7 @@ def raincloud_plot(pdf=None):
                     sns.violinplot(x=group_col, y=value_col, data=df_plot, inner=None,
                                    hue=group_col, palette='muted', alpha=0.5,
                                    legend=False, ax=ax)
-                    sns.boxplot(x=group_col, y=value_col, data=df_plot, width=0.2, boxprops=dict(alpha=0.5), showfliers=False)
+                    sns.boxplot(x=group_col, y=value_col, data=df_plot, width=0.2, boxprops={'alpha': 0.5}, showfliers=False)
                     sns.swarmplot(x=group_col, y=value_col, data=df_plot, color='black', alpha=0.6, size=4)
                     ax.set_title('Raincloud Plot')
                     if len(df_plot[group_col].unique()) >= 2:
@@ -1007,7 +1006,7 @@ def raincloud_plot(pdf=None):
         fig, ax = plt.subplots(figsize=(8,6))
         sns.violinplot(x='Group', y='Value', data=df_plot, inner=None, hue='Group',
                        palette='muted', alpha=0.5, legend=False, ax=ax)
-        sns.boxplot(x='Group', y='Value', data=df_plot, width=0.2, boxprops=dict(alpha=0.5), showfliers=False)
+        sns.boxplot(x='Group', y='Value', data=df_plot, width=0.2, boxprops={'alpha': 0.5}, showfliers=False)
         sns.swarmplot(x='Group', y='Value', data=df_plot, color='black', alpha=0.6, size=4)
         ax.set_title('Raincloud Plot (Demo)')
         add_ttest_to_boxplot(df_plot, 'Group', 'Value', ax)

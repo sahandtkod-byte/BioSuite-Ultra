@@ -177,6 +177,28 @@ def test_the_browser_uses_goatools_when_the_package_is_installed():
         f"built-in GO subset ({len(BASIC_GO_TERMS)} terms, offline)")
 
 
+def test_the_browser_falls_back_to_the_subset_when_goatools_cannot_be_imported(
+        monkeypatch):
+    """The import-time ``except ImportError`` branch, with goatools absent.
+
+    CI installs goatools, so this branch never runs there in a normal session;
+    hiding the parser and re-executing the module reaches it, and the browser
+    must still load the built-in subset rather than fail to import.
+    """
+    import inspect
+
+    monkeypatch.setitem(sys.modules, "goatools.obo_parser", None)
+    fresh = types.ModuleType("go_browser_without_goatools")
+    fresh.__package__ = "biosuite.core"
+    source = inspect.getsource(gb)
+    exec(compile(source, inspect.getfile(gb), "exec"), fresh.__dict__)
+
+    assert fresh.HAS_GOATOOLS is False
+    assert fresh.GODag is None
+    assert fresh.GOBrowser().source == (
+        f"built-in GO subset ({len(BASIC_GO_TERMS)} terms, offline)")
+
+
 def test_the_browser_holds_no_graph_library_of_its_own(monkeypatch):
     """The DAG walks are hand-rolled; the module never needed networkx.
 
