@@ -83,3 +83,21 @@ def test_discover_accepts_arbitrary_iterables():
     first_two = list(caps.list_capabilities())[:2]
     records = discovery.discover_availability(iter(first_two))
     assert [r.capability_id for r in records.values()] == [c.id for c in first_two]
+
+
+def test_discovery_only_locates_dependencies(monkeypatch):
+    import builtins
+    import subprocess
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Discovery must not import or execute dependencies")
+
+    with monkeypatch.context() as guard:
+        guard.setattr(discovery.shutil, "which", lambda name: "/located/" + name)
+        guard.setattr(discovery.importlib.util, "find_spec", lambda name: object())
+        guard.setattr(subprocess, "Popen", forbidden)
+        guard.setattr(builtins, "__import__", forbidden)
+        tool = discovery._probe_tool("not-runnable")
+        package = discovery._probe_package("not-importable")
+    assert tool.available is True
+    assert package.available is True

@@ -1,5 +1,7 @@
 """MCP catalog projection, without protocol handling or tool execution.
 
+Only the four catalog entries marked ``mcp_exposed`` are projected, with
+object-shaped input and output schemas. No MCP server or SDK is imported.
 Scalar core results use named object fields for the future MCP adapter;
 sequence statistics retain the core function's object shape.
 """

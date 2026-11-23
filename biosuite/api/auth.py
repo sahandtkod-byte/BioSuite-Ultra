@@ -13,7 +13,7 @@ from fastapi.security import APIKeyHeader
 
 from ..core.log import get_logger
 from .config import DEV_API_KEY, resolve_secret
-from .scopes import ENV_VAR, load_scoped_keys, scope_satisfies
+from .scopes import load_scoped_keys, scope_satisfies
 
 logger = get_logger(__name__)
 
@@ -49,25 +49,93 @@ def key_matches(key) -> bool:
     return bool(key) and hmac.compare_digest(str(key), API_KEY)
 
 
+ROUTE_SCOPES = {
+    ("GET", "/"): "read",
+    ("GET", "/health"): "read",
+    ("GET", "/openapi.json"): "read",
+    ("GET", "/docs"): "read",
+    ("GET", "/api/v1/modules"): "read",
+    ("GET", "/api/v1/capabilities"): "read",
+    ("GET", "/api/v1/capabilities/{capability_id}"): "read",
+    ("GET", "/.well-known/biosuite.json"): "read",
+    ("GET", "/api/v1/ready"): "read",
+    ("GET", "/ready"): "read",
+    ("GET", "/api/v1/gwas/demo"): "read",
+    ("GET", "/api/v1/database/ncbi"): "read",
+    ("GET", "/api/v1/database/uniprot"): "read",
+    ("GET", "/api/v1/database/pdb"): "read",
+    ("GET", "/api/v1/database/kegg"): "read",
+    ("GET", "/api/v1/provenance/summary"): "read",
+    ("GET", "/api/v1/admin/status"): "admin",
+    ("POST", "/api/v1/admin/login"): "admin",
+    ("POST", "/api/v1/sequence/gc-content"): "execute",
+    ("POST", "/api/v1/sequence/reverse-complement"): "execute",
+    ("POST", "/api/v1/sequence/translate"): "execute",
+    ("POST", "/api/v1/sequence/stats"): "execute",
+    ("POST", "/api/v1/alignment/needleman-wunsch"): "execute",
+    ("POST", "/api/v1/alignment/smith-waterman"): "execute",
+    ("POST", "/api/v1/blast/search"): "execute",
+    ("POST", "/api/v1/expression/differential"): "execute",
+    ("POST", "/api/v1/expression/normalize/cpm"): "execute",
+    ("POST", "/api/v1/expression/normalize/tpm"): "execute",
+    ("POST", "/api/v1/expression/normalize/deseq2"): "execute",
+    ("POST", "/api/v1/crispr/design"): "execute",
+    ("POST", "/api/v1/metagenomics/classify-16s"): "execute",
+    ("POST", "/api/v1/metagenomics/diversity"): "execute",
+    ("POST", "/api/v1/epitope/predict"): "execute",
+    ("POST", "/api/v1/gwas/run"): "execute",
+    ("POST", "/api/v1/phylogeny/distance-matrix"): "execute",
+    ("POST", "/api/v1/phylogeny/upgma"): "execute",
+    ("POST", "/api/v1/popgen/hwe"): "execute",
+    ("POST", "/api/v1/popgen/fst"): "execute",
+    ("POST", "/api/v1/popgen/tajimas-d"): "execute",
+    ("POST", "/api/v1/plotting/volcano"): "execute",
+    ("POST", "/api/v1/plotting/pca"): "execute",
+    ("POST", "/api/v1/plotting/manhattan"): "execute",
+    ("POST", "/api/v1/plotting/heatmap"): "execute",
+    ("POST", "/api/v1/workflow/pipeline"): "execute",
+    ("POST", "/api/v1/file/detect-format"): "execute",
+    ("POST", "/api/v1/file/read"): "execute",
+    ("POST", "/api/v1/provenance/record"): "execute",
+}
+
+
+def authorize_key(key, request):
+    """Authenticate a key and enforce its explicit method/route scope.
+
+    The legacy master key has full API-key access, including unclassified
+    routes, but never replaces endpoint-specific authentication such as JWT.
+    Scoped keys fail closed without a classified resolved route.
+    """
+    if key_matches(key):
+        return key
+    scope = getattr(request, "scope", None) or {}
+    route = scope.get("route")
+    required = ROUTE_SCOPES.get((scope.get("method"), getattr(route, "path", None)))
+    for configured, grants in SCOPED_KEYS.items():
+        if hmac.compare_digest(str(key or ""), configured):
+            if required not in grants:
+                raise HTTPException(status_code=403, detail="Insufficient API key scope")
+            return key
+    raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
 async def verify_api_key(key: str = Security(api_key_header),
                          request: Request = None):
-    """Reject the request unless the ``X-API-Key`` header matches exactly.
+    """Enforce scoped access; public routes and JWT-only admin access remain.
 
-    Key-free routes are exempted here rather than by removing the global
-    dependency, so a new route is authenticated by default.  ``request`` is
-    optional, and last, so the dependency keeps its original positional
-    contract when it is called as a plain function.
+    Admin status still validates its JWT in the endpoint dependency. An API
+    key supplied alongside it must independently authorize admin access.
     """
     scope = getattr(request, "scope", None) or {}
-    if getattr(scope.get("route"), "endpoint", None) in PUBLIC_ENDPOINTS:
+    route = scope.get("route")
+    if getattr(route, "endpoint", None) in PUBLIC_ENDPOINTS:
         return key
-    if not key_matches(key):
-        if SCOPED_KEYS:
-            for configured in SCOPED_KEYS:
-                if hmac.compare_digest(str(key or ""), configured):
-                    return key
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
-    return key
+    if not key and (scope.get("method"), getattr(route, "path", None)) == (
+        "GET", "/api/v1/admin/status"
+    ):
+        return key
+    return authorize_key(key, request)
 
 
 def reload_from_environment() -> str:

@@ -54,7 +54,8 @@ class TestCapabilitiesManifest:
         assert body["total"] == 341
         assert body["mcp_exposed_total"] == 4
         assert len(body["capabilities"]) == 341
-        assert body["biosuite_version"] == biosuite.__version__
+        assert "biosuite_version" not in body
+        assert body["schema_version"] == "1.0.0"
         assert {entry["module"] for entry in body["capabilities"]} == EXPECTED_MODULES
 
     def test_manifest_is_deterministic(self, auth_headers):

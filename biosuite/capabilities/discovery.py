@@ -9,6 +9,9 @@ any ``biosuite.core`` implementation:
 * whether the optional external tools and third-party packages the module
   probes for are present right now, checked with :func:`shutil.which` and
   :func:`importlib.util.find_spec`.
+
+Optional packages are never imported and executables are never launched.
+Located dependencies are not proof that they are runnable or usable.
 """
 from __future__ import annotations
 

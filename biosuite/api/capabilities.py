@@ -20,7 +20,7 @@ from copy import deepcopy
 from dataclasses import asdict
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Security
+from fastapi import APIRouter, HTTPException, Request, Security
 
 from biosuite.capabilities import (
     build_manifest,
@@ -29,7 +29,7 @@ from biosuite.capabilities import (
     list_capabilities,
 )
 
-from .auth import api_key_header, key_matches, public_endpoint
+from .auth import api_key_header, authorize_key, public_endpoint
 from .errors import ENVELOPE_HEADER
 from .middleware import REQUEST_ID_HEADER
 
@@ -47,35 +47,36 @@ def manifest_is_public() -> bool:
     return os.environ.get(MANIFEST_PUBLIC_ENV, "") in MANIFEST_PUBLIC_VALUES
 
 
-def _require_discovery_access(key: Optional[str],
+def _require_discovery_access(key: Optional[str], request: Request,
                               capability_id: Optional[str] = None) -> None:
-    """Key-gate discovery unless ``BIOSUITE_PUBLIC_MANIFEST=1``.
-
-    Mirrors :func:`biosuite.api.auth.verify_api_key` so anonymous callers get
-    the same 401 they would get anywhere else in the API.
-    """
-    if manifest_is_public() or key_matches(key):
+    """Apply shared scoped authorization, preserving legacy discovery errors."""
+    if manifest_is_public():
         return
-    target = f" '{capability_id}'" if capability_id else ""
-    raise HTTPException(
-        status_code=401,
-        detail=f"Invalid or missing API key (capability discovery{target})")
+    try:
+        authorize_key(key, request)
+    except HTTPException as exc:
+        if exc.status_code != 401:
+            raise
+        target = f" '{capability_id}'" if capability_id else ""
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid or missing API key (capability discovery{target})") from None
 
 
 @public_endpoint
 @router.get("/api/v1/capabilities")
-async def capabilities_manifest(key: Optional[str] = Security(api_key_header)):
+async def capabilities_manifest(request: Request, key: Optional[str] = Security(api_key_header)):
     """Full capability manifest (key-gated unless BIOSUITE_PUBLIC_MANIFEST=1)."""
-    _require_discovery_access(key)
+    _require_discovery_access(key, request)
     return build_manifest()
 
 
 @public_endpoint
 @router.get("/api/v1/capabilities/{capability_id}")
-async def capability_detail(capability_id: str,
+async def capability_detail(capability_id: str, request: Request,
                             key: Optional[str] = Security(api_key_header)):
     """One capability entry with its live availability (same gating)."""
-    _require_discovery_access(key, capability_id)
+    _require_discovery_access(key, request, capability_id)
     try:
         capability = get_capability(capability_id)
     except KeyError:
@@ -109,9 +110,9 @@ async def ready_alias():
 
 @public_endpoint
 @router.get("/.well-known/biosuite.json")
-async def well_known_manifest(key: Optional[str] = Security(api_key_header)):
+async def well_known_manifest(request: Request, key: Optional[str] = Security(api_key_header)):
     """Discovery-path alias of the manifest (same gating, unversioned)."""
-    _require_discovery_access(key)
+    _require_discovery_access(key, request)
     return build_manifest()
 
 

@@ -1,9 +1,8 @@
 """WS3: opt-in scoped API keys — full scope/operation matrix and regressions.
 
-The scoped-key layer is exercised through :func:`biosuite.api.auth.verify_api_key`
-with a synthetic request, exactly as the existing security tests call the
-dependency, plus :mod:`biosuite.api.scopes` unit contracts.  The legacy
-single-key behaviour and the JWT admin requirements must be unchanged.
+Real API requests exercise the scope/operation matrix, alongside direct
+verification and configuration unit contracts. Legacy master-key access and
+independent JWT admin authentication are preserved.
 """
 from __future__ import annotations
 
@@ -159,10 +158,16 @@ async def test_legacy_key_keeps_full_access(scoped):
         "legacy-master-key", _FakeRequest(_scoped_endpoint())) == "legacy-master-key"
 
 
-@pytest.mark.asyncio
-async def test_scoped_read_key_accepted_for_any_endpoint(scoped):
-    assert await scoped.verify_api_key(
-        "ro", _FakeRequest(_scoped_endpoint())) == "ro"
+def test_scoped_read_key_denied_on_computation(scoped):
+    from fastapi.testclient import TestClient
+    from biosuite.api import app
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/sequence/gc-content",
+            headers={"X-API-Key": "ro"}, json={"sequence": "ATGC"},
+        )
+    assert response.status_code == 403, response.text
 
 
 @pytest.mark.asyncio
@@ -190,9 +195,12 @@ async def test_public_endpoints_bypass_scopes(scoped):
 
 @pytest.mark.asyncio
 async def test_no_credential_values_in_401_detail(scoped):
-    # "root" is a *configured* scoped key, so it authenticates; the detail check
-    # below applies to the rejection path for an unknown key.
-    assert await scoped.verify_api_key("root") == "root"
+    from starlette.requests import Request
+    from starlette.routing import Route
+
+    request = Request({"type": "http", "method": "GET",
+                       "route": Route("/api/v1/modules", _scoped_endpoint())})
+    assert await scoped.verify_api_key("root", request) == "root"
     with pytest.raises(HTTPException) as exc:
         await scoped.verify_api_key("unknown-secret-key")
     assert exc.value.status_code == 401
@@ -227,3 +235,199 @@ async def test_jwt_admin_requirement_unchanged(scoped):
         await verify_admin_token(None)
     assert exc.value.status_code == 401
     assert "root" not in str(exc.value.detail)
+
+
+@pytest.fixture()
+def scope_client(scoped):
+    from fastapi.testclient import TestClient
+    from biosuite.api import app
+
+    with TestClient(app) as client:
+        yield client
+
+
+@pytest.mark.parametrize("key", ["ro", "rw", "root", "legacy-master-key"])
+@pytest.mark.parametrize("path", [
+    "/api/v1/modules", "/api/v1/capabilities",
+    "/api/v1/capabilities/sequence.gc_content", "/.well-known/biosuite.json",
+    "/api/v1/ready", "/ready", "/api/v1/provenance/summary",
+])
+def test_scope_read_operation_matrix(scope_client, key, path):
+    response = scope_client.get(path, headers={"X-API-Key": key})
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize("key,status", [
+    ("ro", 403), ("rw", 200), ("root", 200), ("legacy-master-key", 200),
+    (None, 401), ("invalid", 401),
+])
+def test_scope_computation_matrix(scope_client, key, status):
+    headers = {"X-API-Key": key} if key else {}
+    response = scope_client.post(
+        "/api/v1/sequence/gc-content", headers=headers, json={"sequence": "ATGC"},
+    )
+    assert response.status_code == status, response.text
+    if status == 200:
+        assert response.json()["gc_percent"] == 50.0
+
+
+@pytest.mark.parametrize("key,status", [
+    ("ro", 403), ("rw", 403), ("root", 200), ("legacy-master-key", 200),
+    (None, 200), ("invalid", 401),
+])
+def test_scope_admin_matrix_with_valid_jwt(scope_client, key, status):
+    from biosuite.api.security import create_access_token
+
+    headers = {"Authorization": f"Bearer {create_access_token('scope-test-admin')}"}
+    if key:
+        headers["X-API-Key"] = key
+    response = scope_client.get("/api/v1/admin/status", headers=headers)
+    assert response.status_code == status, response.text
+    if status == 200:
+        assert response.json() == {"admin": "scope-test-admin", "status": "ok"}
+
+
+@pytest.mark.parametrize("key,status", [
+    ("ro", 403), ("rw", 403), ("root", 401), ("legacy-master-key", 401), (None, 401),
+])
+@pytest.mark.parametrize("bearer", [None, "invalid-jwt"])
+def test_no_api_key_bypasses_jwt(scope_client, key, status, bearer):
+    headers = {"X-API-Key": key} if key else {}
+    if bearer:
+        headers["Authorization"] = f"Bearer {bearer}"
+    assert scope_client.get("/api/v1/admin/status", headers=headers).status_code == status
+
+
+@pytest.mark.parametrize("path", ["/health", "/ready", "/api/v1/ready"])
+def test_public_routes_remain_key_free(scope_client, path):
+    assert scope_client.get(path).status_code == 200
+
+
+@pytest.mark.parametrize("path", [
+    "/api/v1/capabilities", "/api/v1/capabilities/sequence.gc_content",
+    "/.well-known/biosuite.json",
+])
+@pytest.mark.parametrize("key", [None, "invalid"])
+def test_discovery_invalid_key_and_public_opt_in(scope_client, monkeypatch, path, key):
+    headers = {"X-API-Key": key} if key else {}
+    monkeypatch.delenv("BIOSUITE_PUBLIC_MANIFEST", raising=False)
+    assert scope_client.get(path, headers=headers).status_code == 401
+    monkeypatch.setenv("BIOSUITE_PUBLIC_MANIFEST", "1")
+    assert scope_client.get(path, headers=headers).status_code == 200
+
+
+@pytest.mark.parametrize("key,status", [
+    ("ro", 403), ("rw", 403), ("root", 403), ("legacy-master-key", 200),
+    (None, 401), ("invalid", 401),
+])
+@pytest.mark.parametrize("method,path", [
+    ("GET", "/api/v1/modules/unclassified"),
+    ("POST", "/api/v1/sequence/unclassified"),
+    ("POST", "/api/v1/modules"),
+])
+def test_unclassified_routes_default_deny(scoped, key, status, method, path):
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+
+    application = FastAPI(dependencies=[Depends(auth.verify_api_key)])
+
+    @application.api_route(path, methods=[method])
+    def unclassified():
+        return {"reached": True}
+
+    with TestClient(application) as client:
+        headers = {"X-API-Key": key} if key else {}
+        assert client.request(method, path, headers=headers).status_code == status
+
+
+@pytest.mark.parametrize("envelope", [False, True])
+def test_scope_denial_request_id_and_error_envelope(scope_client, caplog, envelope):
+    headers = {"X-API-Key": "ro", "X-Request-ID": "scope-denial-1"}
+    if envelope:
+        headers["X-BioSuite-Error-Envelope"] = "1"
+    response = scope_client.post(
+        "/api/v1/sequence/gc-content", headers=headers, json={"sequence": "ATGC"},
+    )
+    assert response.status_code == 403
+    assert response.headers["X-Request-ID"] == "scope-denial-1"
+    if envelope:
+        assert response.json() == {"error": {
+            "code": "forbidden", "status": 403, "detail": "Insufficient API key scope",
+            "request_id": "scope-denial-1",
+        }}
+    else:
+        assert response.json() == {"detail": "Insufficient API key scope"}
+    for credential in ("legacy-master-key", "unknown-secret-key"):
+        assert credential not in response.text + caplog.text
+
+
+def test_malformed_config_fails_closed_at_startup():
+    import os
+    import subprocess
+    import sys
+
+    environment = dict(os.environ, BIOSUITE_SCOPED_KEYS="startup-secret:unknown")
+    result = subprocess.run(
+        [sys.executable, "-c", "import biosuite.api.auth"],
+        env=environment, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode != 0
+    assert "ScopesConfigurationError" in result.stderr
+    assert "startup-secret" not in result.stdout + result.stderr
+
+
+def test_every_published_operation_has_explicit_scope():
+    from biosuite.api import app
+
+    operations = {(method.upper(), path) for path, item in app.openapi()["paths"].items()
+                  for method in item if method in {"get", "post", "put", "patch", "delete"}}
+    assert operations <= auth.ROUTE_SCOPES.keys()
+    assert len({path for _, path in operations if path.startswith("/api/")}) == 41
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("key,grants", [
+    ("ro", {"read"}), ("rw", {"read", "execute"}),
+    ("root", {"read", "execute", "admin"}),
+])
+async def test_scope_matrix_covers_every_classified_operation(scoped, key, grants):
+    from starlette.requests import Request
+    from starlette.routing import Route
+
+    for (method, path), required in scoped.ROUTE_SCOPES.items():
+        request = Request({"type": "http", "method": method,
+                           "route": Route(path, _scoped_endpoint())})
+        if required in grants:
+            assert await scoped.verify_api_key(key, request) == key
+        else:
+            with pytest.raises(HTTPException) as exc:
+                await scoped.verify_api_key(key, request)
+            assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scoped_key_without_resolved_route_is_denied(scoped):
+    with pytest.raises(HTTPException) as exc:
+        await scoped.verify_api_key("root")
+    assert exc.value.status_code == 403
+
+
+def test_discovery_does_not_swallow_scope_denial(scope_client, monkeypatch):
+    monkeypatch.setattr(auth, "ROUTE_SCOPES", {})
+    response = scope_client.get("/api/v1/capabilities", headers={"X-API-Key": "ro"})
+    assert response.status_code == 403
+
+
+def test_scope_denial_does_not_log_credentials(scope_client, monkeypatch, caplog):
+    credential = "scope-denial-test-credential"
+    monkeypatch.setattr(auth, "SCOPED_KEYS", {credential: frozenset({"read"})})
+    response = scope_client.post(
+        "/api/v1/sequence/gc-content", headers={"X-API-Key": credential},
+        json={"sequence": "ATGC"},
+    )
+    assert response.status_code == 403
+    assert credential not in response.text + caplog.text
+
+
+def test_auth_exports_exist():
+    assert all(hasattr(auth, name) for name in auth.__all__)

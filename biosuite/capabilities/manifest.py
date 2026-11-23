@@ -3,7 +3,10 @@
 The manifest is the stable, machine-readable view later workstreams serve over
 HTTP and package as a static artifact.  It must be byte-stable for the same
 catalog: entries stay in catalog order, mappings are sorted, and JSON is
-emitted with fixed separators and a trailing newline.
+emitted with sorted keys and a trailing newline. NaN and Infinity are rejected.
+Only the fixed ``MANIFEST_SCHEMA_VERSION`` identifies the manifest format;
+package, Python, platform and host versions, timestamps, paths and availability
+state are excluded. Runtime availability belongs to discovery.
 """
 from __future__ import annotations
 
@@ -35,16 +38,12 @@ _LEGACY_MODULES_VIEW = (
 )
 
 
-def build_manifest(capabilities=None, *, version: str | None = None) -> Dict[str, Any]:
-    """Build a manifest, defaulting to the full catalog and package version."""
+def build_manifest(capabilities=None) -> Dict[str, Any]:
+    """Build a manifest from the catalog without runtime metadata."""
     if capabilities is None:
         from .catalog import list_capabilities
 
         capabilities = list_capabilities()
-    if version is None:
-        from biosuite import __version__
-
-        version = __version__
     capabilities = tuple(capabilities)
     entries: List[Dict[str, Any]] = []
     for cap in capabilities:
@@ -65,7 +64,6 @@ def build_manifest(capabilities=None, *, version: str | None = None) -> Dict[str
         )
     return {
         "schema_version": MANIFEST_SCHEMA_VERSION,
-        "biosuite_version": version,
         "total": len(entries),
         "mcp_exposed_total": sum(1 for e in entries if e["mcp_exposed"]),
         "capabilities": entries,
@@ -75,7 +73,9 @@ def build_manifest(capabilities=None, *, version: str | None = None) -> Dict[str
 
 def manifest_json(manifest: Dict[str, Any]) -> str:
     """Serialize a manifest deterministically (sorted keys, fixed separators)."""
-    return json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    return json.dumps(
+        manifest, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False
+    ) + "\n"
 
 
 def legacy_modules_view(*, total_endpoints: int) -> Dict[str, Any]:

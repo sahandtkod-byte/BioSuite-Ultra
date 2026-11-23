@@ -44,13 +44,24 @@ export BIOSUITE_SCOPED_KEYS="readonly-key:read;runner-key:execute;owner-key:admi
 
 - `read` — call read-only endpoints.
 - `execute` — everything `read` allows, plus analysis endpoints that run computations.
-- `admin` — everything `execute` allows (full access; JWT admin routes still additionally require the bearer token).
+- `admin` — everything `execute` allows, plus classified admin operations; JWT admin routes still require the bearer token.
+
+Authorization uses an explicit `(HTTP method, resolved route template)` map in `biosuite/api/auth.py`. Every unclassified operation denies scoped keys with 403. The legacy master key retains unrestricted API-key access, including unclassified routes, but never replaces endpoint-specific JWT authentication. On `/api/v1/admin/status`, no API key is needed with a valid JWT; if a key is supplied, it must be the master key or an `admin` scoped key. A `read` or `execute` key is denied even with a valid JWT.
+
+Missing/invalid keys return 401; insufficient scopes return 403 with the unchanged legacy error shape. The opt-in envelope uses code `forbidden` and includes the request ID. Health/readiness and credential-based admin login remain public. Discovery accepts scoped read access, or anonymous access only when `BIOSUITE_PUBLIC_MANIFEST=1`. No API versions, persistence, transaction boundaries, retries, timeouts, or background-job behavior change.
 
 Separate entries with `;` and the scope list with `,` (for example `key:read,execute`). When `BIOSUITE_SCOPED_KEYS` is unset or empty, the legacy single-key behaviour is unchanged. A malformed configuration stops the server at startup instead of serving with a partial key table, and key values never appear in error messages or logs.
 
 Both the API key and JWT bearer schemes are registered in the OpenAPI schema, so you can authenticate directly from the Swagger UI ("Authorize" button at `/docs`).
 
 ---
+## Deterministic capability manifest
+
+The manifest retains only the fixed `schema_version` format identifier (`1.0.0`).
+It excludes package/Python/platform/host versions, availability, timestamps and
+host paths. JSON keys are sorted and NaN/Infinity are rejected. Runtime dependency
+availability is reported separately by `discover_availability()`.
+
 ## Which Sections Work Without Any Setup
 
 Everything in BioSuite works out of the box with just `pip install`. The database search features (NCBI, UniProt, PDB, KEGG, Ensembl) function without keys but have slower rate limits. Adding keys makes them faster.

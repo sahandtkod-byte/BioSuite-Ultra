@@ -11,12 +11,12 @@ from biosuite.capabilities import manifest
 
 @pytest.fixture()
 def built():
-    return manifest.build_manifest(caps.list_capabilities(), version="6.0.1")
+    return manifest.build_manifest(caps.list_capabilities())
 
 
 def test_manifest_shape_and_totals(built):
     assert built["schema_version"] == manifest.MANIFEST_SCHEMA_VERSION
-    assert built["biosuite_version"] == "6.0.1"
+    assert "biosuite_version" not in built
     assert built["total"] == 341
     assert built["mcp_exposed_total"] == 4
     assert len(built["capabilities"]) == 341
@@ -25,25 +25,23 @@ def test_manifest_shape_and_totals(built):
 
 def test_manifest_json_is_byte_stable(built):
     first = manifest.manifest_json(built)
-    rebuilt = manifest.build_manifest(caps.list_capabilities(), version="6.0.1")
+    rebuilt = manifest.build_manifest(caps.list_capabilities())
     second = manifest.manifest_json(rebuilt)
     assert first == second
     assert first.endswith("\n")
     assert json.loads(first)["total"] == 341
 
 
-def test_build_manifest_defaults_missing_version():
-    from biosuite import __version__
+def test_build_manifest_omits_runtime_version(monkeypatch):
+    import biosuite
 
-    assert manifest.build_manifest(caps.list_capabilities())["biosuite_version"] == __version__
+    monkeypatch.setattr(biosuite, "__version__", "runtime-version-must-not-leak")
+    assert "runtime-version-must-not-leak" not in manifest.manifest_json(manifest.build_manifest())
+    assert "biosuite_version" not in manifest.build_manifest()
 
 
-def test_manifest_defaults_to_catalog_and_package_version():
-    from biosuite import __version__
-
-    assert manifest.build_manifest() == manifest.build_manifest(
-        caps.list_capabilities(), version=__version__
-    )
+def test_manifest_defaults_to_catalog():
+    assert manifest.build_manifest() == manifest.build_manifest(caps.list_capabilities())
 
 
 def test_manifest_accepts_iterators_and_empty_catalog():
@@ -177,4 +175,56 @@ def test_manifest_json_round_trips(built):
 
 def test_json_serialization_uses_sorted_keys(built):
     text = manifest.manifest_json(built)
-    assert text.index('"biosuite_version"') < text.index('"capabilities"')
+    json.loads(text, object_pairs_hook=_assert_sorted_keys)
+
+
+def _assert_sorted_keys(pairs):
+    keys = [key for key, _ in pairs]
+    assert keys == sorted(keys)
+    return dict(pairs)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_manifest_json_rejects_nonfinite_numbers(value):
+    with pytest.raises(ValueError):
+        manifest.manifest_json({"invalid": value})
+
+
+def test_manifest_bytes_match_across_processes_without_runtime_metadata():
+    import os
+    import subprocess
+    import sys
+
+    outputs = []
+    for seed in ("17", "83"):
+        code = (
+            "import biosuite, platform, sys; "
+            f"biosuite.__version__ = 'package-{seed}'; "
+            f"platform.python_version = lambda: 'python-{seed}'; "
+            f"platform.platform = lambda: 'platform-{seed}'; "
+            f"platform.node = lambda: 'host-{seed}'; "
+            "from biosuite.capabilities.manifest import build_manifest, manifest_json; "
+            "sys.stdout.buffer.write(manifest_json(build_manifest()).encode('utf-8'))"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            env={**os.environ, "PYTHONHASHSEED": seed},
+            capture_output=True, check=True,
+        )
+        outputs.append(result.stdout)
+    assert outputs[0] == outputs[1]
+    data = json.loads(outputs[0])
+    assert data["schema_version"] == manifest.MANIFEST_SCHEMA_VERSION
+
+    def check_keys(value):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key != "schema_version":
+                    assert "version" not in key.lower()
+                assert key not in {"availability", "available", "ready", "timestamp", "host", "platform", "path"}
+                check_keys(child)
+        elif isinstance(value, list):
+            for child in value:
+                check_keys(child)
+
+    check_keys(data)
