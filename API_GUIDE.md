@@ -34,6 +34,20 @@ curl "http://localhost:8000/api/v1/sequence/gc-content" \
 
 The API is also rate-limited to **100 requests/minute per client**; exceeding it returns `429 Too Many Requests`.
 
+### Scoped API keys (opt-in)
+
+By default the single `BIOSUITE_API_KEY` grants full access to every endpoint. Optionally, you can issue keys limited to a scope with `BIOSUITE_SCOPED_KEYS`:
+
+```bash
+export BIOSUITE_SCOPED_KEYS="readonly-key:read;runner-key:execute;owner-key:admin"
+```
+
+- `read` — call read-only endpoints.
+- `execute` — everything `read` allows, plus analysis endpoints that run computations.
+- `admin` — everything `execute` allows (full access; JWT admin routes still additionally require the bearer token).
+
+Separate entries with `;` and the scope list with `,` (for example `key:read,execute`). When `BIOSUITE_SCOPED_KEYS` is unset or empty, the legacy single-key behaviour is unchanged. A malformed configuration stops the server at startup instead of serving with a partial key table, and key values never appear in error messages or logs.
+
 Both the API key and JWT bearer schemes are registered in the OpenAPI schema, so you can authenticate directly from the Swagger UI ("Authorize" button at `/docs`).
 
 ---

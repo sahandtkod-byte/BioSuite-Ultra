@@ -8,8 +8,8 @@ measured from the tree — keep them accurate if you change the code.
 - **12 plotting modules** exposing **167 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
 - **11 GUI tabs**, **117 CLI menu options**, **41 REST API endpoints** (under `/api/v1/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **45,676 lines** of Python across 99 modules in `biosuite/`
-- **470 test files**; the run recorded under Current Status is the authoritative figure
+- **45,831 lines** of Python across 100 modules in `biosuite/`
+- **471 test files**; the run recorded under Current Status is the authoritative figure
 
 ## Architecture
 ```
@@ -20,7 +20,7 @@ biosuite/
 ├── cli/            # menu.py — interactive CLI, 117 options
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 470 files
+tests/              # 471 files
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx

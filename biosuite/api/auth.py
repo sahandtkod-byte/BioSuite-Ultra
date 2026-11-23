@@ -13,11 +13,23 @@ from fastapi.security import APIKeyHeader
 
 from ..core.log import get_logger
 from .config import DEV_API_KEY, resolve_secret
+from .scopes import ENV_VAR, load_scoped_keys, scope_satisfies
 
 logger = get_logger(__name__)
 
 API_KEY, API_KEY_CONFIGURED = resolve_secret(
     "BIOSUITE_API_KEY", DEV_API_KEY, "API key")
+
+#: Effective ``{key: scopes}`` table.  Empty unless ``BIOSUITE_SCOPED_KEYS`` is
+#: configured; an empty table preserves the legacy single-key full access.
+SCOPED_KEYS = load_scoped_keys()
+
+
+def reload_scoped_keys():
+    """Re-read ``BIOSUITE_SCOPED_KEYS`` (used by tests and config reloads)."""
+    global SCOPED_KEYS
+    SCOPED_KEYS = load_scoped_keys()
+    return SCOPED_KEYS
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -50,6 +62,10 @@ async def verify_api_key(key: str = Security(api_key_header),
     if getattr(scope.get("route"), "endpoint", None) in PUBLIC_ENDPOINTS:
         return key
     if not key_matches(key):
+        if SCOPED_KEYS:
+            for configured in SCOPED_KEYS:
+                if hmac.compare_digest(str(key or ""), configured):
+                    return key
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return key
 
@@ -59,9 +75,11 @@ def reload_from_environment() -> str:
     global API_KEY, API_KEY_CONFIGURED
     API_KEY, API_KEY_CONFIGURED = resolve_secret(
         "BIOSUITE_API_KEY", DEV_API_KEY, "API key")
+    reload_scoped_keys()
     return API_KEY
 
 
-__all__ = ["API_KEY", "API_KEY_CONFIGURED", "PUBLIC_ENDPOINTS", "api_key_header",
-           "key_matches", "public_endpoint", "reload_from_environment",
+__all__ = ["API_KEY", "API_KEY_CONFIGURED", "PUBLIC_ENDPOINTS", "SCOPED_KEYS",
+           "api_key_header", "key_matches", "public_endpoint",
+           "reload_from_environment", "reload_scoped_keys", "scope_satisfies",
            "verify_api_key"]
