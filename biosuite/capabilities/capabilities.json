@@ -1,0 +1,6540 @@
+{
+  "capabilities": [
+    {
+      "function": "needleman_wunsch",
+      "id": "alignment.needleman_wunsch",
+      "implementation": "alignment:needleman_wunsch",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "alignment",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Global pairwise alignment using Needleman-Wunsch algorithm"
+    },
+    {
+      "function": "smith_waterman",
+      "id": "alignment.smith_waterman",
+      "implementation": "alignment:smith_waterman",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "alignment",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Local pairwise alignment using Smith-Waterman algorithm"
+    },
+    {
+      "function": "multiple_alignment",
+      "id": "alignment.multiple_alignment",
+      "implementation": "alignment:multiple_alignment",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "alignment",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Progressive multiple sequence alignment"
+    },
+    {
+      "function": "check_assembly_tools",
+      "id": "assembly.check_assembly_tools",
+      "implementation": "assembly:check_assembly_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "assembly",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "megahit-core",
+          "spades",
+          "spades.py"
+        ]
+      },
+      "summary": "Detect spades/megahit availability"
+    },
+    {
+      "function": "assemble",
+      "id": "assembly.assemble",
+      "implementation": "assembly:assemble",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "assembly",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "megahit-core",
+          "spades",
+          "spades.py"
+        ]
+      },
+      "summary": "Assemble reads auto-selecting engine; built-in greedy overlap"
+    },
+    {
+      "function": "format_assembly_report",
+      "id": "assembly.format_assembly_report",
+      "implementation": "assembly:format_assembly_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "assembly",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "megahit-core",
+          "spades",
+          "spades.py"
+        ]
+      },
+      "summary": "Format AssemblyResult with stats table and top-contig preview"
+    },
+    {
+      "function": "check_bayesian_tools",
+      "id": "bayesian_phylogeny.check_bayesian_tools",
+      "implementation": "bayesian_phylogeny:check_bayesian_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bayesian_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "mb"
+        ]
+      },
+      "summary": "Detect mrbayes availability"
+    },
+    {
+      "function": "run_bayesian",
+      "id": "bayesian_phylogeny.run_bayesian",
+      "implementation": "bayesian_phylogeny:run_bayesian",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bayesian_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "mb"
+        ]
+      },
+      "summary": "Run Bayesian phylogeny; built-in JC69 MCMC when MrBayes is absent"
+    },
+    {
+      "function": "format_bayesian_report",
+      "id": "bayesian_phylogeny.format_bayesian_report",
+      "implementation": "bayesian_phylogeny:format_bayesian_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bayesian_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "mb"
+        ]
+      },
+      "summary": "Format a BayesianResult as a plain-text report"
+    },
+    {
+      "function": "check_ml_tools",
+      "id": "bio_ml.check_ml_tools",
+      "implementation": "bio_ml:check_ml_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.bio_ml."
+    },
+    {
+      "function": "train_random_forest",
+      "id": "bio_ml.train_random_forest",
+      "implementation": "bio_ml:train_random_forest",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Train Random Forest classifier with cross-validation"
+    },
+    {
+      "function": "train_svm",
+      "id": "bio_ml.train_svm",
+      "implementation": "bio_ml:train_svm",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Train SVM classifier"
+    },
+    {
+      "function": "train_random_forest_regressor",
+      "id": "bio_ml.train_random_forest_regressor",
+      "implementation": "bio_ml:train_random_forest_regressor",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Train Random Forest regressor for continuous outcomes"
+    },
+    {
+      "function": "compute_roc_curve",
+      "id": "bio_ml.compute_roc_curve",
+      "implementation": "bio_ml:compute_roc_curve",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Compute ROC curve data points"
+    },
+    {
+      "function": "select_features",
+      "id": "bio_ml.select_features",
+      "implementation": "bio_ml:select_features",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Rank feature columns and return the top ``n_features`` of them"
+    },
+    {
+      "function": "format_ml_report",
+      "id": "bio_ml.format_ml_report",
+      "implementation": "bio_ml:format_ml_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "bio_ml",
+      "requires": {
+        "packages": [
+          "shap",
+          "sklearn"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.bio_ml."
+    },
+    {
+      "function": "check_blast_installed",
+      "id": "blast.check_blast_installed",
+      "implementation": "blast:check_blast_installed",
+      "interfaces": [
+        "api",
+        "cli",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "blast",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "blastn"
+        ]
+      },
+      "summary": "Public availability probe mirroring other core modules"
+    },
+    {
+      "function": "make_database",
+      "id": "blast.make_database",
+      "implementation": "blast:make_database",
+      "interfaces": [
+        "api",
+        "cli",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "blast",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "blastn"
+        ]
+      },
+      "summary": "Create a BLAST database from a FASTA file, and return what to pass as `database`"
+    },
+    {
+      "function": "run_blast",
+      "id": "blast.run_blast",
+      "implementation": "blast:run_blast",
+      "interfaces": [
+        "api",
+        "cli",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "blast",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "blastn"
+        ]
+      },
+      "summary": "Run a BLAST search, auto-selecting the engine that is available"
+    },
+    {
+      "function": "run_blast_quick",
+      "id": "blast.run_blast_quick",
+      "implementation": "blast:run_blast_quick",
+      "interfaces": [
+        "api",
+        "cli",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "blast",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "blastn"
+        ]
+      },
+      "summary": "One-liner convenience search of a raw query string"
+    },
+    {
+      "function": "format_blast_result",
+      "id": "blast.format_blast_result",
+      "implementation": "blast:format_blast_result",
+      "interfaces": [
+        "api",
+        "cli",
+        "notebook",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "blast",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "blastn"
+        ]
+      },
+      "summary": "Format a BlastResult as a fixed-width text table"
+    },
+    {
+      "function": "find_restriction_sites",
+      "id": "cloning.find_restriction_sites",
+      "implementation": "cloning:find_restriction_sites",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Find all restriction sites in *sequence*"
+    },
+    {
+      "function": "simulate_digestion",
+      "id": "cloning.simulate_digestion",
+      "implementation": "cloning:simulate_digestion",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Simulate restriction enzyme digestion"
+    },
+    {
+      "function": "simulate_ligation",
+      "id": "cloning.simulate_ligation",
+      "implementation": "cloning:simulate_ligation",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Simulate ligation of DNA fragments with compatibility checking"
+    },
+    {
+      "function": "design_primers",
+      "id": "cloning.design_primers",
+      "implementation": "cloning:design_primers",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Design forward and reverse primers from the start and end of *target_seq*"
+    },
+    {
+      "function": "simulate_pcr",
+      "id": "cloning.simulate_pcr",
+      "implementation": "cloning:simulate_pcr",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Simulate PCR amplification"
+    },
+    {
+      "function": "verify_insert",
+      "id": "cloning.verify_insert",
+      "implementation": "cloning:verify_insert",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Verify that an insert is present and correctly oriented in a ligated product"
+    },
+    {
+      "function": "plot_virtual_gel",
+      "id": "cloning.plot_virtual_gel",
+      "implementation": "cloning:plot_virtual_gel",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Plot a virtual agarose gel with multiple sample lanes support"
+    },
+    {
+      "function": "format_digest_report",
+      "id": "cloning.format_digest_report",
+      "implementation": "cloning:format_digest_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Return a formatted text report for a digestion result"
+    },
+    {
+      "function": "format_primer_report",
+      "id": "cloning.format_primer_report",
+      "implementation": "cloning:format_primer_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Return a formatted text report for a primer pair dict"
+    },
+    {
+      "function": "format_pcr_report",
+      "id": "cloning.format_pcr_report",
+      "implementation": "cloning:format_pcr_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Return a formatted text report for a PCR result"
+    },
+    {
+      "function": "format_ligation_report",
+      "id": "cloning.format_ligation_report",
+      "implementation": "cloning:format_ligation_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "cloning",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Return a formatted text report for a ligation result"
+    },
+    {
+      "function": "codon_usage_table",
+      "id": "codon_usage.codon_usage_table",
+      "implementation": "codon_usage:codon_usage_table",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "codon_usage",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Codon frequencies for a coding sequence"
+    },
+    {
+      "function": "kmer_composition",
+      "id": "codon_usage.kmer_composition",
+      "implementation": "codon_usage:kmer_composition",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "codon_usage",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "k-mer counts and frequencies for a nucleotide sequence"
+    },
+    {
+      "function": "sequence_complexity",
+      "id": "codon_usage.sequence_complexity",
+      "implementation": "codon_usage:sequence_complexity",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "codon_usage",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Sliding-window linguistic complexity of a nucleotide sequence"
+    },
+    {
+      "function": "format_codon_usage",
+      "id": "codon_usage.format_codon_usage",
+      "implementation": "codon_usage:format_codon_usage",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "codon_usage",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.codon_usage."
+    },
+    {
+      "function": "format_kmer_composition",
+      "id": "codon_usage.format_kmer_composition",
+      "implementation": "codon_usage:format_kmer_composition",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "codon_usage",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.codon_usage."
+    },
+    {
+      "function": "check_crispr_tools",
+      "id": "crispr.check_crispr_tools",
+      "implementation": "crispr:check_crispr_tools",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "crispr",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.crispr."
+    },
+    {
+      "function": "design_guides",
+      "id": "crispr.design_guides",
+      "implementation": "crispr:design_guides",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "crispr",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Design guide RNAs against a target sequence"
+    },
+    {
+      "function": "format_crispr_report",
+      "id": "crispr.format_crispr_report",
+      "implementation": "crispr:format_crispr_report",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "crispr",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.crispr."
+    },
+    {
+      "function": "search_ncbi",
+      "id": "databases.search_ncbi",
+      "implementation": "databases:search_ncbi",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Search NCBI databases via Entrez API"
+    },
+    {
+      "function": "fetch_ncbi_sequence",
+      "id": "databases.fetch_ncbi_sequence",
+      "implementation": "databases:fetch_ncbi_sequence",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Fetch a sequence record from NCBI by accession number"
+    },
+    {
+      "function": "search_uniprot",
+      "id": "databases.search_uniprot",
+      "implementation": "databases:search_uniprot",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Search UniProt protein database"
+    },
+    {
+      "function": "fetch_uniprot",
+      "id": "databases.fetch_uniprot",
+      "implementation": "databases:fetch_uniprot",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Fetch a UniProt record by accession"
+    },
+    {
+      "function": "search_pdb",
+      "id": "databases.search_pdb",
+      "implementation": "databases:search_pdb",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Search RCSB PDB for protein structures"
+    },
+    {
+      "function": "search_kegg",
+      "id": "databases.search_kegg",
+      "implementation": "databases:search_kegg",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Search KEGG database"
+    },
+    {
+      "function": "fetch_kegg_pathway",
+      "id": "databases.fetch_kegg_pathway",
+      "implementation": "databases:fetch_kegg_pathway",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Fetch a KEGG pathway record"
+    },
+    {
+      "function": "search_ensembl",
+      "id": "databases.search_ensembl",
+      "implementation": "databases:search_ensembl",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Look up one Ensembl gene symbol"
+    },
+    {
+      "function": "invalidate_cache",
+      "id": "databases.invalidate_cache",
+      "implementation": "databases:invalidate_cache",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Invalidate cached results"
+    },
+    {
+      "function": "cache_info",
+      "id": "databases.cache_info",
+      "implementation": "databases:cache_info",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Return cache statistics: number of entries per service"
+    },
+    {
+      "function": "search_all",
+      "id": "databases.search_all",
+      "implementation": "databases:search_all",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Search multiple databases sequentially"
+    },
+    {
+      "function": "format_search_results",
+      "id": "databases.format_search_results",
+      "implementation": "databases:format_search_results",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "databases",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format search results as readable string"
+    },
+    {
+      "function": "check_docking_tools",
+      "id": "docking.check_docking_tools",
+      "implementation": "docking:check_docking_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "docking",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "autodock-vina",
+          "vina"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.docking."
+    },
+    {
+      "function": "dock",
+      "id": "docking.dock",
+      "implementation": "docking:dock",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "docking",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "autodock-vina",
+          "vina"
+        ]
+      },
+      "summary": "Dock *ligand_file* into *receptor_file*"
+    },
+    {
+      "function": "format_docking_report",
+      "id": "docking.format_docking_report",
+      "implementation": "docking:format_docking_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "docking",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "autodock-vina",
+          "vina"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.docking."
+    },
+    {
+      "function": "check_enrichment_tools",
+      "id": "enrichment.check_enrichment_tools",
+      "implementation": "enrichment:check_enrichment_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "enrichment",
+      "requires": {
+        "packages": [
+          "goatools",
+          "gseapy"
+        ],
+        "tools": []
+      },
+      "summary": "Check which enrichment tools are available"
+    },
+    {
+      "function": "run_ora",
+      "id": "enrichment.run_ora",
+      "implementation": "enrichment:run_ora",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "enrichment",
+      "requires": {
+        "packages": [
+          "goatools",
+          "gseapy"
+        ],
+        "tools": []
+      },
+      "summary": "Over-Representation Analysis (ORA) for Gene Ontology terms"
+    },
+    {
+      "function": "run_gsea",
+      "id": "enrichment.run_gsea",
+      "implementation": "enrichment:run_gsea",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "enrichment",
+      "requires": {
+        "packages": [
+          "goatools",
+          "gseapy"
+        ],
+        "tools": []
+      },
+      "summary": "Gene Set Enrichment Analysis (GSEA) using gseapy"
+    },
+    {
+      "function": "run_kegg_enrichment",
+      "id": "enrichment.run_kegg_enrichment",
+      "implementation": "enrichment:run_kegg_enrichment",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "enrichment",
+      "requires": {
+        "packages": [
+          "goatools",
+          "gseapy"
+        ],
+        "tools": []
+      },
+      "summary": "KEGG pathway enrichment analysis"
+    },
+    {
+      "function": "format_enrichment_report",
+      "id": "enrichment.format_enrichment_report",
+      "implementation": "enrichment:format_enrichment_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "enrichment",
+      "requires": {
+        "packages": [
+          "goatools",
+          "gseapy"
+        ],
+        "tools": []
+      },
+      "summary": "Format EnrichmentReport as readable string"
+    },
+    {
+      "function": "parse_bisulfite_bed",
+      "id": "epigenomics.parse_bisulfite_bed",
+      "implementation": "epigenomics:parse_bisulfite_bed",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epigenomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse bisulfite sequencing BED file with methylation calls"
+    },
+    {
+      "function": "calculate_methylation_levels",
+      "id": "epigenomics.calculate_methylation_levels",
+      "implementation": "epigenomics:calculate_methylation_levels",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epigenomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate methylation statistics from bisulfite sites"
+    },
+    {
+      "function": "find_dmrs",
+      "id": "epigenomics.find_dmrs",
+      "implementation": "epigenomics:find_dmrs",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epigenomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Find differentially methylated regions between two groups"
+    },
+    {
+      "function": "parse_atac_peaks",
+      "id": "epigenomics.parse_atac_peaks",
+      "implementation": "epigenomics:parse_atac_peaks",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epigenomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse ATAC-seq peak BED file"
+    },
+    {
+      "function": "atac_peak_stats",
+      "id": "epigenomics.atac_peak_stats",
+      "implementation": "epigenomics:atac_peak_stats",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epigenomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.epigenomics."
+    },
+    {
+      "function": "format_epigenomics_report",
+      "id": "epigenomics.format_epigenomics_report",
+      "implementation": "epigenomics:format_epigenomics_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epigenomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.epigenomics."
+    },
+    {
+      "function": "predict_t_cell_epitopes",
+      "id": "epitope.predict_t_cell_epitopes",
+      "implementation": "epitope:predict_t_cell_epitopes",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epitope",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Predict T-cell epitopes based on MHC binding affinity"
+    },
+    {
+      "function": "predict_b_cell_epitopes",
+      "id": "epitope.predict_b_cell_epitopes",
+      "implementation": "epitope:predict_b_cell_epitopes",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epitope",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Predict B-cell epitopes based on surface accessibility and propensity"
+    },
+    {
+      "function": "predict_linear_epitopes",
+      "id": "epitope.predict_linear_epitopes",
+      "implementation": "epitope:predict_linear_epitopes",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epitope",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Predict linear B-cell epitopes using multiple properties"
+    },
+    {
+      "function": "cleavage_site_prediction",
+      "id": "epitope.cleavage_site_prediction",
+      "implementation": "epitope:cleavage_site_prediction",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epitope",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Predict proteasomal cleavage sites (immunoproteasome)"
+    },
+    {
+      "function": "iedb_to_table",
+      "id": "epitope.iedb_to_table",
+      "implementation": "epitope:iedb_to_table",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epitope",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format epitope results as a table"
+    },
+    {
+      "function": "format_epitope_report",
+      "id": "epitope.format_epitope_report",
+      "implementation": "epitope:format_epitope_report",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "epitope",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format combined T-cell and B-cell epitope results"
+    },
+    {
+      "function": "read_counts_matrix",
+      "id": "expression.read_counts_matrix",
+      "implementation": "expression:read_counts_matrix",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read a gene count matrix (featureCounts/HTSeq output)"
+    },
+    {
+      "function": "cpm_normalization",
+      "id": "expression.cpm_normalization",
+      "implementation": "expression:cpm_normalization",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Convert raw counts to Counts Per Million (CPM)"
+    },
+    {
+      "function": "tpm_normalization",
+      "id": "expression.tpm_normalization",
+      "implementation": "expression:tpm_normalization",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Transcripts Per Million (TPM) normalization"
+    },
+    {
+      "function": "deseq2_normalization",
+      "id": "expression.deseq2_normalization",
+      "implementation": "expression:deseq2_normalization",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Median-of-ratios normalization (DESeq2 size factors)"
+    },
+    {
+      "function": "variance_stabilizing_transformation",
+      "id": "expression.variance_stabilizing_transformation",
+      "implementation": "expression:variance_stabilizing_transformation",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Variance Stabilizing Transformation (VST) for count data"
+    },
+    {
+      "function": "calculate_fold_change",
+      "id": "expression.calculate_fold_change",
+      "implementation": "expression:calculate_fold_change",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate log2 fold-change between two groups"
+    },
+    {
+      "function": "calculate_effect_size",
+      "id": "expression.calculate_effect_size",
+      "implementation": "expression:calculate_effect_size",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate effect size measures for differential expression"
+    },
+    {
+      "function": "differential_expression",
+      "id": "expression.differential_expression",
+      "implementation": "expression:differential_expression",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "expression",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Perform differential expression analysis between two groups"
+    },
+    {
+      "function": "parse_bed",
+      "id": "file_formats.parse_bed",
+      "implementation": "file_formats:parse_bed",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse BED file into list of BEDRecord objects"
+    },
+    {
+      "function": "parse_gff",
+      "id": "file_formats.parse_gff",
+      "implementation": "file_formats:parse_gff",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse GFF3 file into list of GFFRecord objects"
+    },
+    {
+      "function": "parse_newick",
+      "id": "file_formats.parse_newick",
+      "implementation": "file_formats:parse_newick",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse Newick format tree string into TreeNode objects"
+    },
+    {
+      "function": "tree_to_newick",
+      "id": "file_formats.tree_to_newick",
+      "implementation": "file_formats:tree_to_newick",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Convert TreeNode to a Newick format string"
+    },
+    {
+      "function": "tree_to_ascii",
+      "id": "file_formats.tree_to_ascii",
+      "implementation": "file_formats:tree_to_ascii",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Convert tree to ASCII art for display"
+    },
+    {
+      "function": "parse_stockholm",
+      "id": "file_formats.parse_stockholm",
+      "implementation": "file_formats:parse_stockholm",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse Stockholm format alignment file"
+    },
+    {
+      "function": "bed_to_dataframe",
+      "id": "file_formats.bed_to_dataframe",
+      "implementation": "file_formats:bed_to_dataframe",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Convert BED records to pandas DataFrame"
+    },
+    {
+      "function": "gff_to_dataframe",
+      "id": "file_formats.gff_to_dataframe",
+      "implementation": "file_formats:gff_to_dataframe",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Convert GFF records to pandas DataFrame"
+    },
+    {
+      "function": "format_bed_summary",
+      "id": "file_formats.format_bed_summary",
+      "implementation": "file_formats:format_bed_summary",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.file_formats."
+    },
+    {
+      "function": "format_gff_summary",
+      "id": "file_formats.format_gff_summary",
+      "implementation": "file_formats:format_gff_summary",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.file_formats."
+    },
+    {
+      "function": "read_bigwig",
+      "id": "file_formats.read_bigwig",
+      "implementation": "file_formats:read_bigwig",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read BigWig file as numpy array"
+    },
+    {
+      "function": "bigwig_summary",
+      "id": "file_formats.bigwig_summary",
+      "implementation": "file_formats:bigwig_summary",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Summarize BigWig data into bins"
+    },
+    {
+      "function": "format_bigwig_summary",
+      "id": "file_formats.format_bigwig_summary",
+      "implementation": "file_formats:format_bigwig_summary",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format BigWig summary as text, listing at most BIGWIG_REPORT_ROWS bins"
+    },
+    {
+      "function": "read_cram",
+      "id": "file_formats.read_cram",
+      "implementation": "file_formats:read_cram",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read CRAM file and return alignment records"
+    },
+    {
+      "function": "read_bam",
+      "id": "file_formats.read_bam",
+      "implementation": "file_formats:read_bam",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read BAM file and return alignment records (pysam-backed)"
+    },
+    {
+      "function": "read_bcf",
+      "id": "file_formats.read_bcf",
+      "implementation": "file_formats:read_bcf",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read a BCF file (the binary VCF) into a list of variant records"
+    },
+    {
+      "function": "parse_gtf",
+      "id": "file_formats.parse_gtf",
+      "implementation": "file_formats:parse_gtf",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse GTF (Gene Transfer Format) file"
+    },
+    {
+      "function": "parse_saf",
+      "id": "file_formats.parse_saf",
+      "implementation": "file_formats:parse_saf",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Parse SAF (Simple Annotation Format) file"
+    },
+    {
+      "function": "read_bam_index",
+      "id": "file_formats.read_bam_index",
+      "implementation": "file_formats:read_bam_index",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read BAM index (.bai) file and return basic metadata"
+    },
+    {
+      "function": "read_vcf_index",
+      "id": "file_formats.read_vcf_index",
+      "implementation": "file_formats:read_vcf_index",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read VCF tabix index (.tbi) file"
+    },
+    {
+      "function": "detect_file_format",
+      "id": "file_formats.detect_file_format",
+      "implementation": "file_formats:detect_file_format",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Detect bioinformatics file format from extension"
+    },
+    {
+      "function": "read_file",
+      "id": "file_formats.read_file",
+      "implementation": "file_formats:read_file",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Universal file reader that auto-detects format from the file's extension"
+    },
+    {
+      "function": "format_file_summary",
+      "id": "file_formats.format_file_summary",
+      "implementation": "file_formats:format_file_summary",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "file_formats",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format file read result as human-readable text"
+    },
+    {
+      "function": "go_enrichment",
+      "id": "go_browser.go_enrichment",
+      "implementation": "go_browser:go_enrichment",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "go_browser",
+      "requires": {
+        "packages": [
+          "goatools"
+        ],
+        "tools": []
+      },
+      "summary": "Score each GO term against a gene list with Fisher's exact test"
+    },
+    {
+      "function": "format_go_results",
+      "id": "go_browser.format_go_results",
+      "implementation": "go_browser:format_go_results",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "go_browser",
+      "requires": {
+        "packages": [
+          "goatools"
+        ],
+        "tools": []
+      },
+      "summary": "Format GO term search results"
+    },
+    {
+      "function": "gwas_chi_squared",
+      "id": "gwas.gwas_chi_squared",
+      "implementation": "gwas:gwas_chi_squared",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "gwas",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Perform chi-squared test for one SNP"
+    },
+    {
+      "function": "run_gwas",
+      "id": "gwas.run_gwas",
+      "implementation": "gwas:run_gwas",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "gwas",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Run GWAS on a DataFrame of SNP data"
+    },
+    {
+      "function": "detect_lead_snps",
+      "id": "gwas.detect_lead_snps",
+      "implementation": "gwas:detect_lead_snps",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "gwas",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Detect lead (top) SNPs per locus"
+    },
+    {
+      "function": "generate_gwas_data",
+      "id": "gwas.generate_gwas_data",
+      "implementation": "gwas:generate_gwas_data",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "gwas",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Generate simulated GWAS data for testing/demo"
+    },
+    {
+      "function": "format_gwas_report",
+      "id": "gwas.format_gwas_report",
+      "implementation": "gwas:format_gwas_report",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "gwas",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format GWAS results as text report"
+    },
+    {
+      "function": "get_logger",
+      "id": "log.get_logger",
+      "implementation": "log:get_logger",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "log",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Get a logger for a module"
+    },
+    {
+      "function": "log_performance",
+      "id": "log.log_performance",
+      "implementation": "log:log_performance",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "log",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Log performance metrics for an analysis step"
+    },
+    {
+      "function": "log_exception",
+      "id": "log.log_exception",
+      "implementation": "log:log_exception",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "log",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Log exception type and frame locations without private messages or source"
+    },
+    {
+      "function": "log_warning",
+      "id": "log.log_warning",
+      "implementation": "log:log_warning",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "log",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Log a warning message"
+    },
+    {
+      "function": "log_error",
+      "id": "log.log_error",
+      "implementation": "log:log_error",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "log",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Log an error with optional exception info"
+    },
+    {
+      "function": "log_step",
+      "id": "log.log_step",
+      "implementation": "log:log_step",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "log",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Log an analysis step (replaces print-based step logging)"
+    },
+    {
+      "function": "parse_pdb",
+      "id": "md_simulation.parse_pdb",
+      "implementation": "md_simulation:parse_pdb",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Parse a PDB file into a PDBStructure"
+    },
+    {
+      "function": "assign_lj_parameters",
+      "id": "md_simulation.assign_lj_parameters",
+      "implementation": "md_simulation:assign_lj_parameters",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Assign LJ parameters from atom names / element types"
+    },
+    {
+      "function": "lj_cutoff_correction",
+      "id": "md_simulation.lj_cutoff_correction",
+      "implementation": "md_simulation:lj_cutoff_correction",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Long-range tail correction for the LJ energy of ``n`` atoms"
+    },
+    {
+      "function": "compute_lj_energy",
+      "id": "md_simulation.compute_lj_energy",
+      "implementation": "md_simulation:compute_lj_energy",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Compute Lennard-Jones energy and forces with cutoff and tail correction"
+    },
+    {
+      "function": "compute_bond_energy",
+      "id": "md_simulation.compute_bond_energy",
+      "implementation": "md_simulation:compute_bond_energy",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Harmonic bond potential: E = 0.5 * k * (r - r0)^2"
+    },
+    {
+      "function": "compute_angle_energy",
+      "id": "md_simulation.compute_angle_energy",
+      "implementation": "md_simulation:compute_angle_energy",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Harmonic angle potential: E = 0.5 * k * (theta - theta0)^2"
+    },
+    {
+      "function": "compute_forces",
+      "id": "md_simulation.compute_forces",
+      "implementation": "md_simulation:compute_forces",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Total potential energy and forces from LJ + bonds + angles"
+    },
+    {
+      "function": "minimize_energy",
+      "id": "md_simulation.minimize_energy",
+      "implementation": "md_simulation:minimize_energy",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Steepest-descent energy minimisation"
+    },
+    {
+      "function": "compute_temperature",
+      "id": "md_simulation.compute_temperature",
+      "implementation": "md_simulation:compute_temperature",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Instantaneous temperature from kinetic energy"
+    },
+    {
+      "function": "berendsen_thermostat",
+      "id": "md_simulation.berendsen_thermostat",
+      "implementation": "md_simulation:berendsen_thermostat",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Berendsen velocity rescaling thermostat"
+    },
+    {
+      "function": "velocity_verlet_step",
+      "id": "md_simulation.velocity_verlet_step",
+      "implementation": "md_simulation:velocity_verlet_step",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "One Velocity Verlet step with Berendsen thermostat"
+    },
+    {
+      "function": "compute_rmsd",
+      "id": "md_simulation.compute_rmsd",
+      "implementation": "md_simulation:compute_rmsd",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Root-mean-square deviation between two coordinate sets"
+    },
+    {
+      "function": "compute_radius_of_gyration",
+      "id": "md_simulation.compute_radius_of_gyration",
+      "implementation": "md_simulation:compute_radius_of_gyration",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Mass-weighted radius of gyration"
+    },
+    {
+      "function": "write_pdb",
+      "id": "md_simulation.write_pdb",
+      "implementation": "md_simulation:write_pdb",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Write a PDB file, preserving original metadata when available"
+    },
+    {
+      "function": "check_md_tools",
+      "id": "md_simulation.check_md_tools",
+      "implementation": "md_simulation:check_md_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Which optional MD engines this install can reach"
+    },
+    {
+      "function": "run_simulation",
+      "id": "md_simulation.run_simulation",
+      "implementation": "md_simulation:run_simulation",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Run molecular dynamics simulation"
+    },
+    {
+      "function": "format_md_report",
+      "id": "md_simulation.format_md_report",
+      "implementation": "md_simulation:format_md_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "md_simulation",
+      "requires": {
+        "packages": [
+          "openmm"
+        ],
+        "tools": []
+      },
+      "summary": "Human-readable report string"
+    },
+    {
+      "function": "check_metabolism_tools",
+      "id": "metabolism.check_metabolism_tools",
+      "implementation": "metabolism:check_metabolism_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolism",
+      "requires": {
+        "packages": [
+          "cobra"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.metabolism."
+    },
+    {
+      "function": "run_fba",
+      "id": "metabolism.run_fba",
+      "implementation": "metabolism:run_fba",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolism",
+      "requires": {
+        "packages": [
+          "cobra"
+        ],
+        "tools": []
+      },
+      "summary": "Maximise an objective flux, with COBRApy when a model file can be solved"
+    },
+    {
+      "function": "knockout_analysis",
+      "id": "metabolism.knockout_analysis",
+      "implementation": "metabolism:knockout_analysis",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolism",
+      "requires": {
+        "packages": [
+          "cobra"
+        ],
+        "tools": []
+      },
+      "summary": "Simulate single-gene knockouts. Needs COBRApy: without it, nothing is tested"
+    },
+    {
+      "function": "create_stoichiometric_matrix",
+      "id": "metabolism.create_stoichiometric_matrix",
+      "implementation": "metabolism:create_stoichiometric_matrix",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolism",
+      "requires": {
+        "packages": [
+          "cobra"
+        ],
+        "tools": []
+      },
+      "summary": "Build the S matrix (metabolites x reactions) of a parsed reaction dict"
+    },
+    {
+      "function": "format_flux_report",
+      "id": "metabolism.format_flux_report",
+      "implementation": "metabolism:format_flux_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolism",
+      "requires": {
+        "packages": [
+          "cobra"
+        ],
+        "tools": []
+      },
+      "summary": "The text a user reads as the result of an FBA run"
+    },
+    {
+      "function": "detect_peaks",
+      "id": "metabolomics.detect_peaks",
+      "implementation": "metabolomics:detect_peaks",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Detect peaks in a chromatogram or mass spectrum"
+    },
+    {
+      "function": "detect_features_from_matrix",
+      "id": "metabolomics.detect_features_from_matrix",
+      "implementation": "metabolomics:detect_features_from_matrix",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Detect features across multiple samples from a 2D intensity matrix"
+    },
+    {
+      "function": "align_features",
+      "id": "metabolomics.align_features",
+      "implementation": "metabolomics:align_features",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Align detected features across samples"
+    },
+    {
+      "function": "anova_test",
+      "id": "metabolomics.anova_test",
+      "implementation": "metabolomics:anova_test",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Perform ANOVA test across groups for each feature"
+    },
+    {
+      "function": "pca_feature_matrix",
+      "id": "metabolomics.pca_feature_matrix",
+      "implementation": "metabolomics:pca_feature_matrix",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "PCA of metabolomics feature matrix"
+    },
+    {
+      "function": "format_metabolomics_report",
+      "id": "metabolomics.format_metabolomics_report",
+      "implementation": "metabolomics:format_metabolomics_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metabolomics",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.metabolomics."
+    },
+    {
+      "function": "check_metagenomics_tools",
+      "id": "metagenomics.check_metagenomics_tools",
+      "implementation": "metagenomics:check_metagenomics_tools",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Which external metagenomics engines this machine can run"
+    },
+    {
+      "function": "shannon_entropy",
+      "id": "metagenomics.shannon_entropy",
+      "implementation": "metagenomics:shannon_entropy",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.metagenomics."
+    },
+    {
+      "function": "simpson_index",
+      "id": "metagenomics.simpson_index",
+      "implementation": "metagenomics:simpson_index",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.metagenomics."
+    },
+    {
+      "function": "chao1_estimator",
+      "id": "metagenomics.chao1_estimator",
+      "implementation": "metagenomics:chao1_estimator",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Chao1 richness: the singleton/doubleton counts decide the extrapolation"
+    },
+    {
+      "function": "bray_curtis_distance",
+      "id": "metagenomics.bray_curtis_distance",
+      "implementation": "metagenomics:bray_curtis_distance",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.metagenomics."
+    },
+    {
+      "function": "compute_alpha_diversity",
+      "id": "metagenomics.compute_alpha_diversity",
+      "implementation": "metagenomics:compute_alpha_diversity",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.metagenomics."
+    },
+    {
+      "function": "compute_beta_diversity",
+      "id": "metagenomics.compute_beta_diversity",
+      "implementation": "metagenomics:compute_beta_diversity",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Pairwise Bray-Curtis distances between samples"
+    },
+    {
+      "function": "classify_reads",
+      "id": "metagenomics.classify_reads",
+      "implementation": "metagenomics:classify_reads",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Classify the reads of a FASTQ file"
+    },
+    {
+      "function": "analyze_diversity",
+      "id": "metagenomics.analyze_diversity",
+      "implementation": "metagenomics:analyze_diversity",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Per-sample alpha diversity plus the pairwise beta matrix"
+    },
+    {
+      "function": "format_metagenomics_report",
+      "id": "metagenomics.format_metagenomics_report",
+      "implementation": "metagenomics:format_metagenomics_report",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.metagenomics."
+    },
+    {
+      "function": "classify_16s_rna",
+      "id": "metagenomics.classify_16s_rna",
+      "implementation": "metagenomics:classify_16s_rna",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Classify 16S rRNA sequences against a reference database"
+    },
+    {
+      "function": "alpha_diversity_single",
+      "id": "metagenomics.alpha_diversity_single",
+      "implementation": "metagenomics:alpha_diversity_single",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Compute alpha diversity for a single sample"
+    },
+    {
+      "function": "format_16s_report",
+      "id": "metagenomics.format_16s_report",
+      "implementation": "metagenomics:format_16s_report",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "metagenomics",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kraken2"
+        ]
+      },
+      "summary": "Format 16S rRNA classification results"
+    },
+    {
+      "function": "check_phylo_tools",
+      "id": "ml_phylogeny.check_phylo_tools",
+      "implementation": "ml_phylogeny:check_phylo_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ml_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "RAxML",
+          "iqtree",
+          "raxml-ng"
+        ]
+      },
+      "summary": "Which external phylogenetics engines are usable"
+    },
+    {
+      "function": "build_tree",
+      "id": "ml_phylogeny.build_tree",
+      "implementation": "ml_phylogeny:build_tree",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ml_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "RAxML",
+          "iqtree",
+          "raxml-ng"
+        ]
+      },
+      "summary": "Build a phylogenetic tree"
+    },
+    {
+      "function": "parse_newick",
+      "id": "ml_phylogeny.parse_newick",
+      "implementation": "ml_phylogeny:parse_newick",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ml_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "RAxML",
+          "iqtree",
+          "raxml-ng"
+        ]
+      },
+      "summary": "Read a Newick string into a ``Bio.Phylo`` tree, or return None"
+    },
+    {
+      "function": "format_phylo_report",
+      "id": "ml_phylogeny.format_phylo_report",
+      "implementation": "ml_phylogeny:format_phylo_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ml_phylogeny",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "RAxML",
+          "iqtree",
+          "raxml-ng"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.ml_phylogeny."
+    },
+    {
+      "function": "check_tools",
+      "id": "msa.check_tools",
+      "implementation": "msa:check_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Detect availability of external MSA tools"
+    },
+    {
+      "function": "auto_align",
+      "id": "msa.auto_align",
+      "implementation": "msa:auto_align",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Align sequences, choosing the engine ``method`` asks for"
+    },
+    {
+      "function": "run_clustal_omega",
+      "id": "msa.run_clustal_omega",
+      "implementation": "msa:run_clustal_omega",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Explicit Clustal Omega wrapper (raises if it is not installed)"
+    },
+    {
+      "function": "run_muscle",
+      "id": "msa.run_muscle",
+      "implementation": "msa:run_muscle",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Explicit MUSCLE wrapper (raises if it is not installed)"
+    },
+    {
+      "function": "run_mafft",
+      "id": "msa.run_mafft",
+      "implementation": "msa:run_mafft",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Explicit MAFFT wrapper (raises if it is not installed)"
+    },
+    {
+      "function": "compute_conservation",
+      "id": "msa.compute_conservation",
+      "implementation": "msa:compute_conservation",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Per-column conservation scores from an alignment"
+    },
+    {
+      "function": "consensus_sequence",
+      "id": "msa.consensus_sequence",
+      "implementation": "msa:consensus_sequence",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Build consensus sequence from an MSA using majority rule"
+    },
+    {
+      "function": "alignment_statistics",
+      "id": "msa.alignment_statistics",
+      "implementation": "msa:alignment_statistics",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Summary statistics for an alignment"
+    },
+    {
+      "function": "format_alignment",
+      "id": "msa.format_alignment",
+      "implementation": "msa:format_alignment",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Render an alignment as wrapped text with optional conservation row"
+    },
+    {
+      "function": "read_fasta_for_msa",
+      "id": "msa.read_fasta_for_msa",
+      "implementation": "msa:read_fasta_for_msa",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "msa",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "clustalo",
+          "mafft",
+          "muscle"
+        ]
+      },
+      "summary": "Read unaligned FASTA sequences for MSA input"
+    },
+    {
+      "function": "read_bam_header",
+      "id": "ngs.read_bam_header",
+      "implementation": "ngs:read_bam_header",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Return header dictionary from BAM file"
+    },
+    {
+      "function": "read_vcf",
+      "id": "ngs.read_vcf",
+      "implementation": "ngs:read_vcf",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Read VCF file and return DataFrame with CHROM, POS, REF, ALT, QUAL, INFO"
+    },
+    {
+      "function": "manhattan_from_vcf",
+      "id": "ngs.manhattan_from_vcf",
+      "implementation": "ngs:manhattan_from_vcf",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Convert VCF DataFrame to Manhattan plot data (chrom, pos, -log10(p))"
+    },
+    {
+      "function": "read_sam",
+      "id": "ngs.read_sam",
+      "implementation": "ngs:read_sam",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Read a SAM file and return a list of parsed read records"
+    },
+    {
+      "function": "parse_sam_header",
+      "id": "ngs.parse_sam_header",
+      "implementation": "ngs:parse_sam_header",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Parse header lines from a SAM file into a line-classified dict"
+    },
+    {
+      "function": "parse_sam_read",
+      "id": "ngs.parse_sam_read",
+      "implementation": "ngs:parse_sam_read",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Parse a single SAM alignment line into a dict"
+    },
+    {
+      "function": "compute_coverage",
+      "id": "ngs.compute_coverage",
+      "implementation": "ngs:compute_coverage",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Compute per-base or windowed coverage from a BAM file"
+    },
+    {
+      "function": "intersect_bed_vcf",
+      "id": "ngs.intersect_bed_vcf",
+      "implementation": "ngs:intersect_bed_vcf",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Intersect BED intervals with VCF variant positions"
+    },
+    {
+      "function": "coverage_from_bed",
+      "id": "ngs.coverage_from_bed",
+      "implementation": "ngs:coverage_from_bed",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Compute mean coverage over each BED interval"
+    },
+    {
+      "function": "vcf_summary",
+      "id": "ngs.vcf_summary",
+      "implementation": "ngs:vcf_summary",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Compute summary statistics from a VCF file"
+    },
+    {
+      "function": "compute_ts_tv_ratio",
+      "id": "ngs.compute_ts_tv_ratio",
+      "implementation": "ngs:compute_ts_tv_ratio",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "ngs",
+      "requires": {
+        "packages": [
+          "pysam"
+        ],
+        "tools": []
+      },
+      "summary": "Compute transition/transversion ratio from a VCF file"
+    },
+    {
+      "function": "find_orfs",
+      "id": "orf_finder.find_orfs",
+      "implementation": "orf_finder:find_orfs",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "orf_finder",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Find all open reading frames in a sequence"
+    },
+    {
+      "function": "find_restriction_sites",
+      "id": "orf_finder.find_restriction_sites",
+      "implementation": "orf_finder:find_restriction_sites",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "orf_finder",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Find restriction enzyme cut sites in a sequence"
+    },
+    {
+      "function": "design_primers",
+      "id": "orf_finder.design_primers",
+      "implementation": "orf_finder:design_primers",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "orf_finder",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Design PCR primers for a target region"
+    },
+    {
+      "function": "format_orf_results",
+      "id": "orf_finder.format_orf_results",
+      "implementation": "orf_finder:format_orf_results",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "orf_finder",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.orf_finder."
+    },
+    {
+      "function": "format_restriction_sites",
+      "id": "orf_finder.format_restriction_sites",
+      "implementation": "orf_finder:format_restriction_sites",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "orf_finder",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.orf_finder."
+    },
+    {
+      "function": "format_primers",
+      "id": "orf_finder.format_primers",
+      "implementation": "orf_finder:format_primers",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "orf_finder",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.orf_finder."
+    },
+    {
+      "function": "get_optimal_workers",
+      "id": "parallel.get_optimal_workers",
+      "implementation": "parallel:get_optimal_workers",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Determine optimal number of workers based on system resources"
+    },
+    {
+      "function": "parallel_map",
+      "id": "parallel.parallel_map",
+      "implementation": "parallel:parallel_map",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Apply a function to all items in parallel"
+    },
+    {
+      "function": "parallel_submit",
+      "id": "parallel.parallel_submit",
+      "implementation": "parallel:parallel_submit",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Submit heterogeneous tasks in parallel"
+    },
+    {
+      "function": "parallel_gc_content",
+      "id": "parallel.parallel_gc_content",
+      "implementation": "parallel:parallel_gc_content",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate GC content for multiple sequences in parallel"
+    },
+    {
+      "function": "parallel_reverse_complement",
+      "id": "parallel.parallel_reverse_complement",
+      "implementation": "parallel:parallel_reverse_complement",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Compute reverse complement for multiple sequences in parallel"
+    },
+    {
+      "function": "parallel_translate",
+      "id": "parallel.parallel_translate",
+      "implementation": "parallel:parallel_translate",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Translate multiple DNA sequences in parallel"
+    },
+    {
+      "function": "parallel_align_pairs",
+      "id": "parallel.parallel_align_pairs",
+      "implementation": "parallel:parallel_align_pairs",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Align multiple sequence pairs in parallel"
+    },
+    {
+      "function": "get_default_pool",
+      "id": "parallel.get_default_pool",
+      "implementation": "parallel:get_default_pool",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Get or create a default worker pool for reuse"
+    },
+    {
+      "function": "shutdown_default_pool",
+      "id": "parallel.shutdown_default_pool",
+      "implementation": "parallel:shutdown_default_pool",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "parallel",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Shutdown the default worker pool"
+    },
+    {
+      "function": "draw_pathway",
+      "id": "pathway_viz.draw_pathway",
+      "implementation": "pathway_viz:draw_pathway",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "pathway_viz",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Draw a pathway map"
+    },
+    {
+      "function": "create_kegg_style_pathway",
+      "id": "pathway_viz.create_kegg_style_pathway",
+      "implementation": "pathway_viz:create_kegg_style_pathway",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "pathway_viz",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Create a sample KEGG-style MAPK signaling pathway"
+    },
+    {
+      "function": "create_custom_pathway",
+      "id": "pathway_viz.create_custom_pathway",
+      "implementation": "pathway_viz:create_custom_pathway",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "pathway_viz",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Create a custom pathway from gene names"
+    },
+    {
+      "function": "format_pathway_report",
+      "id": "pathway_viz.format_pathway_report",
+      "implementation": "pathway_viz:format_pathway_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "pathway_viz",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format pathway info as text"
+    },
+    {
+      "function": "check_peak_tools",
+      "id": "peak_calling.check_peak_tools",
+      "implementation": "peak_calling:check_peak_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "peak_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "macs2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.peak_calling."
+    },
+    {
+      "function": "call_peaks",
+      "id": "peak_calling.call_peaks",
+      "implementation": "peak_calling:call_peaks",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "peak_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "macs2"
+        ]
+      },
+      "summary": "Call ChIP-seq peaks, preferring MACS2 when it is installed"
+    },
+    {
+      "function": "annotate_peaks_with_genes",
+      "id": "peak_calling.annotate_peaks_with_genes",
+      "implementation": "peak_calling:annotate_peaks_with_genes",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "peak_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "macs2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.peak_calling."
+    },
+    {
+      "function": "format_peak_report",
+      "id": "peak_calling.format_peak_report",
+      "implementation": "peak_calling:format_peak_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "peak_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "macs2"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.peak_calling."
+    },
+    {
+      "function": "p_distance",
+      "id": "phylogeny.p_distance",
+      "implementation": "phylogeny:p_distance",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "phylogeny",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Proportion of differing sites (ignoring gaps)"
+    },
+    {
+      "function": "distance_matrix",
+      "id": "phylogeny.distance_matrix",
+      "implementation": "phylogeny:distance_matrix",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "phylogeny",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Compute pairwise p-distance matrix for list of sequences (same length)"
+    },
+    {
+      "function": "upgma_tree",
+      "id": "phylogeny.upgma_tree",
+      "implementation": "phylogeny:upgma_tree",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "phylogeny",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Build a UPGMA linkage matrix with SciPy (method='average')"
+    },
+    {
+      "function": "plot_phylogenetic_tree",
+      "id": "phylogeny.plot_phylogenetic_tree",
+      "implementation": "phylogeny:plot_phylogenetic_tree",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "phylogeny",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Plot dendrogram from linkage matrix"
+    },
+    {
+      "function": "get_plugin_manager",
+      "id": "plugin.get_plugin_manager",
+      "implementation": "plugin:get_plugin_manager",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "plugin",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Get or create the global plugin manager"
+    },
+    {
+      "function": "hardy_weinberg_test",
+      "id": "popgen.hardy_weinberg_test",
+      "implementation": "popgen:hardy_weinberg_test",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Chi-square test of Hardy-Weinberg equilibrium at a biallelic locus"
+    },
+    {
+      "function": "calculate_fst",
+      "id": "popgen.calculate_fst",
+      "implementation": "popgen:calculate_fst",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate pairwise FST between populations (Nei's Gst estimator)"
+    },
+    {
+      "function": "nucleotide_diversity",
+      "id": "popgen.nucleotide_diversity",
+      "implementation": "popgen:nucleotide_diversity",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Average per-site nucleotide diversity (pi) of one population"
+    },
+    {
+      "function": "tajimas_d",
+      "id": "popgen.tajimas_d",
+      "implementation": "popgen:tajimas_d",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate Tajima's D from a diploid genotype matrix"
+    },
+    {
+      "function": "linkage_disequilibrium",
+      "id": "popgen.linkage_disequilibrium",
+      "implementation": "popgen:linkage_disequilibrium",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Calculate pairwise LD (r-squared) between sites"
+    },
+    {
+      "function": "pca_genotypes",
+      "id": "popgen.pca_genotypes",
+      "implementation": "popgen:pca_genotypes",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "PCA of genotype data"
+    },
+    {
+      "function": "full_analysis",
+      "id": "popgen.full_analysis",
+      "implementation": "popgen:full_analysis",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Run complete population genetics analysis"
+    },
+    {
+      "function": "format_popgen_report",
+      "id": "popgen.format_popgen_report",
+      "implementation": "popgen:format_popgen_report",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "popgen",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.popgen."
+    },
+    {
+      "function": "dumps_params",
+      "id": "provenance.dumps_params",
+      "implementation": "provenance:dumps_params",
+      "interfaces": [
+        "api",
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "provenance",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Serialise step parameters, never raising on exotic scientific objects"
+    },
+    {
+      "function": "tracked",
+      "id": "provenance.tracked",
+      "implementation": "provenance:tracked",
+      "interfaces": [
+        "api",
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "provenance",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Decorator that automatically records function calls to a ProvenanceTracker"
+    },
+    {
+      "function": "get_global_tracker",
+      "id": "provenance.get_global_tracker",
+      "implementation": "provenance:get_global_tracker",
+      "interfaces": [
+        "api",
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "provenance",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Get or create the global provenance tracker (thread-safe)"
+    },
+    {
+      "function": "set_global_tracker",
+      "id": "provenance.set_global_tracker",
+      "implementation": "provenance:set_global_tracker",
+      "interfaces": [
+        "api",
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "provenance",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Set the global provenance tracker (pass None to drop it)"
+    },
+    {
+      "function": "record_step",
+      "id": "provenance.record_step",
+      "implementation": "provenance:record_step",
+      "interfaces": [
+        "api",
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "provenance",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Record a step to the global tracker"
+    },
+    {
+      "function": "check_quantification_tools",
+      "id": "quantification.check_quantification_tools",
+      "implementation": "quantification:check_quantification_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.quantification."
+    },
+    {
+      "function": "build_salmon_index",
+      "id": "quantification.build_salmon_index",
+      "implementation": "quantification:build_salmon_index",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.quantification."
+    },
+    {
+      "function": "kallisto_index",
+      "id": "quantification.kallisto_index",
+      "implementation": "quantification:kallisto_index",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.quantification."
+    },
+    {
+      "function": "salmon_quant",
+      "id": "quantification.salmon_quant",
+      "implementation": "quantification:salmon_quant",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Quantify with Salmon, building an index from the transcriptome if asked"
+    },
+    {
+      "function": "kallisto_quant",
+      "id": "quantification.kallisto_quant",
+      "implementation": "quantification:kallisto_quant",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Quantify with Kallisto, building an index from the transcriptome if asked"
+    },
+    {
+      "function": "quantify_reads",
+      "id": "quantification.quantify_reads",
+      "implementation": "quantification:quantify_reads",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Quantify RNA-seq reads against a transcriptome using built-in engine"
+    },
+    {
+      "function": "merge_quantification_results",
+      "id": "quantification.merge_quantification_results",
+      "implementation": "quantification:merge_quantification_results",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Merge per-sample TPM columns into one transcript x sample matrix"
+    },
+    {
+      "function": "format_quant_report",
+      "id": "quantification.format_quant_report",
+      "implementation": "quantification:format_quant_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "quantification",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "kallisto",
+          "salmon"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.quantification."
+    },
+    {
+      "function": "check_aligner_tools",
+      "id": "read_aligner.check_aligner_tools",
+      "implementation": "read_aligner:check_aligner_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "read_aligner",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bowtie2",
+          "bwa"
+        ]
+      },
+      "summary": "Detect bwa/bowtie2 availability on PATH"
+    },
+    {
+      "function": "align_reads",
+      "id": "read_aligner.align_reads",
+      "implementation": "read_aligner:align_reads",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "read_aligner",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bowtie2",
+          "bwa"
+        ]
+      },
+      "summary": "Align reads auto-selecting best available engine"
+    },
+    {
+      "function": "format_alignment_report",
+      "id": "read_aligner.format_alignment_report",
+      "implementation": "read_aligner:format_alignment_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "read_aligner",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bowtie2",
+          "bwa"
+        ]
+      },
+      "summary": "Format AlignmentReport with mapping-rate breakdown table"
+    },
+    {
+      "function": "read_fasta",
+      "id": "sequence.read_fasta",
+      "implementation": "sequence:read_fasta",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Parse a FASTA file into (header, sequence) tuples"
+    },
+    {
+      "function": "read_fastq",
+      "id": "sequence.read_fastq",
+      "implementation": "sequence:read_fastq",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Parse a FASTQ file into (name, sequence, quality) tuples"
+    },
+    {
+      "function": "read_genbank",
+      "id": "sequence.read_genbank",
+      "implementation": "sequence:read_genbank",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Parse a GenBank file into (id, sequence, features) tuples"
+    },
+    {
+      "function": "validate_nucleotide_sequence",
+      "id": "sequence.validate_nucleotide_sequence",
+      "implementation": "sequence:validate_nucleotide_sequence",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Return *seq* as a string after checking it really is nucleotides"
+    },
+    {
+      "function": "gc_content",
+      "id": "sequence.gc_content",
+      "implementation": "sequence:gc_content",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": true,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Calculate GC content as a percentage"
+    },
+    {
+      "function": "reverse_complement",
+      "id": "sequence.reverse_complement",
+      "implementation": "sequence:reverse_complement",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": true,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Compute the reverse complement of a DNA sequence"
+    },
+    {
+      "function": "translate",
+      "id": "sequence.translate",
+      "implementation": "sequence:translate",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": true,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Translate a nucleotide sequence to protein using the standard genetic code"
+    },
+    {
+      "function": "sequence_stats",
+      "id": "sequence.sequence_stats",
+      "implementation": "sequence:sequence_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": true,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Compute base composition statistics for a nucleotide sequence"
+    },
+    {
+      "function": "quality_stats",
+      "id": "sequence.quality_stats",
+      "implementation": "sequence:quality_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "notebook",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "sequence",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": []
+      },
+      "summary": "Compute Phred quality score statistics from a FASTQ quality string"
+    },
+    {
+      "function": "check_single_cell_tools",
+      "id": "single_cell.check_single_cell_tools",
+      "implementation": "single_cell:check_single_cell_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Report each engine by what actually imported"
+    },
+    {
+      "function": "load_count_matrix",
+      "id": "single_cell.load_count_matrix",
+      "implementation": "single_cell:load_count_matrix",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "qc_filter",
+      "id": "single_cell.qc_filter",
+      "implementation": "single_cell:qc_filter",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "normalize_and_log",
+      "id": "single_cell.normalize_and_log",
+      "implementation": "single_cell:normalize_and_log",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "find_highly_variable_genes",
+      "id": "single_cell.find_highly_variable_genes",
+      "implementation": "single_cell:find_highly_variable_genes",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "scale_and_pca",
+      "id": "single_cell.scale_and_pca",
+      "implementation": "single_cell:scale_and_pca",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Scale and reduce to ``n_pcs`` principal components"
+    },
+    {
+      "function": "compute_neighbors",
+      "id": "single_cell.compute_neighbors",
+      "implementation": "single_cell:compute_neighbors",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "run_umap",
+      "id": "single_cell.run_umap",
+      "implementation": "single_cell:run_umap",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "cluster_leiden",
+      "id": "single_cell.cluster_leiden",
+      "implementation": "single_cell:cluster_leiden",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "cluster_louvain",
+      "id": "single_cell.cluster_louvain",
+      "implementation": "single_cell:cluster_louvain",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "find_marker_genes",
+      "id": "single_cell.find_marker_genes",
+      "implementation": "single_cell:find_marker_genes",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "compute_pseudotime",
+      "id": "single_cell.compute_pseudotime",
+      "implementation": "single_cell:compute_pseudotime",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Diffusion maps and diffusion pseudotime"
+    },
+    {
+      "function": "run_full_pipeline",
+      "id": "single_cell.run_full_pipeline",
+      "implementation": "single_cell:run_full_pipeline",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "format_sc_report",
+      "id": "single_cell.format_sc_report",
+      "implementation": "single_cell:format_sc_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "single_cell",
+      "requires": {
+        "packages": [
+          "anndata",
+          "scanpy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.single_cell."
+    },
+    {
+      "function": "check_structure_tools",
+      "id": "structure.check_structure_tools",
+      "implementation": "structure:check_structure_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "parse_pdb",
+      "id": "structure.parse_pdb",
+      "implementation": "structure:parse_pdb",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "get_structure_info",
+      "id": "structure.get_structure_info",
+      "implementation": "structure:get_structure_info",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "compute_secondary_structure",
+      "id": "structure.compute_secondary_structure",
+      "implementation": "structure:compute_secondary_structure",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "compute_ramachandran",
+      "id": "structure.compute_ramachandran",
+      "implementation": "structure:compute_ramachandran",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Return the backbone angles as two lists that stay in step"
+    },
+    {
+      "function": "compute_sasa",
+      "id": "structure.compute_sasa",
+      "implementation": "structure:compute_sasa",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Total solvent-accessible surface in Å², or 0.0 when it cannot be computed"
+    },
+    {
+      "function": "find_binding_sites",
+      "id": "structure.find_binding_sites",
+      "implementation": "structure:find_binding_sites",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Residues with an atom within ``radius`` of any atom of ``ligand_residue``"
+    },
+    {
+      "function": "load_pdb",
+      "id": "structure.load_pdb",
+      "implementation": "structure:load_pdb",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "full_analysis",
+      "id": "structure.full_analysis",
+      "implementation": "structure:full_analysis",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "format_structure_report",
+      "id": "structure.format_structure_report",
+      "implementation": "structure:format_structure_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure",
+      "requires": {
+        "packages": [
+          "Bio"
+        ],
+        "tools": [
+          "dssp",
+          "mkdssp"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.structure."
+    },
+    {
+      "function": "check_prediction_tools",
+      "id": "structure_prediction.check_prediction_tools",
+      "implementation": "structure_prediction:check_prediction_tools",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure_prediction",
+      "requires": {
+        "packages": [
+          "esm",
+          "torch"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.structure_prediction."
+    },
+    {
+      "function": "predict_structure",
+      "id": "structure_prediction.predict_structure",
+      "implementation": "structure_prediction:predict_structure",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure_prediction",
+      "requires": {
+        "packages": [
+          "esm",
+          "torch"
+        ],
+        "tools": []
+      },
+      "summary": "Predict a structure, AlphaFold DB first when a UniProt ID is given"
+    },
+    {
+      "function": "format_prediction_report",
+      "id": "structure_prediction.format_prediction_report",
+      "implementation": "structure_prediction:format_prediction_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "structure_prediction",
+      "requires": {
+        "packages": [
+          "esm",
+          "torch"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.structure_prediction."
+    },
+    {
+      "function": "kaplan_meier",
+      "id": "survival.kaplan_meier",
+      "implementation": "survival:kaplan_meier",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "survival",
+      "requires": {
+        "packages": [
+          "scipy"
+        ],
+        "tools": []
+      },
+      "summary": "Compute Kaplan-Meier survival estimate"
+    },
+    {
+      "function": "log_rank_test",
+      "id": "survival.log_rank_test",
+      "implementation": "survival:log_rank_test",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "survival",
+      "requires": {
+        "packages": [
+          "scipy"
+        ],
+        "tools": []
+      },
+      "summary": "Perform log-rank test comparing two survival curves"
+    },
+    {
+      "function": "cox_ph_summary",
+      "id": "survival.cox_ph_summary",
+      "implementation": "survival:cox_ph_summary",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "survival",
+      "requires": {
+        "packages": [
+          "scipy"
+        ],
+        "tools": []
+      },
+      "summary": "Median-split approximation of a one-covariate survival comparison"
+    },
+    {
+      "function": "format_km_result",
+      "id": "survival.format_km_result",
+      "implementation": "survival:format_km_result",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "survival",
+      "requires": {
+        "packages": [
+          "scipy"
+        ],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.survival."
+    },
+    {
+      "function": "check_trimming_tools",
+      "id": "trimming.check_trimming_tools",
+      "implementation": "trimming:check_trimming_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "trimming",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Detect cutadapt availability"
+    },
+    {
+      "function": "trim_fastq",
+      "id": "trimming.trim_fastq",
+      "implementation": "trimming:trim_fastq",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "trimming",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Single-end trim, cutadapt first and the built-in 3' trimmer as fallback"
+    },
+    {
+      "function": "trim_pair_end",
+      "id": "trimming.trim_pair_end",
+      "implementation": "trimming:trim_pair_end",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "trimming",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Paired-end trim keeping mate synchronization intact"
+    },
+    {
+      "function": "analyze_fastq_quality",
+      "id": "trimming.analyze_fastq_quality",
+      "implementation": "trimming:analyze_fastq_quality",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "trimming",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Pooled quality statistics over at most ``max_reads`` records"
+    },
+    {
+      "function": "format_trim_report",
+      "id": "trimming.format_trim_report",
+      "implementation": "trimming:format_trim_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "trimming",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format TrimReport with before/after retention statistics"
+    },
+    {
+      "function": "run_in_background",
+      "id": "utils.run_in_background",
+      "implementation": "utils:run_in_background",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Run a function in a background thread with an optional callback"
+    },
+    {
+      "function": "run_with_progress",
+      "id": "utils.run_with_progress",
+      "implementation": "utils:run_with_progress",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Run a function with progress updates"
+    },
+    {
+      "function": "get_app_dir",
+      "id": "utils.get_app_dir",
+      "implementation": "utils:get_app_dir",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Get the application directory, works with PyInstaller"
+    },
+    {
+      "function": "center_window",
+      "id": "utils.center_window",
+      "implementation": "utils:center_window",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Center a Tk window on the primary display with margins"
+    },
+    {
+      "function": "user_config_dir",
+      "id": "utils.user_config_dir",
+      "implementation": "utils:user_config_dir",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Directory holding per-user BioSuite state"
+    },
+    {
+      "function": "get_config_file",
+      "id": "utils.get_config_file",
+      "implementation": "utils:get_config_file",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Absolute path of the active config file (re-read on every call)"
+    },
+    {
+      "function": "get_session_file",
+      "id": "utils.get_session_file",
+      "implementation": "utils:get_session_file",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Absolute path of the active session file (re-read on every call)"
+    },
+    {
+      "function": "load_config",
+      "id": "utils.load_config",
+      "implementation": "utils:load_config",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Load user config from the user configuration directory"
+    },
+    {
+      "function": "save_config",
+      "id": "utils.save_config",
+      "implementation": "utils:save_config",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Persist the given config dict to the user configuration directory"
+    },
+    {
+      "function": "load_session",
+      "id": "utils.load_session",
+      "implementation": "utils:load_session",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Load last saved session (recent files, last tab) if present"
+    },
+    {
+      "function": "save_session",
+      "id": "utils.save_session",
+      "implementation": "utils:save_session",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Save session state dict to disk for next-launch restore"
+    },
+    {
+      "function": "autosave_session",
+      "id": "utils.autosave_session",
+      "implementation": "utils:autosave_session",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Best-effort autosave that silently ignores write errors"
+    },
+    {
+      "function": "get_api_key",
+      "id": "utils.get_api_key",
+      "implementation": "utils:get_api_key",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Get API key for a service (ncbi, uniprot, kegg, alphafold, etc.)"
+    },
+    {
+      "function": "set_api_key",
+      "id": "utils.set_api_key",
+      "implementation": "utils:set_api_key",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Save API key for a service"
+    },
+    {
+      "function": "prompt_api_key",
+      "id": "utils.prompt_api_key",
+      "implementation": "utils:prompt_api_key",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Prompt user to enter API key if not already set"
+    },
+    {
+      "function": "set_theme",
+      "id": "utils.set_theme",
+      "implementation": "utils:set_theme",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Apply a named theme to the running application"
+    },
+    {
+      "function": "safe_float_input",
+      "id": "utils.safe_float_input",
+      "implementation": "utils:safe_float_input",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Prompt for a float with validation and optional persistence key"
+    },
+    {
+      "function": "safe_int_input",
+      "id": "utils.safe_int_input",
+      "implementation": "utils:safe_int_input",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Prompt for an int with validation and optional persistence key"
+    },
+    {
+      "function": "safe_list_input",
+      "id": "utils.safe_list_input",
+      "implementation": "utils:safe_list_input",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Prompt once for a comma-separated list and cast every item"
+    },
+    {
+      "function": "load_dataframe_safe",
+      "id": "utils.load_dataframe_safe",
+      "implementation": "utils:load_dataframe_safe",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read CSV/TSV/Excel into a DataFrame without raising"
+    },
+    {
+      "function": "load_dataframe_safe_interactive",
+      "id": "utils.load_dataframe_safe_interactive",
+      "implementation": "utils:load_dataframe_safe_interactive",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Load dataframe and optionally show summary stats (interactive use only)"
+    },
+    {
+      "function": "maybe_downsample",
+      "id": "utils.maybe_downsample",
+      "implementation": "utils:maybe_downsample",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Uniformly downsample long series for responsive plotting"
+    },
+    {
+      "function": "apply_glass_ax",
+      "id": "utils.apply_glass_ax",
+      "implementation": "utils:apply_glass_ax",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Style an Axes with the dark glass look used across BioSuite plots"
+    },
+    {
+      "function": "ask_save_plot",
+      "id": "utils.ask_save_plot",
+      "implementation": "utils:ask_save_plot",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Save the current figure, then close it — in every branch, cancellation"
+    },
+    {
+      "function": "report_boxplot_stats",
+      "id": "utils.report_boxplot_stats",
+      "implementation": "utils:report_boxplot_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Compute boxplot summary stats per group for report panels"
+    },
+    {
+      "function": "report_scatter_stats",
+      "id": "utils.report_scatter_stats",
+      "implementation": "utils:report_scatter_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Pearson correlation and its p-value, for the scatter report"
+    },
+    {
+      "function": "report_volcano_stats",
+      "id": "utils.report_volcano_stats",
+      "implementation": "utils:report_volcano_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Volcano-plot summary: up/down counts at the given cutoffs"
+    },
+    {
+      "function": "report_pca_stats",
+      "id": "utils.report_pca_stats",
+      "implementation": "utils:report_pca_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Explained-variance ratios from a fitted PCA object"
+    },
+    {
+      "function": "report_manhattan_stats",
+      "id": "utils.report_manhattan_stats",
+      "implementation": "utils:report_manhattan_stats",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Manhattan summary: significant SNPs at *threshold* (a p-value) and the top hit"
+    },
+    {
+      "function": "add_ttest_to_boxplot",
+      "id": "utils.add_ttest_to_boxplot",
+      "implementation": "utils:add_ttest_to_boxplot",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Overlay a significance annotation on a boxplot Axes"
+    },
+    {
+      "function": "add_regression_eq",
+      "id": "utils.add_regression_eq",
+      "implementation": "utils:add_regression_eq",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Annotate the regression equation and R² onto a scatter Axes"
+    },
+    {
+      "function": "has_tool",
+      "id": "utils.has_tool",
+      "implementation": "utils:has_tool",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Whether an external command-line tool can be run"
+    },
+    {
+      "function": "smart_open",
+      "id": "utils.smart_open",
+      "implementation": "utils:smart_open",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Open a possibly compressed file transparently — one point of truth for input"
+    },
+    {
+      "function": "read_fasta_simple",
+      "id": "utils.read_fasta_simple",
+      "implementation": "utils:read_fasta_simple",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Read a FASTA file into (id, sequence) tuples without Biopython"
+    },
+    {
+      "function": "reverse_complement_dna",
+      "id": "utils.reverse_complement_dna",
+      "implementation": "utils:reverse_complement_dna",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Compute the reverse complement of a DNA sequence"
+    },
+    {
+      "function": "enzyme_cut_type",
+      "id": "utils.enzyme_cut_type",
+      "implementation": "utils:enzyme_cut_type",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Return 'blunt' / '5prime' / '3prime' for *name*, or 'unverified'"
+    },
+    {
+      "function": "secure_temp_path",
+      "id": "utils.secure_temp_path",
+      "implementation": "utils:secure_temp_path",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Reserve a unique temporary path safely and return it"
+    },
+    {
+      "function": "wrote_output",
+      "id": "utils.wrote_output",
+      "implementation": "utils:wrote_output",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "True if `path` is a file that holds at least one byte"
+    },
+    {
+      "function": "count_analysis_modules",
+      "id": "utils.count_analysis_modules",
+      "implementation": "utils:count_analysis_modules",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Number of analysis modules this installation ships: ``biosuite.core`` plus"
+    },
+    {
+      "function": "count_test_files",
+      "id": "utils.count_test_files",
+      "implementation": "utils:count_test_files",
+      "interfaces": [
+        "api",
+        "cli",
+        "gui",
+        "plotting",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "utils",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "``test_*.py`` files under ``./tests``, or 0 outside a source checkout"
+    },
+    {
+      "function": "validate_sequence",
+      "id": "validators.validate_sequence",
+      "implementation": "validators:validate_sequence",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "validators",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Decorator that validates the DNA/RNA sequence argument of a function"
+    },
+    {
+      "function": "validate_file_extension",
+      "id": "validators.validate_file_extension",
+      "implementation": "validators:validate_file_extension",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "validators",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Decorator that validates a file path has an allowed extension"
+    },
+    {
+      "function": "validate_dataframe_columns",
+      "id": "validators.validate_dataframe_columns",
+      "implementation": "validators:validate_dataframe_columns",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "validators",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Decorator that validates a pandas DataFrame argument has required columns"
+    },
+    {
+      "function": "validate_range",
+      "id": "validators.validate_range",
+      "implementation": "validators:validate_range",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "validators",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Decorator that validates a numeric argument is within a range"
+    },
+    {
+      "function": "retry_on_error",
+      "id": "validators.retry_on_error",
+      "implementation": "validators:retry_on_error",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "validators",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Decorator that retries a function on failure with exponential backoff"
+    },
+    {
+      "function": "safe_execute",
+      "id": "validators.safe_execute",
+      "implementation": "validators:safe_execute",
+      "interfaces": [
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "validators",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Execute a function safely, returning a ``(result, error)`` tuple"
+    },
+    {
+      "function": "check_variant_tools",
+      "id": "variant_calling.check_variant_tools",
+      "implementation": "variant_calling:check_variant_tools",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.variant_calling."
+    },
+    {
+      "function": "call_variants",
+      "id": "variant_calling.call_variants",
+      "implementation": "variant_calling:call_variants",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.variant_calling."
+    },
+    {
+      "function": "filter_variants",
+      "id": "variant_calling.filter_variants",
+      "implementation": "variant_calling:filter_variants",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.variant_calling."
+    },
+    {
+      "function": "variant_summary",
+      "id": "variant_calling.variant_summary",
+      "implementation": "variant_calling:variant_summary",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Public entry point of biosuite.core.variant_calling."
+    },
+    {
+      "function": "detect_structural_variants",
+      "id": "variant_calling.detect_structural_variants",
+      "implementation": "variant_calling:detect_structural_variants",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Detect structural variants from coverage depth analysis"
+    },
+    {
+      "function": "detect_cnv",
+      "id": "variant_calling.detect_cnv",
+      "implementation": "variant_calling:detect_cnv",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Detect copy number variations from coverage data"
+    },
+    {
+      "function": "format_sv_report",
+      "id": "variant_calling.format_sv_report",
+      "implementation": "variant_calling:format_sv_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Format structural variant results"
+    },
+    {
+      "function": "format_cnv_report",
+      "id": "variant_calling.format_cnv_report",
+      "implementation": "variant_calling:format_cnv_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "variant_calling",
+      "requires": {
+        "packages": [],
+        "tools": [
+          "bcftools",
+          "freebayes"
+        ]
+      },
+      "summary": "Format CNV results"
+    },
+    {
+      "function": "batch_run",
+      "id": "workflow/batch.batch_run",
+      "implementation": "workflow/batch:batch_run",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/batch",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Quick batch run — apply func to each sample_id"
+    },
+    {
+      "function": "format_batch_report",
+      "id": "workflow/batch.format_batch_report",
+      "implementation": "workflow/batch:format_batch_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/batch",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format batch results as text report"
+    },
+    {
+      "function": "build_pipeline_from_steps",
+      "id": "workflow/pipeline.build_pipeline_from_steps",
+      "implementation": "workflow/pipeline:build_pipeline_from_steps",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/pipeline",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Build a pipeline from a list of step config dicts"
+    },
+    {
+      "function": "run_quick_pipeline",
+      "id": "workflow/pipeline.run_quick_pipeline",
+      "implementation": "workflow/pipeline:run_quick_pipeline",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/pipeline",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Run a simple pipeline and return the final result"
+    },
+    {
+      "function": "format_pipeline_report",
+      "id": "workflow/pipeline.format_pipeline_report",
+      "implementation": "workflow/pipeline:format_pipeline_report",
+      "interfaces": [
+        "cli",
+        "gui",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/pipeline",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Format a pipeline run as a text report"
+    },
+    {
+      "function": "create_report",
+      "id": "workflow/report.create_report",
+      "implementation": "workflow/report:create_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/report",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Public entry point of biosuite.core.workflow/report."
+    },
+    {
+      "function": "generate_pipeline_report",
+      "id": "workflow/report.generate_pipeline_report",
+      "implementation": "workflow/report:generate_pipeline_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/report",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Generate an HTML report from a pipeline run"
+    },
+    {
+      "function": "generate_batch_report",
+      "id": "workflow/report.generate_batch_report",
+      "implementation": "workflow/report:generate_batch_report",
+      "interfaces": [
+        "cli",
+        "python"
+      ],
+      "mcp_exposed": false,
+      "module": "workflow/report",
+      "requires": {
+        "packages": [],
+        "tools": []
+      },
+      "summary": "Generate an HTML report from batch processing results"
+    }
+  ],
+  "mcp_exposed_total": 4,
+  "mcp_tools": [
+    {
+      "description": "Calculate GC content as a percentage",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "seq": {
+            "description": "DNA sequence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq"
+        ],
+        "type": "object"
+      },
+      "name": "sequence.gc_content",
+      "outputSchema": {
+        "properties": {
+          "gc_percent": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "gc_percent"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Compute the reverse complement of a DNA sequence",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "seq": {
+            "description": "DNA sequence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq"
+        ],
+        "type": "object"
+      },
+      "name": "sequence.reverse_complement",
+      "outputSchema": {
+        "properties": {
+          "reverse_complement": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reverse_complement"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Translate a nucleotide sequence to protein using the standard genetic code",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "frame": {
+            "default": 1,
+            "enum": [
+              1,
+              2,
+              3,
+              -1,
+              -2,
+              -3
+            ],
+            "type": "integer"
+          },
+          "seq": {
+            "description": "coding DNA sequence",
+            "type": "string"
+          },
+          "table": {
+            "default": 1,
+            "enum": [
+              1
+            ],
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq"
+        ],
+        "type": "object"
+      },
+      "name": "sequence.translate",
+      "outputSchema": {
+        "properties": {
+          "protein": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "protein"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Compute base composition statistics for a nucleotide sequence",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "seq": {
+            "description": "DNA sequence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq"
+        ],
+        "type": "object"
+      },
+      "name": "sequence.sequence_stats",
+      "outputSchema": {
+        "properties": {
+          "A": {
+            "type": "integer"
+          },
+          "AT": {
+            "type": "number"
+          },
+          "C": {
+            "type": "integer"
+          },
+          "G": {
+            "type": "integer"
+          },
+          "GC": {
+            "type": "number"
+          },
+          "N": {
+            "type": "integer"
+          },
+          "T": {
+            "type": "integer"
+          },
+          "length": {
+            "type": "integer"
+          },
+          "other": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "length",
+          "A",
+          "T",
+          "G",
+          "C",
+          "N",
+          "AT",
+          "GC",
+          "other"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "schema_version": "1.0.0",
+  "total": 341
+}
