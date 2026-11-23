@@ -351,7 +351,7 @@ class TestInteractiveMode:
             try:
                 return next(answers)
             except StopIteration:
-                raise EOFError
+                raise EOFError from None
 
         with patch("builtins.input", scripted), \
              patch.object(sys, 'argv', ["biosuite"]):
@@ -369,7 +369,7 @@ class TestInteractiveMode:
             try:
                 return next(answers)
             except StopIteration:
-                raise EOFError
+                raise EOFError from None
 
         with patch("builtins.input", scripted), \
              patch.object(sys, 'argv', ["biosuite"]):

@@ -433,8 +433,8 @@ def test_manifest_accepts_no_arguments():
 
 
 def test_doctor_missing_required_engine_exits_one(monkeypatch, capsys):
-    from biosuite.cli import capabilities as cap_cli
     import biosuite.capabilities.discovery as discovery
+    from biosuite.cli import capabilities as cap_cli
 
     monkeypatch.setattr(cap_cli, "REQUIRED_ENGINES", ("blastn",))
     monkeypatch.setattr(discovery, "_probe_tool",
