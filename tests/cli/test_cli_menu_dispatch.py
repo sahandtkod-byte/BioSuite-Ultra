@@ -50,7 +50,7 @@ def test_registry_funcs_resolve():
     import importlib
 
     from biosuite.cli.menu import COMMAND_REGISTRY, _import_func
-    assert len(COMMAND_REGISTRY) == 20
+    assert len(COMMAND_REGISTRY) == 22
     for name, entry in COMMAND_REGISTRY.items():
         path = entry['func']
         if path.startswith('_'):

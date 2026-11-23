@@ -1,4 +1,4 @@
-"""The nineteen ``biosuite <command>`` subcommands, each with a real argument.
+"""The twenty-two ``biosuite <command>`` subcommands, each with a real argument.
 
 ``_execute_command`` is the non-interactive face of the tool, and five of its commands
 were broken in a way only a run could show: the registry passed the file path *string*
@@ -375,3 +375,88 @@ def test_pca_refuses_a_table_without_numeric_columns(workspace):
 
     assert status in (1, 2)
     assert "no numeric columns" in out
+
+
+# ── the manifest and doctor subcommands (WS6) ────────────────────────────────
+
+def test_manifest_prints_pure_json_and_exits_zero():
+    status, out = run_command("manifest")
+
+    import json
+    manifest = json.loads(out)  # stdout carries nothing but the JSON document
+    from biosuite.capabilities.catalog import list_capabilities
+    assert manifest["total"] == len(list_capabilities())
+    assert manifest["total"] == len(manifest["capabilities"])
+    assert status == 0
+
+
+def test_manifest_output_is_identical_run_to_run():
+    first = run_command("manifest")[1]
+    second = run_command("manifest")[1]
+
+    assert first == second
+
+
+def test_manifest_has_no_timestamps_or_paths():
+    import json
+
+    manifest = json.loads(run_command("manifest")[1])
+    assert set(manifest) == {
+        "schema_version", "total", "mcp_exposed_total", "capabilities", "mcp_tools"
+    }
+    for entry in manifest["capabilities"]:
+        assert set(entry["requires"]) == {"tools", "packages"}
+
+
+def test_doctor_reports_the_catalog_and_exits_zero():
+    status, out = run_command("doctor")
+
+    assert status == 0
+    assert "catalog:" in out
+    assert "located" in out
+    assert "runnable" not in out  # doctor never claims a tool runs
+    assert "warning: optional dependency" in out or "tool" in out
+
+
+def test_doctor_accepts_no_arguments():
+    status, out = run_command("doctor", "extra")
+
+    assert status == 2
+    assert "Unknown command: doctor" in out or "Usage" in out
+
+
+def test_manifest_accepts_no_arguments():
+    status, out = run_command("manifest", "extra")
+
+    assert status == 2
+    assert "Unknown command: manifest" in out or "Usage" in out
+
+
+def test_doctor_missing_required_engine_exits_one(monkeypatch, capsys):
+    from biosuite.cli import capabilities as cap_cli
+    import biosuite.capabilities.discovery as discovery
+
+    monkeypatch.setattr(cap_cli, "REQUIRED_ENGINES", ("blastn",))
+    monkeypatch.setattr(discovery, "_probe_tool",
+                        lambda name: discovery.ToolStatus(name=name, available=False))
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_command("doctor")
+
+    assert excinfo.value.code == 1
+    assert "missing required engine(s): blastn" in capsys.readouterr().err
+
+
+def test_doctor_catalog_failure_reports_and_exits_three(monkeypatch, capsys):
+    import biosuite.capabilities.catalog as catalog
+
+    def _boom():
+        raise RuntimeError("catalog unavailable")
+
+    monkeypatch.setattr(catalog, "list_capabilities", _boom)
+
+    with pytest.raises(SystemExit) as excinfo:
+        run_command("doctor")
+
+    assert excinfo.value.code == 3
+    assert "catalog unavailable" in capsys.readouterr().err

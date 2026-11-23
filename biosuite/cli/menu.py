@@ -80,6 +80,8 @@ COMMAND_REGISTRY = {
     'gui': {'func': '_launch_gui', 'desc': 'Launch GUI application', 'args': []},
     'api': {'func': '_launch_api', 'desc': 'Launch REST API server', 'args': [], 'kwargs': {'port': 8000}},
     'theme': {'func': '_change_theme', 'desc': 'Change theme', 'args': ['theme_name']},
+    'manifest': {'func': 'biosuite.cli.capabilities:cli_manifest', 'desc': 'Emit the deterministic capability manifest as JSON', 'args': []},
+    'doctor': {'func': 'biosuite.cli.capabilities:cli_doctor', 'desc': 'Report engine and package availability', 'args': []},
 }
 
 

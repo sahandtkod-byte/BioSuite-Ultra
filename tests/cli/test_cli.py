@@ -75,7 +75,7 @@ class TestCommandRegistry:
     def test_registry_is_dict(self):
         """COMMAND_REGISTRY should be a plain, non-empty dictionary."""
         assert isinstance(COMMAND_REGISTRY, dict)
-        assert len(COMMAND_REGISTRY) == 20
+        assert len(COMMAND_REGISTRY) == 22
 
     def test_each_entry_has_required_keys(self):
         """Every registry entry must have at least 'func' and 'args'."""

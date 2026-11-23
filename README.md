@@ -59,7 +59,7 @@ see [Scientific scope and limitations](#scientific-scope-and-limitations).
 | Workflows | Declarative pipelines, batch processing across samples, report generation |
 | Provenance | Parameter/input capture and audit records for reproducible runs |
 | Databases | NCBI/Ensembl-style lookups and a local GO browser |
-| Interfaces | Python library, interactive CLI (117 menu options, 20 direct subcommands), CustomTkinter GUI (11 tabs), FastAPI REST API (45 endpoints under `/api/v1/*`, including persistent local sequence jobs) |
+| Interfaces | Python library, interactive CLI (117 menu options, 22 direct subcommands), CustomTkinter GUI (11 tabs), FastAPI REST API (45 endpoints under `/api/v1/*`, including persistent local sequence jobs) |
 
 ---
 
@@ -161,9 +161,9 @@ biosuite nw AGTACGCA TATGC            # Needleman-Wunsch alignment
 biosuite --version
 ```
 
-Available subcommands: `api`, `blast`, `crispr`, `digest`, `epitope`, `gc`, `gui`, `gwas`,
-`hwe`, `manhattan`, `nw`, `pca`, `primers`, `revcomp`, `stats`, `sw`, `theme`, `translate`,
-`volcano`.
+Available subcommands: `api`, `blast`, `crispr`, `digest`, `doctor`, `epitope`, `gc`, `gui`, `gwas`,
+`hwe`, `manhattan`, `manifest`, `nw`, `pca`, `primers`, `revcomp`, `stats`, `sw`, `theme`,
+`translate`, `volcano`.
 
 ### Desktop GUI
 
