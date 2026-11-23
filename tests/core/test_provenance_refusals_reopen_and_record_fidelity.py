@@ -191,9 +191,12 @@ def test_a_legacy_row_with_an_unknown_status_still_renders(tmp_path):
     """Databases written before record() validated can hold any status; reading one
     must not raise out of the report."""
     t = ProvenanceTracker(db_path=str(tmp_path / "l.db"), session_id="s")
-    t.conn.execute("INSERT INTO steps VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                   (99, "s", "2026-01-01T00:00:00", "m", "old", "{}", "r", 1,
-                    "builtin", "warning", ""))
+    t.conn.execute(
+        "INSERT INTO steps (step_id, session_id, timestamp, module, function,"
+        " params, result_summary, execution_time_ms, engine, status,"
+        " error_message) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (99, "s", "2026-01-01T00:00:00", "m", "old", "{}", "r", 1,
+         "builtin", "warning", ""))
     t.conn.commit()
     assert [s.status for s in t.get_steps()] == ["warning"]
     path = t.export_html(str(tmp_path / "l.html"))

@@ -7,6 +7,8 @@ import threading
 import time
 
 from biosuite.capabilities.catalog import get_capability
+
+from .provenance import current_correlation, run_with_correlation
 from biosuite.core.sequence import gc_content
 
 from .job_store import JobStore
@@ -58,12 +60,20 @@ class JobExecutor:
         self.store.recover()
         self.stopping = threading.Event()
         self.wake = threading.Event()
+        # Submitter correlation (WS5), keyed by job id.  Captured in the
+        # request context at submit time and consumed by the worker at claim
+        # time; entries never outlive their job's claim or the executor.
+        self._correlations = {}
+        self._correlations_lock = threading.Lock()
         self.thread = threading.Thread(target=self._run, name='biosuite-jobs', daemon=True)
         self.thread.start()
 
     def submit(self, owner, capability_id, params):
         params = validate_submission(capability_id, params)
+        correlation = current_correlation()
         job_id = self.store.submit(owner, capability_id, params)
+        with self._correlations_lock:
+            self._correlations[job_id] = correlation
         self.wake.set()
         return job_id
 
@@ -71,9 +81,14 @@ class JobExecutor:
         job = self.store.claim()
         if job is None:
             return False
+        with self._correlations_lock:
+            correlation = self._correlations.pop(job['id'], None)
+        request_id = correlation.request_id if correlation else ''
         start = time.monotonic()
         try:
-            result = execute(job['capability_id'], json.loads(job['params']))
+            result = run_with_correlation(
+                request_id, job['capability_id'], execute,
+                job['capability_id'], json.loads(job['params']))
             if time.monotonic() - start > EXECUTION_SECONDS:
                 self.store.finish(job['id'], error='execution_timeout')
             else:

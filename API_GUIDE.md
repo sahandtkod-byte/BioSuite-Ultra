@@ -256,6 +256,33 @@ transactions; active admission is serialized with `BEGIN IMMEDIATE`. Indexes
 cover state/creation, owner, and retention timestamps. Error envelopes remain
 opt-in via `X-BioSuite-Error-Envelope: 1`; responses carry `X-Request-ID`.
 
+## Provenance correlation (WS5)
+
+Every provenance step recorded for an API-driven analysis or job can name the
+request and capability that caused it. Two optional correlation fields are
+supported on each step: `request_id` (the id resolved by the `X-Request-ID`
+middleware, echoed in the response header) and `capability_id` (the capability
+the step belongs to, e.g. `sequence.gc_content`).
+
+- Requests: the middleware binds the resolved request id for the duration of
+  the request (one isolated context per request; reset afterwards). Steps
+  recorded while it is handled carry it automatically.
+- Jobs: the executor captures the submitter's request id at submit time and
+  binds it, with the job's `capability_id`, while the job's bounded calculation
+  runs. Concurrent jobs never see each other's ids, and a submit with no bound
+  request records empty fields.
+- Migration: the SQLite provenance `steps` table gains nullable
+  `request_id TEXT` and `capability_id TEXT` columns on first open with the new
+  code. The migration is idempotent (guarded by `PRAGMA table_info`), runs
+  inside a transaction (a failure rolls back and leaves the database readable),
+  and legacy rows read back with empty fields. Existing positional call sites
+  and stored rows are unchanged.
+- Exports: JSON and HTML exports omit the fields when they are unset, so
+  exports from pre-WS5 records or uncorrelated sessions are byte-identical to
+  before. Fields set on a step are included in the JSON export.
+- No API keys, tokens or other credentials are ever stored in provenance
+  records; only correlation ids and capability names.
+
 ## Support
 
 If you have questions:

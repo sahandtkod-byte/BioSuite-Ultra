@@ -19,6 +19,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from functools import wraps
@@ -77,6 +78,76 @@ class AnalysisStep:
     engine: str = "builtin"
     status: str = "success"  # success, error, skipped
     error_message: str = ""
+    # WS5 correlation ids.  Appended with defaults so existing positional callers
+    # are untouched; empty means "not correlated" and is omitted from exports.
+    request_id: str = ""
+    capability_id: str = ""
+
+
+@dataclass(frozen=True)
+class Correlation:
+    """The request a piece of provenance belongs to.
+
+    Bound per execution context (HTTP request or job run) through
+    :func:`bind_correlation`; ``record`` reads it so callers that know nothing
+    about HTTP still produce correlated audit rows.
+    """
+    request_id: str = ""
+    capability_id: str = ""
+
+
+_correlation_var: ContextVar = ContextVar("biosuite_provenance_correlation",
+                                          default=None)
+
+
+def _bind_correlation(request_id="", capability_id=""):
+    """Bind the current request/job correlation for this execution context.
+
+    Returns a token to hand back to :func:`_reset_correlation`.  Contexts are
+    isolated (one per thread/task), so concurrent requests and jobs never see
+    each other's ids.
+    """
+    return _correlation_var.set(
+        Correlation(request_id=str(request_id or ""),
+                    capability_id=str(capability_id or "")))
+
+
+def _reset_correlation(token):
+    """Restore the correlation that was active before :func:`_bind_correlation`."""
+    _correlation_var.reset(token)
+
+
+def _current_correlation():
+    """The correlation active in this context, or an empty one."""
+    correlation = _correlation_var.get()
+    return correlation if correlation is not None else Correlation()
+
+
+# Public bridge for the API layer; these live in biosuite/api/provenance.py,
+# which re-exports them.  Core-side names stay private because every public
+# top-level function of biosuite/core must be a registered catalog capability.
+bind_correlation = _bind_correlation
+reset_correlation = _reset_correlation
+current_correlation = _current_correlation
+
+
+def _step_payload(step):
+    """Serialise a step for JSON export, omitting unset correlation fields.
+
+    Steps recorded before WS5 (or with no correlation bound) exported eleven
+    keys; adding two always-null keys would change every legacy export.
+    """
+    payload = asdict(step)
+    if not step.request_id:
+        del payload["request_id"]
+    if not step.capability_id:
+        del payload["capability_id"]
+    return payload
+
+
+# SQLite columns the WS5 migration adds to a database written before correlation
+# existed.  Declared nullable TEXT: legacy rows read back as empty strings.
+_MIGRATION_COLUMNS = (("request_id", "TEXT"), ("capability_id", "TEXT"))
 
 
 # `record` accepts only these.  Anything else reaches the reports, where the HTML
@@ -84,6 +155,16 @@ class AnalysisStep:
 # count only 'error' — a typo'd status then looks like a failure and is never
 # counted as one.
 VALID_STATUSES = ('success', 'error', 'skipped')
+
+
+def _add_column(conn, name, decl):
+    """Add one nullable column inside a transaction; roll back on failure."""
+    try:
+        conn.execute(f"ALTER TABLE steps ADD COLUMN {name} {decl}")
+        conn.commit()
+    except sqlite3.Error:
+        conn.rollback()
+        raise
 
 
 def _check_status(status):
@@ -177,14 +258,32 @@ class ProvenanceTracker:
                 engine TEXT,
                 status TEXT,
                 error_message TEXT,
+                request_id TEXT,
+                capability_id TEXT,
                 PRIMARY KEY (session_id, step_id)
             )
             """)
             self.conn.commit()
+            self._migrate_steps()
+
+    def _migrate_steps(self):
+        """Add the correlation columns to a pre-WS5 database, idempotently.
+
+        Guarded by ``PRAGMA table_info`` so repeated opens (and a fresh database,
+        which already has the columns) are no-ops.  Each ``ALTER TABLE`` runs in
+        its own transaction: a failure rolls back that statement, leaving the
+        database readable and migratable on the next open.
+        """
+        with self._lock:
+            existing = {row[1] for row in self.conn.execute(
+                "PRAGMA table_info(steps)")}
+            for name, decl in _MIGRATION_COLUMNS:
+                if name not in existing:
+                    _add_column(self.conn, name, decl)
 
     def record(self, module, function, params=None, result_summary="",
                execution_time_ms=0, engine="builtin", status="success",
-               error_message=""):
+               error_message="", request_id=None, capability_id=None):
         """Record an analysis step.
 
         Args:
@@ -196,6 +295,12 @@ class ProvenanceTracker:
             engine: 'builtin' or name of external tool.
             status: 'success', 'error', or 'skipped'; anything else raises ValueError.
             error_message: error details if status is 'error'.
+            request_id: correlation id for the originating request/job; appended
+                after ``error_message`` (existing positional callers are
+                unaffected).  When left as None, the id bound by
+                :func:`bind_correlation` in the current context is used.
+            capability_id: capability the step belongs to; falls back to the
+                bound correlation the same way.
 
         Raises:
             ValueError: if ``status`` is not one of the three documented values, or
@@ -205,6 +310,11 @@ class ProvenanceTracker:
         """
         _check_status(status)
         execution_time_ms = _check_execution_time(execution_time_ms)
+        correlation = current_correlation()
+        if request_id is None:
+            request_id = correlation.request_id
+        if capability_id is None:
+            capability_id = correlation.capability_id
 
         with self._lock:
             self.step_counter += 1
@@ -221,14 +331,20 @@ class ProvenanceTracker:
             engine=engine,
             status=status,
             error_message=error_message,
+            request_id=str(request_id),
+            capability_id=str(capability_id),
         )
 
         with self._lock:
             self.conn.execute(
-                "INSERT INTO steps VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO steps (step_id, session_id, timestamp, module,"
+                " function, params, result_summary, execution_time_ms, engine,"
+                " status, error_message, request_id, capability_id)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (step.step_id, step.session_id, step.timestamp, step.module,
                  step.function, dumps_params(step.params), step.result_summary,
-                 step.execution_time_ms, step.engine, step.status, step.error_message)
+                 step.execution_time_ms, step.engine, step.status,
+                 step.error_message, step.request_id, step.capability_id)
             )
             self.conn.commit()
         return step
@@ -237,7 +353,10 @@ class ProvenanceTracker:
         """Retrieve all steps for this session."""
         with self._lock:
             cursor = self.conn.execute(
-                "SELECT * FROM steps WHERE session_id=? ORDER BY step_id",
+                "SELECT step_id, session_id, timestamp, module, function,"
+                " params, result_summary, execution_time_ms, engine, status,"
+                " error_message, request_id, capability_id"
+                " FROM steps WHERE session_id=? ORDER BY step_id",
                 (self.session_id,)
             )
             rows = cursor.fetchall()
@@ -248,7 +367,9 @@ class ProvenanceTracker:
                 module=row[3], function=row[4],
                 params=json.loads(row[5]) if row[5] else {},
                 result_summary=row[6], execution_time_ms=row[7],
-                engine=row[8], status=row[9], error_message=row[10]
+                engine=row[8], status=row[9], error_message=row[10],
+                # Pre-migration rows hold NULL in the new columns.
+                request_id=row[11] or "", capability_id=row[12] or ""
             ))
         return steps
 
@@ -263,7 +384,7 @@ class ProvenanceTracker:
             "session_id": self.session_id,
             "export_time": datetime.now().isoformat(),
             "total_steps": len(steps),
-            "steps": [asdict(s) for s in steps],
+            "steps": [_step_payload(s) for s in steps],
         }
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)

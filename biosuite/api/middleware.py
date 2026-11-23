@@ -16,6 +16,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.types import ASGIApp
 
+from biosuite.core.provenance import bind_correlation, reset_correlation
+
 __all__ = [
     "REQUEST_ID_HEADER",
     "REQUEST_ID_PATTERN",
@@ -67,6 +69,13 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         request_id = resolve_request_id(request.headers.get(REQUEST_ID_HEADER))
         request.state.request_id = request_id
-        response = await call_next(request)
+        # WS5: bind the correlation for this execution context (one context per
+        # request, isolated from concurrent requests) so provenance steps
+        # recorded while the request is handled carry its ids.
+        token = bind_correlation(request_id)
+        try:
+            response = await call_next(request)
+        finally:
+            reset_correlation(token)
         response.headers[REQUEST_ID_HEADER] = request_id
         return response
