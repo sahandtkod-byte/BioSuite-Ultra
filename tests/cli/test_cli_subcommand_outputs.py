@@ -1,4 +1,4 @@
-"""The twenty-two ``biosuite <command>`` subcommands, each with a real argument.
+"""The twenty-two ``biosuite <command>`` subcommands; manifest and doctor take no arguments.
 
 ``_execute_command`` is the non-interactive face of the tool, and five of its commands
 were broken in a way only a run could show: the registry passed the file path *string*

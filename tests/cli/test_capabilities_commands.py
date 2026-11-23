@@ -5,8 +5,8 @@ in-process runs with monkeypatched seams cover the doctor branches (required
 engine missing, catalog failure) without touching the filesystem or network.
 No test launches an external executable and no test performs network I/O.
 """
+import importlib
 import json
-import os
 import subprocess
 import sys
 
@@ -108,7 +108,7 @@ def test_manifest_serialization_error_is_reported(monkeypatch):
 def test_doctor_reports_availability_without_launching_anything(_no_side_channels):
     # Import first: the block patches subprocess/socket and must be active
     # only for the doctor call itself, not for module imports.
-    import biosuite.capabilities.catalog as catalog  # noqa: F401
+    importlib.import_module("biosuite.capabilities.catalog")
     import biosuite.capabilities.discovery as discovery
 
     assert not hasattr(discovery, "has_tool")
