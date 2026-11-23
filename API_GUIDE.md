@@ -187,6 +187,75 @@ site = RESTRICTION_ENZYMES_SITES['EcoRI']  # 'GAATTC'
 
 ---
 
+## Asynchronous jobs (WS4)
+
+Run exactly one owning API process (`uvicorn biosuite.api.server:app --workers 1`).
+The app lifespan owns a lazily started thread and a SQLite-backed queue; a second
+process using the same store is rejected by a separate SQLite exclusive-lock file.
+No Redis, external workers, network requests, or new dependencies are involved.
+Metadata and results persist under `BIOSUITE_DATA_DIR/.biosuite-jobs/jobs.sqlite3`
+(default: the current working directory). The schema uses `PRAGMA user_version=1`.
+Keep this directory private and on a local filesystem; do not share it over NFS.
+
+| Method and path | Required scope | Success |
+|---|---|---|
+| `POST /api/v1/jobs` | execute | 202 with job metadata |
+| `GET /api/v1/jobs/{id}` | read | 200 with job metadata |
+| `GET /api/v1/jobs/{id}/result` | read | 200 with `id` and `result` |
+| `POST /api/v1/jobs/{id}/cancel` | execute | 200 with current job metadata |
+
+`execute` inherits `read`; `admin` and the legacy master key can access/cancel all
+jobs. Other keys can access only jobs owned by that exact key, even if two keys
+have the same scope. Owners are SHA-256 key identifiers, never raw keys. A key
+whose scope is changed retains ownership; a rotated key does not. Missing/invalid
+credentials produce 401, insufficient scope 403, and missing/other-owner jobs 404.
+Existing JWT admin routes are unchanged and still require JWT authentication.
+
+The initial explicit allowlist contains only `sequence.gc_content`; other catalog
+capabilities are not enabled for jobs. Submission is strictly:
+
+```json
+{"capability_id":"sequence.gc_content","params":{"sequence":"ATGC"}}
+```
+
+No extra fields, file paths, module/function names, or URLs are accepted. Sequence
+input is 1–100,000 nucleotide/IUPAC characters, without whitespace. The real
+`biosuite.core.sequence.gc_content` returns, for this example:
+
+```json
+{"gc_percent":50.0,"sequence_length":4}
+```
+
+Use `curl -X POST http://127.0.0.1:8000/api/v1/jobs -H "X-API-Key: $BIOSUITE_API_KEY" -H 'Content-Type: application/json' -d '{"capability_id":"sequence.gc_content","params":{"sequence":"ATGC"}}'`.
+Poll `GET /api/v1/jobs/{id}`, then retrieve `GET /api/v1/jobs/{id}/result`; use
+`POST /api/v1/jobs/{id}/cancel` with the same key to request cancellation.
+
+States are `queued`, `running`, `cancellation_requested`, `succeeded`, `failed`,
+and `cancelled`. Cancelling queued work completes immediately. Running work is
+not forcibly interrupted: it becomes `cancellation_requested`, finishes its bounded
+calculation, discards the result, then becomes `cancelled`. Cancelling a terminal
+job is idempotent and leaves its state unchanged. On restart, queued work resumes;
+orphaned running work fails with `worker_restarted`, while pending cancellations
+become `cancelled`. A result request before success returns 409.
+
+Limits: 101,024 request bytes (413 above this), 32 active jobs including running
+work, 1,024 retained jobs, 16,384 UTF-8 result bytes, and 24-hour terminal retention.
+Queue/storage saturation returns 429 with `Retry-After: 1`; invalid submissions
+return a sanitized 422. Cleanup runs during requests and worker polling (one
+second). Results exceeding the bound fail with `result_too_large`; non-finite or
+non-JSON results fail with `invalid_result`. Exceptions become `execution_failed`,
+without exception text or submitted parameters in errors/logs. The five-second
+execution budget is checked after calculation; it is not a preemptive thread kill.
+Execution is bounded by the fixed linear-time GC operation and input length.
+Over-budget completion fails with `execution_timeout`. Graceful shutdown waits
+for that bounded operation; pending queued work stays persisted for restart.
+
+POST submission is **not idempotent**: a retry creates a separate job. There are
+no automatic execution retries. Admission and state transitions use SQLite
+transactions; active admission is serialized with `BEGIN IMMEDIATE`. Indexes
+cover state/creation, owner, and retention timestamps. Error envelopes remain
+opt-in via `X-BioSuite-Error-Envelope: 1`; responses carry `X-Request-ID`.
+
 ## Support
 
 If you have questions:

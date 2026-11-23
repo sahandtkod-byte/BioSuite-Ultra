@@ -382,7 +382,7 @@ def test_every_published_operation_has_explicit_scope():
     operations = {(method.upper(), path) for path, item in app.openapi()["paths"].items()
                   for method in item if method in {"get", "post", "put", "patch", "delete"}}
     assert operations <= auth.ROUTE_SCOPES.keys()
-    assert len({path for _, path in operations if path.startswith("/api/")}) == 41
+    assert len({path for _, path in operations if path.startswith("/api/")}) == 45
 
 
 @pytest.mark.asyncio
@@ -431,3 +431,61 @@ def test_scope_denial_does_not_log_credentials(scope_client, monkeypatch, caplog
 
 def test_auth_exports_exist():
     assert all(hasattr(auth, name) for name in auth.__all__)
+
+
+@pytest.mark.parametrize('key,can_execute', [
+    ('ro', False), ('rw', True), ('root', True), ('legacy-master-key', True),
+])
+def test_job_route_scope_matrix(scope_client, monkeypatch, tmp_path, key, can_execute):
+    import hashlib
+    import threading
+    import time
+
+    monkeypatch.setenv('BIOSUITE_DATA_DIR', str(tmp_path))
+    headers = {'X-API-Key': key}
+    response = scope_client.post('/api/v1/jobs', headers=headers, json={
+        'capability_id': 'sequence.gc_content', 'params': {'sequence': 'ATGC'}})
+    assert response.status_code == (202 if can_execute else 403)
+    if can_execute:
+        job_id = response.json()['id']
+    else:
+        response = scope_client.post('/api/v1/jobs', headers={'X-API-Key': 'root'}, json={
+            'capability_id': 'sequence.gc_content', 'params': {'sequence': 'ATGC'}})
+        assert response.status_code == 202
+        from biosuite.api import app
+        store = app.state.job_executor.store
+        job_id = response.json()['id']
+        with store.lock, store.db:
+            store.db.execute('UPDATE jobs SET owner = ? WHERE id = ?',
+                             (hashlib.sha256(key.encode()).hexdigest(), job_id))
+    deadline = time.monotonic() + 5
+    while True:
+        response = scope_client.get(f'/api/v1/jobs/{job_id}', headers=headers)
+        assert response.status_code == 200
+        if response.json()['state'] == 'succeeded':
+            break
+        assert time.monotonic() < deadline
+        threading.Event().wait(0.01)
+    response = scope_client.get(f'/api/v1/jobs/{job_id}/result', headers=headers)
+    assert response.status_code == 200
+    assert response.json()['result']['gc_percent'] == 50.0
+    response = scope_client.post(f'/api/v1/jobs/{job_id}/cancel', headers=headers)
+    assert response.status_code == (200 if can_execute else 403)
+
+
+@pytest.mark.parametrize('key,expected', [
+    ('ro', 403), ('rw', 403), ('root', 403), ('legacy-master-key', 200),
+])
+def test_unclassified_job_route_scope(scoped, key, expected):
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+
+    application = FastAPI(dependencies=[Depends(auth.verify_api_key)])
+
+    @application.get('/api/v1/jobs/unclassified/detail')
+    def unclassified():
+        return {'reached': True}
+
+    with TestClient(application) as client:
+        response = client.get('/api/v1/jobs/unclassified/detail', headers={'X-API-Key': key})
+        assert response.status_code == expected

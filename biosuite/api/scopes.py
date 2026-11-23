@@ -33,6 +33,13 @@ __all__ = ["ENV_VAR", "SCOPE_LEVELS", "ScopesConfigurationError",
            "key_scope", "load_scoped_keys", "parse_scoped_keys",
            "scope_satisfies"]
 
+JOB_ROUTE_SCOPES = {
+    ('POST', '/api/v1/jobs'): 'execute',
+    ('GET', '/api/v1/jobs/{id}'): 'read',
+    ('GET', '/api/v1/jobs/{id}/result'): 'read',
+    ('POST', '/api/v1/jobs/{id}/cancel'): 'execute',
+}
+
 #: Environment variable holding the opt-in scoped-key configuration.
 ENV_VAR = "BIOSUITE_SCOPED_KEYS"
 

@@ -51,6 +51,9 @@ from biosuite.api.capabilities import (
     router as capabilities_router,
 )
 from biosuite.api.config import dev_mode
+from biosuite.api.auth import ROUTE_SCOPES
+from biosuite.api.jobs import jobs_lifespan, router as jobs_router
+from biosuite.api.scopes import JOB_ROUTE_SCOPES
 from biosuite.api.errors import (
     ENVELOPE_HEADER,
     ERROR_CODE_BY_HANDLER,
@@ -93,6 +96,7 @@ app = FastAPI(
     redoc_url="/redoc" if _DOCS_PUBLIC else None,
     openapi_url="/openapi.json" if _DOCS_PUBLIC else None,
     dependencies=[Depends(verify_api_key)],
+    lifespan=jobs_lifespan,
 )
 #Limiter for rate limiting
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
@@ -134,6 +138,8 @@ app.add_middleware(RequestIDMiddleware)
 # WS2: capability discovery routes (manifest, per-capability detail, readiness
 # probe, well-known manifest).  Key-gated by default; see capabilities.py.
 app.include_router(capabilities_router)
+ROUTE_SCOPES.update(JOB_ROUTE_SCOPES)
+app.include_router(jobs_router)
 
 
 # ── Data-access confinement ──────────────────────────────────────────────────

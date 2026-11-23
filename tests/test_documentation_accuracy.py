@@ -127,7 +127,7 @@ def test_documented_analysis_module_count_is_correct():
 
 def test_documented_api_endpoint_count_is_correct():
     measured = _api_route_count()
-    assert measured == 41, f"endpoint count changed to {measured}; update the docs"
+    assert measured == 45, f"endpoint count changed to {measured}; update the docs"
 
 
 def test_documented_plotting_function_count_is_correct():

@@ -36,14 +36,21 @@ def _all_paths():
 
 
 class TestRoutePin:
-    def test_exactly_41_versioned_routes(self):
-        assert len(_api_v1_paths()) == 41
+    def test_exactly_45_versioned_routes(self):
+        assert len(_api_v1_paths()) == 45
 
-    def test_added_exactly_three_versioned_routes(self):
+    def test_added_exactly_three_ws2_and_four_ws4_routes(self):
         added = {"/api/v1/capabilities", "/api/v1/capabilities/{capability_id}",
-                 "/api/v1/ready"}
+                 "/api/v1/ready", "/api/v1/jobs", "/api/v1/jobs/{id}",
+                 "/api/v1/jobs/{id}/result", "/api/v1/jobs/{id}/cancel"}
         assert added <= _api_v1_paths()
         assert len(_api_v1_paths() - added) == 38
+        schema = app.openapi()["paths"]
+        for path, method in (("/api/v1/jobs", "post"),
+                             ("/api/v1/jobs/{id}", "get"),
+                             ("/api/v1/jobs/{id}/result", "get"),
+                             ("/api/v1/jobs/{id}/cancel", "post")):
+            assert method in schema[path]
 
     def test_unversioned_additions_are_not_pinned(self):
         paths = _all_paths()
@@ -75,14 +82,14 @@ class TestLegacyModulesAlias:
 
     def test_total_endpoints_is_live(self):
         body = client.get("/api/v1/modules", headers=AUTH).json()
-        assert body["total_endpoints"] == count_versioned_routes(app) == 41
+        assert body["total_endpoints"] == count_versioned_routes(app) == 45
 
     def test_body_is_generated_not_frozen(self):
         first = client.get("/api/v1/modules", headers=AUTH).json()
         first["total_endpoints"] = "sentinel"
         # The view is regenerated per request from live state, not a cached body.
         second = client.get("/api/v1/modules", headers=AUTH).json()
-        assert second["total_endpoints"] == 41
+        assert second["total_endpoints"] == 45
 
 
 class TestLegacyEndpointsUnchanged:
@@ -110,7 +117,7 @@ class TestLegacyEndpointsUnchanged:
         versioned = {path for path in schema["paths"]
                      if path.startswith("/api/v1")}
         assert versioned == _api_v1_paths()
-        assert len(versioned) == 41
+        assert len(versioned) == 45
         assert "/api/v1/modules" in schema["paths"]
 
     def test_openapi_marks_modules_deprecated(self):
