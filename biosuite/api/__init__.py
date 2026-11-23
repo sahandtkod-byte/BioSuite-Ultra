@@ -26,12 +26,14 @@ from urllib.parse import unquote
 
 import matplotlib
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
@@ -43,13 +45,29 @@ from biosuite.api.auth import (
     public_endpoint,
     verify_api_key,
 )
+from biosuite.api.capabilities import (
+    count_versioned_routes,
+    enrich_openapi,
+    router as capabilities_router,
+)
 from biosuite.api.config import dev_mode
+from biosuite.api.errors import (
+    ENVELOPE_HEADER,
+    ERROR_CODE_BY_HANDLER,
+    error_response,
+    http_exception_response,
+    rate_limit_error_response,
+    server_error_response,
+    validation_error_response,
+)
+from biosuite.api.middleware import REQUEST_ID_HEADER, RequestIDMiddleware
 from biosuite.api.security import (
     admin_login_enabled,
     authenticate_admin,
     create_access_token,
     verify_admin_token,
 )
+from biosuite.capabilities import legacy_modules_view
 from biosuite.core.log import get_logger
 
 logger = get_logger(__name__)
@@ -80,7 +98,7 @@ app = FastAPI(
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_error_response)
 app.add_middleware(SlowAPIMiddleware)
 
 # CORS for web frontends.
@@ -103,8 +121,19 @@ app.add_middleware(
     allow_origins=_cors_origins,
     allow_credentials=_cors_allow_credentials,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["X-API-Key", "Authorization", "Content-Type"],
+    allow_headers=["X-API-Key", "Authorization", "Content-Type",
+                   REQUEST_ID_HEADER, ENVELOPE_HEADER],
 )
+
+# WS2: every response carries X-Request-ID.  A caller-supplied id is echoed
+# when well-formed; anything else gets a fresh generated id.  Added last so it
+# sits outermost in the stack: it stamps request.state before route handlers
+# and error handlers see it, and headers land on every response they produce.
+app.add_middleware(RequestIDMiddleware)
+
+# WS2: capability discovery routes (manifest, per-capability detail, readiness
+# probe, well-known manifest).  Key-gated by default; see capabilities.py.
+app.include_router(capabilities_router)
 
 
 # ── Data-access confinement ──────────────────────────────────────────────────
@@ -260,32 +289,71 @@ def save_figure(fig) -> str:
 
 
 # ── Error handling ───────────────────────────────────────────────────────────
+#
+# WS2: every handler below preserves its exact legacy body ({"detail": ...})
+# unless the client opted into the structured envelope with the
+# X-BioSuite-Error-Envelope header.  Status codes are identical either way.
 
 @app.exception_handler(ValueError)
 async def _value_error_handler(request: Request, exc: ValueError):
     """Malformed scientific input is a client error, not a server fault."""
     logger.info("422 on %s: %s", request.url.path, exc)
-    return JSONResponse(status_code=422,
-                        content={"detail": f"Invalid input: {exc}"})
+    return error_response(
+        request, status_code=422,
+        detail=f"Invalid input: {exc}",
+        code=ERROR_CODE_BY_HANDLER["value_error"])
 
 
 @app.exception_handler(FileNotFoundError)
 async def _not_found_handler(request: Request, exc: FileNotFoundError):
     logger.info("404 on %s: %s", request.url.path, exc)
-    return JSONResponse(status_code=404, content={"detail": "Requested file was not found"})
+    return error_response(
+        request, status_code=404,
+        detail="Requested file was not found",
+        code=ERROR_CODE_BY_HANDLER["file_not_found"])
 
 
 @app.exception_handler(KeyError)
 async def _key_error_handler(request: Request, exc: KeyError):
     logger.info("422 on %s: missing key %s", request.url.path, exc)
-    return JSONResponse(status_code=422, content={"detail": f"Missing required field: {exc}"})
+    return error_response(
+        request, status_code=422,
+        detail=f"Missing required field: {exc}",
+        code=ERROR_CODE_BY_HANDLER["missing_field"])
 
 
 @app.exception_handler(IndexError)
 async def _index_error_handler(request: Request, exc: IndexError):
     logger.info("422 on %s: %s", request.url.path, exc)
-    return JSONResponse(status_code=422,
-                        content={"detail": "Input arrays have inconsistent lengths"})
+    return error_response(
+        request, status_code=422,
+        detail="Input arrays have inconsistent lengths",
+        code=ERROR_CODE_BY_HANDLER["inconsistent_lengths"])
+
+
+@app.exception_handler(HTTPException)
+async def _http_exception_handler(request: Request, exc: HTTPException):
+    """Envelope-aware form of Starlette's default HTTPException handler."""
+    return http_exception_response(request, exc)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _starlette_http_exception_handler(request: Request,
+                                            exc: StarletteHTTPException):
+    """Same envelope for framework-raised errors (e.g. unmatched routes)."""
+    return http_exception_response(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error_handler(request: Request,
+                                    exc: RequestValidationError):
+    """Envelope-aware form of FastAPI's default 422 handler."""
+    return validation_error_response(request, exc)
+
+
+@app.exception_handler(Exception)
+async def _server_error_handler(request: Request, exc: Exception):
+    return server_error_response(request)
 
 # ── Pydantic Models ──────────────────────────────────────────────────────────
 
@@ -431,9 +499,9 @@ if not _DOCS_PUBLIC:
     @app.get("/openapi.json", include_in_schema=False)
     async def _protected_openapi():
         """OpenAPI schema — requires the same API key as every other route."""
-        return JSONResponse(get_openapi(
+        return JSONResponse(enrich_openapi(get_openapi(
             title=app.title, version=app.version,
-            description=app.description, routes=app.routes))
+            description=app.description, routes=app.routes)))
 
     @app.get("/docs", include_in_schema=False)
     async def _protected_docs():
@@ -506,29 +574,25 @@ async def health(key: str = Security(api_key_header)):
 
 limiter.exempt(health)
 
+# WS2: this route is now a generated deprecated alias of the capability
+# catalog.  The ten-entry schema is preserved (it lives in
+# biosuite.capabilities.manifest) and total_endpoints stays derived live, so
+# the body is not frozen — it still grows with the real route table.
+_MODULES_DEPRECATED_HEADERS = {
+    "Deprecation": "true",
+    "Link": '</api/v1/capabilities>; rel="successor-version"',
+}
+
+
 @app.get("/api/v1/modules")
 async def list_modules():
-    """List all available API modules."""
-    return {
-        "modules": [
-            {"name": "sequence", "endpoints": ["/api/v1/sequence/*"], "description": "Sequence analysis"},
-            {"name": "alignment", "endpoints": ["/api/v1/alignment/*"], "description": "Pairwise alignment"},
-            {"name": "expression", "endpoints": ["/api/v1/expression/*"], "description": "Differential expression"},
-            {"name": "plotting", "endpoints": ["/api/v1/plotting/*"], "description": "Visualization"},
-            {"name": "crispr", "endpoints": ["/api/v1/crispr/*"], "description": "CRISPR guide design"},
-            {"name": "metagenomics", "endpoints": ["/api/v1/metagenomics/*"], "description": "Taxonomic classification"},
-            {"name": "epitope", "endpoints": ["/api/v1/epitope/*"], "description": "Epitope prediction"},
-            {"name": "gwas", "endpoints": ["/api/v1/gwas/*"], "description": "GWAS analysis"},
-            {"name": "phylogeny", "endpoints": ["/api/v1/phylogeny/*"], "description": "Phylogenetic analysis"},
-            {"name": "popgen", "endpoints": ["/api/v1/popgen/*"], "description": "Population genetics"},
-        ],
-        # Derived, not hand-counted: the hard-coded 50 this replaced drifted from
-        # the real surface the moment a route was added or removed.
-        "total_endpoints": sum(
-            1 for r in app.routes
-            if getattr(r, "path", "").startswith("/api/v1")),
-        "documentation": "/docs"
-    }
+    """Deprecated module discovery alias; use GET /api/v1/capabilities."""
+    return JSONResponse(
+        status_code=200,
+        content=legacy_modules_view(
+            total_endpoints=count_versioned_routes(app)),
+        headers=_MODULES_DEPRECATED_HEADERS,
+    )
 # ── Admin (JWT) ──────────────────────────────────────────────────────────────
 
 # Simple in-process lockout for the admin login route.  slowapi caps the request
@@ -1137,6 +1201,15 @@ async def api_provenance_summary():
     """Get provenance summary for this server process."""
     tracker = get_provenance_tracker()
     return {"summary": tracker.summary()}
+
+
+def _enriched_openapi():
+    return enrich_openapi(get_openapi(
+        title=app.title, version=app.version,
+        description=app.description, routes=app.routes))
+
+
+app.openapi = _enriched_openapi
 
 # ── Run Server ───────────────────────────────────────────────────────────────
 

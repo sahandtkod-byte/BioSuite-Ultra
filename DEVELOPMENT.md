@@ -6,21 +6,21 @@ measured from the tree — keep them accurate if you change the code.
 
 - **47 analysis modules** in `biosuite/core/` (+ `biosuite/core/workflow/`)
 - **12 plotting modules** exposing **167 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
-- **11 GUI tabs**, **117 CLI menu options**, **38 REST API endpoints** (under `/api/*`)
+- **11 GUI tabs**, **117 CLI menu options**, **41 REST API endpoints** (under `/api/v1/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **45,154 lines** of Python across 96 modules in `biosuite/`
-- **465 test files**; the run recorded under Current Status is the authoritative figure
+- **45,676 lines** of Python across 99 modules in `biosuite/`
+- **470 test files**; the run recorded under Current Status is the authoritative figure
 
 ## Architecture
 ```
 biosuite/
 ├── core/           # 44 domain modules + core/workflow/ (3 modules)
 ├── gui/            # customtkinter app: main_window.py, themes.py, dialogs.py, tabs/ (11)
-├── api/            # FastAPI app: __init__.py (38 endpoints under /api/*), auth.py, security.py, server.py
+├── api/            # FastAPI app: 41 endpoints under /api/v1/*; discovery, readiness, request IDs and errors
 ├── cli/            # menu.py — interactive CLI, 117 options
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 465 files
+tests/              # 470 files
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx

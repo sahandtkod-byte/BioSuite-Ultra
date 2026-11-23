@@ -50,8 +50,17 @@ def _plotting_function_counts():
 
 
 def _api_route_count():
-    return len([r for r in _api_app().routes
-                if getattr(r, "path", "").startswith("/api/")])
+    paths = set()
+    pending = list(_api_app().routes)
+    while pending:
+        route = pending.pop()
+        path = getattr(route, "path", "")
+        if path.startswith("/api/v1/"):
+            paths.add(path)
+        router = getattr(route, "original_router", None)
+        if router is not None:
+            pending.extend(router.routes)
+    return len(paths)
 
 
 def _api_app():
@@ -118,7 +127,7 @@ def test_documented_analysis_module_count_is_correct():
 
 def test_documented_api_endpoint_count_is_correct():
     measured = _api_route_count()
-    assert measured == 38, f"endpoint count changed to {measured}; update the docs"
+    assert measured == 41, f"endpoint count changed to {measured}; update the docs"
 
 
 def test_documented_plotting_function_count_is_correct():

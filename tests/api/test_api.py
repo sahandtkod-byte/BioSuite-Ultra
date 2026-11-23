@@ -38,11 +38,11 @@ class TestHealthAndInfo:
     def test_the_modules_list_counts_the_real_endpoint_surface(self):
         """``total_endpoints`` must be derived from the registered routes; a
         hard-coded number drifts the moment a route is added or removed."""
+        from biosuite.api.capabilities import count_versioned_routes
         resp = client.get("/api/v1/modules")
         assert resp.status_code == 200
         data = resp.json()
-        expected = sum(1 for r in app.routes
-                       if getattr(r, "path", "").startswith("/api/v1"))
+        expected = count_versioned_routes(app)
         assert expected >= 38, "the surface shrank without a docs re-pin"
         assert data["total_endpoints"] == expected
         assert len(data["modules"]) == 10

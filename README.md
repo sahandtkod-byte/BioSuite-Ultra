@@ -59,7 +59,7 @@ see [Scientific scope and limitations](#scientific-scope-and-limitations).
 | Workflows | Declarative pipelines, batch processing across samples, report generation |
 | Provenance | Parameter/input capture and audit records for reproducible runs |
 | Databases | NCBI/Ensembl-style lookups and a local GO browser |
-| Interfaces | Python library, interactive CLI (117 menu options, 20 direct subcommands), CustomTkinter GUI (11 tabs), FastAPI REST API (38 endpoints) |
+| Interfaces | Python library, interactive CLI (117 menu options, 20 direct subcommands), CustomTkinter GUI (11 tabs), FastAPI REST API (41 endpoints under `/api/v1/*`) |
 
 ---
 
@@ -276,9 +276,17 @@ The API is designed to fail closed.
   (as tests do) generates ephemeral random values and warns; those never serve traffic and do
   not survive a restart.
 - **Layered authentication.** Every endpoint requires an `X-API-Key` header except the
-  liveness probe: `GET /health` answers without a credential and returns only
-  `{"status", "timestamp"}`, so a monitoring agent needs no secret and a busy API cannot
-  throttle it. Version and module inventory on `/health` still require the key.
+  liveness and readiness probes: `GET /health` answers without a credential and returns only
+  `{"status", "timestamp"}`; `GET /ready` and `GET /api/v1/ready` report readiness and missing
+  optional engines without making their absence a service failure. Version and module
+  inventory on `/health` still require the key.
+  Discovery at `/api/v1/capabilities`, `/api/v1/capabilities/{id}` and
+  `/.well-known/biosuite.json` is key-gated by default; `BIOSUITE_PUBLIC_MANIFEST=1`
+  explicitly opens discovery, not execution.
+  `/api/v1/modules` remains a deprecated ten-module alias with a live endpoint count
+  and `Deprecation`/`Link` headers. Every response carries `X-Request-ID`.
+  Send `X-BioSuite-Error-Envelope: 1` to opt into structured errors containing
+  `code`, `status`, `detail` and `request_id`; default error bodies remain unchanged.
   `/api/v1/admin/*` additionally requires a JWT bearer token from `/api/v1/admin/login`.
   Login attempts are rate-limited.
 - **Confined file access.** File endpoints resolve paths only inside `BIOSUITE_DATA_DIR`.
