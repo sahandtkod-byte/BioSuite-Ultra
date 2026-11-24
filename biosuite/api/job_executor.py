@@ -20,11 +20,6 @@ ALLOWLIST = frozenset({'sequence.gc_content'})
 # is never stored verbatim in the audit trail, only as a length placeholder.
 RESULT_SUMMARY_LIMIT = 200
 
-# Job-store terminal states mapped onto the provenance statuses the core
-# tracker accepts ('success', 'error', 'skipped').
-_PROVENANCE_STATUS = {'succeeded': 'success', 'failed': 'error',
-                      'cancelled': 'skipped'}
-
 
 def _params_summary(params):
     return {key: (f'<string length={len(value)}>'
@@ -108,45 +103,67 @@ class JobExecutor:
         request_id = correlation.request_id if correlation else ''
         start = time.monotonic()
         result = None
-        failed = False
+        error = None
         try:
             result = run_with_correlation(
                 request_id, job['capability_id'], execute,
                 job['capability_id'], json.loads(job['params']))
         except Exception:
             result = None
-            failed = True
+            error = 'execution_failed'
         elapsed = time.monotonic() - start
         elapsed_ms = elapsed * 1000
-        if failed:
-            self.store.finish(job['id'], error='execution_failed')
-        elif elapsed > EXECUTION_SECONDS:
+        if error is None and elapsed > EXECUTION_SECONDS:
             result = None
-            self.store.finish(job['id'], error='execution_timeout')
+            error = 'execution_timeout'
+        # WS10: the outcome is fully computed before anything is published.
+        # The row is still 'running' (or 'cancellation_requested'), never
+        # terminal, so a pre-finish read decides cancellation; finish() maps
+        # 'cancellation_requested' to 'cancelled' atomically.  One bounded
+        # provenance step is recorded synchronously BEFORE the terminal state
+        # is published, so any client that observes a terminal state finds its
+        # provenance step already in the trail — there is no observe-then-wait
+        # race, and exactly one step is written because only this worker
+        # records jobs it claimed (queued cancellations are recorded by the
+        # cancel route via record_queued_cancellation, which cannot race a
+        # claim).  A recorder failure leaves the job's own state untouched.
+        state = self.store.get(job['id'])['state']
+        if state == 'cancellation_requested':
+            self._record_outcome(job, request_id, elapsed_ms, status='skipped',
+                                 result_summary='cancelled', error_message='')
+        elif error is None:
+            self._record_outcome(job, request_id, elapsed_ms, status='success',
+                                 result_summary=_bounded_json(
+                                     result, RESULT_SUMMARY_LIMIT),
+                                 error_message='')
         else:
+            self._record_outcome(job, request_id, elapsed_ms, status='error',
+                                 result_summary=str(error)[:RESULT_SUMMARY_LIMIT],
+                                 error_message=error)
+        if state == 'cancellation_requested':
+            self.store.finish(job['id'])
+        elif error is None:
             self.store.finish(job['id'], result=result)
-        self._record_outcome(job, request_id, elapsed_ms, result)
+        else:
+            self.store.finish(job['id'], error=error)
         return True
 
-    def _record_outcome(self, job, request_id, elapsed_ms, result):
+    def _record_outcome(self, job, request_id, elapsed_ms, *, status,
+                        result_summary, error_message):
         recorder = self.provenance_recorder
         if recorder is None:
             return
         try:
-            row = self.store.get(job['id'])
             capability = get_capability(job['capability_id'])
-            status = _PROVENANCE_STATUS.get(row['state'], 'error')
             recorder(
                 module=capability.module,
                 function=capability.function,
                 params=_params_summary(json.loads(job['params'])),
-                result_summary=_bounded_json(result, RESULT_SUMMARY_LIMIT)
-                if status == 'success'
-                else str(row['error'] or row['state'])[:RESULT_SUMMARY_LIMIT],
+                result_summary=result_summary,
                 execution_time_ms=elapsed_ms,
                 engine='builtin',
                 status=status,
-                error_message=row['error'] or '',
+                error_message=error_message,
                 request_id=request_id,
                 capability_id=job['capability_id'])
         except Exception:
