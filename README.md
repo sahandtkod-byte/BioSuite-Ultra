@@ -370,10 +370,8 @@ No part of this project is validated for clinical or diagnostic use.
 
 ## Project status
 
-The current version is **6.0.1**, a patch release that fixes the CI regressions found
-after v6.0.0 (a goatools ORA keyword bug, a flat-series regression annotation, and
-lint/collection fixes); see [CHANGELOG.md](CHANGELOG.md) for the full list of changes.
-It is published to PyPI as `biosuite-ultra==6.0.1`.
+The current version is **6.5.0**; see [CHANGELOG.md](CHANGELOG.md) for the full list of
+changes in this release.
 
 ---
 
@@ -416,7 +414,7 @@ If you use BioSuite Ultra in your research, please cite it using the metadata in
   author  = {Sahand Touri},
   title   = {BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform},
   year    = {2026},
-  version = {6.0.1},
+  version = {6.5.0},
   doi     = {10.5281/zenodo.21256296},
   url     = {https://github.com/sahandtkod-byte/BioSuite-Ultra}
 }

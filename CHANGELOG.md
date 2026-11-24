@@ -1,5 +1,71 @@
 # Changelog
 
+## [6.5.0] - 2026-11-24
+
+Feature release covering workstreams WS1–WS9: a capability catalog with MCP
+projection, API compatibility hardening, opt-in scoped API keys, owner-isolated
+persistent async jobs with full-suite provenance recording, and an
+agent-facing contract surface (`manifest` / `doctor` CLI subcommands plus a
+packaged byte-stable manifest). Route, command, menu, module and test counts
+are unchanged by this release: 45 API routes, 22 CLI commands, 117 GUI menu
+options, 105 source modules (47 analysis), 481 test files, 100% statement and
+branch coverage of `biosuite/` (22,537 statements / 7,236 branches).
+
+### Added
+
+- **Capability catalog, discovery and MCP projection (WS1)** — 341 catalog
+  entries with search/filter discovery and an MCP tool projection. Of these,
+  **4 entries are schema-complete MCP tools** (with full input schemas) and
+  **337 are metadata-only** (catalogued and discoverable, but not exposed as
+  MCP tools in 6.5.0; input/output schemas and fallback metadata for the full
+  catalog are deferred — see `docs/for_agents.md`).
+- **API compatibility hardening (WS2)** — `X-Request-ID`-based request IDs on
+  every response, a machine-readable error envelope (header
+  `X-BioSuite-Error-Envelope: 1`), stable error codes
+  (`blast_engine_unavailable`, `input_validation_failed`, …), and a frozen
+  legacy `/api/v1/modules` body whose only sanctioned drift is the live-derived
+  `total_endpoints` count (38 → 45 routes).
+- **Opt-in scoped API keys (WS3)** — `BIOSUITE_SCOPED_KEYS="key:read;…"`
+  grants per-key `read`/`execute`/`admin` scopes with downward inheritance;
+  absent or empty means the legacy single-key full access, unchanged.
+  Malformed scope configuration fails closed at import; scoped keys never
+  leak key material and grant no JWT admin abilities.
+- **Owner-isolated persistent async jobs (WS4)** — job records on disk under
+  `.biosuite-jobs/`, owned per API key, with submission, status, result and
+  cancellation routes (the four job routes served in 6.5.0).
+- **CLI `manifest` and `doctor` subcommands (WS7)** — `biosuite manifest`
+  prints the capability manifest; `biosuite doctor` reports environment
+  health. `docs/for_agents.md` is the agent guide for both.
+- **Packaged static manifest (WS7)** — the manifest ships inside the wheel via
+  `importlib.resources` and is byte-stable across machines and working
+  directories; a drift test fails CI if the generated and packaged copies
+  diverge.
+- **Job provenance recording (WS9)** — every terminal job outcome (success,
+  failure, timeout, cancelled) records one bounded provenance step: capability
+  module/function, parameters where any string collapses to
+  `<string length=N>` (a 100,000-character sequence is never stored verbatim),
+  a 200-character result summary, execution time, engine, mapped status,
+  error, request ID and capability ID. Recorder failures are non-fatal.
+
+### Changed
+
+- **Post-hoc job execution budget** — API jobs run under a **5-second budget**
+  (`EXECUTION_SECONDS = 5.0` in `biosuite/api/job_executor.py`) enforced
+  after submission, with an **allowlist restricted to `sequence.gc_content`**;
+  other capabilities are rejected at submission. The budget and allowlist are
+  intentionally conservative for shared deployments.
+- **CI/test contract (WS8)** — subprocess-level integration tests pin the
+  CLI manifest/doctor contract, exit codes and every documented claim in
+  `docs/for_agents.md` against the live code (22 subcommands, 117 menu
+  options, 45 routes), and CI verifies the packaged manifest.
+- **Optional extras** — the full suite reports **22 skips** for
+  optional-dependency gaps (external engines and extras not installed in the
+  baseline environment); they are environment skips, not failures.
+- **Developer workflow** — running a *single* test file or node with the
+  project's 100% coverage gate is not meaningful; use `--no-cov` for targeted
+  runs (e.g. `pytest tests/test_documentation_accuracy.py --no-cov`) and
+  reserve the `--cov-fail-under=100` gate for full-suite runs.
+
 ## [6.0.1] - 2026-11-14
 
 Patch release. Fixes the CI regressions found after v6.0.0 was tagged; no API or
