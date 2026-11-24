@@ -10,6 +10,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from biosuite.core.provenance import get_global_tracker
+
 from . import auth
 from .job_executor import JobExecutor, validate_submission
 from .job_store import QueueFullError
@@ -24,6 +26,14 @@ class JobSubmission(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     capability_id: str
     params: dict
+
+
+def _record_job_provenance(**step):
+    """Record one bounded provenance step for a finished job (audit only)."""
+    try:
+        get_global_tracker().record(**step)
+    except Exception:
+        pass
 
 
 @asynccontextmanager
@@ -45,7 +55,8 @@ def service(request):
             root = Path(os.environ.get('BIOSUITE_DATA_DIR', '.')).resolve()
             path = root / '.biosuite-jobs' / 'jobs.sqlite3'
             try:
-                request.app.state.job_executor = JobExecutor(path)
+                request.app.state.job_executor = JobExecutor(
+                    path, provenance_recorder=_record_job_provenance)
             except (OSError, RuntimeError):
                 raise HTTPException(503, 'Job service unavailable') from None
         return request.app.state.job_executor

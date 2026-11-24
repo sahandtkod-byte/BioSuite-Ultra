@@ -152,7 +152,7 @@ def test_identity_missing_and_service_lifespan_guard():
 
 
 def test_service_failure_is_sanitized(client, monkeypatch):
-    def broken(*args):
+    def broken(*args, **kwargs):
         raise RuntimeError('private-credential')
     monkeypatch.setattr(jobs, 'JobExecutor', broken)
     response = client.get('/api/v1/jobs/missing', headers=headers())

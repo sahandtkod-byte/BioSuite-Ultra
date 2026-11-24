@@ -17,6 +17,12 @@ Ultra locally. Everything here works offline; the tool never phones home.
 - Python: `from biosuite.capabilities.catalog import list_capabilities` and
   `from biosuite.capabilities.discovery import discover_availability`. The
   manifest lives in `biosuite.capabilities.manifest.manifest_json`.
+- Scope note (6.5.0): structured input/output schemas and fallback metadata
+  exist only for the curated MCP-exposed subset (the four `mcp_exposed`
+  catalog entries, projected by `biosuite.capabilities.mcp`). The full catalog
+  carries id, description, purity, surfaces and requirements only; complete
+  I/O and fallback metadata for every capability is deferred to a later
+  release, not silently absent.
 
 ## Exit codes for `manifest` and `doctor`
 
