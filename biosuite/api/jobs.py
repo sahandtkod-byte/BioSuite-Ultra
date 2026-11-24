@@ -123,5 +123,6 @@ def get_result(id: str, request: Request):
 
 @router.post('/{id}/cancel')
 def cancel_job(id: str, request: Request):
+    executor = service(request)
     owned_job(request, id)
-    return status(service(request).store.cancel(id))
+    return status(executor.cancel(id))

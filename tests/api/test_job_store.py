@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 
@@ -31,7 +32,8 @@ def test_schema_persistence_and_recovery(tmp_path):
     reopened = JobStore(path)
     try:
         assert reopened.db.execute('PRAGMA user_version').fetchone()[0] == 1
-        assert path.stat().st_mode & 0o777 == 0o600
+        if os.name == 'posix':
+            assert path.stat().st_mode & 0o777 == 0o600
         reopened.recover()
         assert reopened.get(running)['state'] == 'failed'
         assert reopened.get(running)['error'] == 'worker_restarted'

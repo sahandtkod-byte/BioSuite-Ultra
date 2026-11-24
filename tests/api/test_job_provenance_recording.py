@@ -6,6 +6,7 @@ the submitter's request id, the capability's module/function, a params summary
 that never contains the full submitted sequence, the result summary, timing,
 engine, status, error and ids.
 """
+import hashlib
 import json
 import threading
 import time
@@ -14,6 +15,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from biosuite.api import app, auth, job_executor, jobs
+from biosuite.api.job_store import JobStore
+from biosuite.api.provenance import bind_correlation, reset_correlation
 from biosuite.core.provenance import ProvenanceTracker, set_global_tracker
 
 
@@ -134,3 +137,67 @@ def test_broken_global_tracker_never_fails_the_job(tracker_client, monkeypatch):
     row = client.app.state.job_executor.store.get(job_id)
     assert row['state'] == 'succeeded'
     assert row['result'] == json.dumps({'gc_percent': 50.0, 'sequence_length': 8})
+
+
+def test_queued_cancellation_records_one_skipped_step(tmp_path):
+    tracker = ProvenanceTracker()
+    executor = job_executor.JobExecutor(
+        tmp_path / 'queued-cancel.sqlite3',
+        provenance_recorder=tracker.record)
+    try:
+        executor.stopping.set()
+        executor.wake.set()
+        executor.thread.join()
+        token = bind_correlation('prov-queued-cancel', 'sequence.gc_content')
+        try:
+            job_id = executor.submit(
+                'unit-owner', 'sequence.gc_content', {'sequence': 'ATGC'})
+        finally:
+            reset_correlation(token)
+        updated = executor.cancel(job_id)
+        assert updated['state'] == 'cancelled'
+        executor.cancel(job_id)
+        executor.record_queued_cancellation(updated)
+        executor.record_queued_cancellation({'state': 'running'})
+        assert executor.cancel('missing-job') is None
+        steps = [step for step in tracker.get_steps()
+                 if step.request_id == 'prov-queued-cancel']
+        assert len(steps) == 1
+        step = steps[0]
+        assert step.status == 'skipped'
+        assert step.result_summary == 'cancelled'
+        assert step.params == {'sequence': '<string length=4>'}
+        assert step.error_message == ''
+        assert step.capability_id == 'sequence.gc_content'
+    finally:
+        executor.close()
+
+
+def test_cancel_route_records_queued_cancellation(tracker_client, monkeypatch,
+                                                  tmp_path):
+    client, _ = tracker_client
+    store = JobStore(tmp_path / 'route-jobs.sqlite3')
+    owner = hashlib.sha256(b'master-job-key').hexdigest()
+    job_id = store.submit(owner, 'sequence.gc_content', {'sequence': 'ATGC'})
+
+    class StubExecutor:
+        def __init__(self):
+            self.store = store
+            self.recorded = []
+
+        def cancel(self, job_id):
+            updated = self.store.cancel(job_id)
+            self.recorded.append(job_id)
+            return updated
+
+    stub = StubExecutor()
+    monkeypatch.setattr(jobs, 'service', lambda request: stub)
+    try:
+        response = client.post(
+            f'/api/v1/jobs/{job_id}/cancel',
+            headers={'X-API-Key': 'master-job-key'})
+        assert response.status_code == 200, response.text
+        assert response.json()['state'] == 'cancelled'
+        assert stub.recorded == [job_id]
+    finally:
+        store.close()

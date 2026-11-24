@@ -9,6 +9,7 @@ the code does not keep is a defect; these tests keep the two honest.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -16,6 +17,10 @@ import sys
 from importlib import resources
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _utf8_env():
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
 
 JOB_ROUTES_DOCUMENTED = (
     "POST /api/v1/jobs",
@@ -30,7 +35,7 @@ def _run_biosuite(*args, cwd=None):
     exe = pathlib.Path(sys.executable).with_name("biosuite")
     argv = [str(exe)] if exe.exists() else [sys.executable, "-m", "biosuite.cli.menu"]
     return subprocess.run(argv + list(args), capture_output=True, text=True,
-                          cwd=cwd, timeout=300)
+                          encoding="utf-8", env=_utf8_env(), cwd=cwd, timeout=300)
 
 
 def _packaged_manifest_text() -> str:

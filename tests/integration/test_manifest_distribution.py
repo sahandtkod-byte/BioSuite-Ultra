@@ -10,12 +10,17 @@ that decides whether the artifact ships at all.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
 from importlib import resources
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _utf8_env():
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
 
 
 def _generated_manifest_text() -> str:
@@ -30,7 +35,8 @@ def _packaged_manifest_text() -> str:
 
 def _python_snippet(code: str, cwd) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, "-c", code], capture_output=True,
-                          text=True, cwd=cwd, timeout=300)
+                          text=True, encoding="utf-8", env=_utf8_env(),
+                          cwd=cwd, timeout=300)
 
 
 def test_the_packaged_manifest_is_readable_through_importlib_resources():
@@ -59,6 +65,7 @@ def test_the_console_script_serves_the_packaged_manifest_outside_the_repo(tmp_pa
     exe = pathlib.Path(sys.executable).with_name("biosuite")
     argv = [str(exe)] if exe.exists() else [sys.executable, "-m", "biosuite.cli.menu"]
     proc = subprocess.run(argv + ["manifest"], capture_output=True, text=True,
+                          encoding="utf-8", env=_utf8_env(),
                           cwd=tmp_path, timeout=300)
 
     assert proc.returncode == 0, proc.stderr

@@ -422,14 +422,14 @@ def test_doctor_accepts_no_arguments():
     status, out = run_command("doctor", "extra")
 
     assert status == 2
-    assert "Unknown command: doctor" in out or "Usage" in out
+    assert "Too many arguments" in out
 
 
 def test_manifest_accepts_no_arguments():
     status, out = run_command("manifest", "extra")
 
     assert status == 2
-    assert "Unknown command: manifest" in out or "Usage" in out
+    assert "Too many arguments" in out
 
 
 def test_doctor_missing_required_engine_exits_one(monkeypatch, capsys):

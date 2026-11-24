@@ -82,6 +82,9 @@ class JobExecutor:
         # time; entries never outlive their job's claim or the executor.
         self._correlations = {}
         self._correlations_lock = threading.Lock()
+        self._recorded = set()
+        self._recorded_lock = threading.Lock()
+        self._finalize_lock = threading.Lock()
         self.thread = threading.Thread(target=self._run, name='biosuite-jobs', daemon=True)
         self.thread.start()
 
@@ -116,43 +119,75 @@ class JobExecutor:
         if error is None and elapsed > EXECUTION_SECONDS:
             result = None
             error = 'execution_timeout'
-        # WS10: the outcome is fully computed before anything is published.
-        # The row is still 'running' (or 'cancellation_requested'), never
-        # terminal, so a pre-finish read decides cancellation; finish() maps
+        # The outcome is fully computed before anything is published.  The row
+        # is still 'running' (or 'cancellation_requested'), never terminal, so
+        # a pre-finish read decides cancellation; finish() maps
         # 'cancellation_requested' to 'cancelled' atomically.  One bounded
         # provenance step is recorded synchronously BEFORE the terminal state
         # is published, so any client that observes a terminal state finds its
         # provenance step already in the trail — there is no observe-then-wait
-        # race, and exactly one step is written because only this worker
-        # records jobs it claimed (queued cancellations are recorded by the
-        # cancel route via record_queued_cancellation, which cannot race a
-        # claim).  A recorder failure leaves the job's own state untouched.
-        state = self.store.get(job['id'])['state']
-        if state == 'cancellation_requested':
-            self._record_outcome(job, request_id, elapsed_ms, status='skipped',
-                                 result_summary='cancelled', error_message='')
-        elif error is None:
-            self._record_outcome(job, request_id, elapsed_ms, status='success',
-                                 result_summary=_bounded_json(
-                                     result, RESULT_SUMMARY_LIMIT),
-                                 error_message='')
-        else:
-            self._record_outcome(job, request_id, elapsed_ms, status='error',
-                                 result_summary=str(error)[:RESULT_SUMMARY_LIMIT],
-                                 error_message=error)
-        if state == 'cancellation_requested':
-            self.store.finish(job['id'])
-        elif error is None:
-            self.store.finish(job['id'], result=result)
-        else:
-            self.store.finish(job['id'], error=error)
+        # race.  The worker records jobs it claimed; queued cancellations are
+        # recorded by JobExecutor.cancel via record_queued_cancellation.  The
+        # worker's finalize path and JobExecutor.cancel share _finalize_lock, so
+        # a cancellation cannot change the terminal status between the read and
+        # the provenance write.  A recorder failure leaves the job's own state
+        # untouched.
+        with self._finalize_lock:
+            state = self.store.get(job['id'])['state']
+            if state == 'cancellation_requested':
+                self._record_outcome(job, request_id, elapsed_ms,
+                                     status='skipped',
+                                     result_summary='cancelled',
+                                     error_message='')
+            elif error is None:
+                self._record_outcome(job, request_id, elapsed_ms,
+                                     status='success',
+                                     result_summary=_bounded_json(
+                                         result, RESULT_SUMMARY_LIMIT),
+                                     error_message='')
+            else:
+                self._record_outcome(job, request_id, elapsed_ms,
+                                     status='error',
+                                     result_summary=str(error)[:RESULT_SUMMARY_LIMIT],
+                                     error_message=error)
+            if state == 'cancellation_requested':
+                self.store.finish(job['id'])
+            elif error is None:
+                self.store.finish(job['id'], result=result)
+            else:
+                self.store.finish(job['id'], error=error)
         return True
+
+    def cancel(self, job_id):
+        """Cancel a job and record a queued cancellation exactly once."""
+        with self._finalize_lock:
+            before = self.store.get(job_id)
+            if before is None:
+                return None
+            updated = self.store.cancel(job_id)
+            if before['state'] == 'queued' and updated['state'] == 'cancelled':
+                self.record_queued_cancellation(updated)
+            return updated
+
+    def record_queued_cancellation(self, job):
+        """Record one bounded skipped step for a queued cancellation."""
+        if job.get('state') != 'cancelled':
+            return
+        with self._correlations_lock:
+            correlation = self._correlations.pop(job['id'], None)
+        request_id = correlation.request_id if correlation else ''
+        self._record_outcome(job, request_id, 0.0, status='skipped',
+                             result_summary='cancelled', error_message='')
 
     def _record_outcome(self, job, request_id, elapsed_ms, *, status,
                         result_summary, error_message):
         recorder = self.provenance_recorder
         if recorder is None:
             return
+        with self._recorded_lock:
+            if job['id'] in self._recorded:
+                return
+            self._recorded.add(job['id'])
         try:
             capability = get_capability(job['capability_id'])
             recorder(
