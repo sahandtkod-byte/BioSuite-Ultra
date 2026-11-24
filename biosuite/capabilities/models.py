@@ -1,7 +1,7 @@
 """Typed models for the BioSuite capability catalog (stdlib only)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import FrozenSet, Tuple
 
 __all__ = ["Capability"]
