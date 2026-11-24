@@ -2089,3 +2089,7 @@ def main_cli_gui():
     from ..gui.main_window import BioSuiteApp
     app = BioSuiteApp()
     app.mainloop()
+
+
+if __name__ == "__main__":
+    sys.exit(main_cli())
