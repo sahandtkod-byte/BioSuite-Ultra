@@ -1,5 +1,30 @@
 # Changelog
 
+## [6.5.1] - 2026-11-26
+
+Patch release for the independent 6.5.0 QA audit. No API or scientific
+behaviour changes; the fixes cover the shipped examples, the server entry
+point, optional-dependency guidance and numeric-file handling.
+
+### Fixed
+
+- Example notebooks 01 and 02 now use the current API; all five shipped
+  notebooks execute in CI.
+- `python -m biosuite.api.server` honours `--host`, `--port`, `--reload` and
+  `--no-reload`, and rejects unknown arguments instead of silently binding 8000.
+- A missing API dependency now prints the `pip install biosuite-ultra[api]`
+  guidance instead of a raw `ModuleNotFoundError`.
+- `volcano` numeric-file input ignores a single header row instead of counting
+  it as a skipped data line.
+- The tabular input contracts for `gwas`, `manhattan`, `volcano` and `pca`
+  are documented in the CLI help and README.
+
+### Deferred to 7.0.0
+
+- File/stdin input for one-sequence CLI commands (QA-004).
+- Theme-switch repaint latency and Linux Tk sidebar wheel scrolling
+  (QA-005, QA-008); both need Windows visual verification.
+
 ## [6.5.0] - 2026-11-26
 
 Feature release covering workstreams WS1–WS9: a capability catalog with MCP

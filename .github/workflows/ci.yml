@@ -326,3 +326,32 @@ jobs:
           assert data["total"] == len(list_capabilities()) == len(data["capabilities"])
           print(f"wheel carries a byte-stable manifest of {data['total']} capabilities")
           PY
+
+  notebooks:
+    name: Notebook examples
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install the notebook environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,notebook,dev,gui]"
+
+      - name: Execute every shipped notebook
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/executed-notebooks
+          for notebook in examples/*.ipynb; do
+            echo "Executing ${notebook}"
+            python -m nbconvert --to notebook --execute "$notebook" \
+              --output-dir /tmp/executed-notebooks \
+              --ExecutePreprocessor.timeout=300
+          done

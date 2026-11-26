@@ -37,6 +37,8 @@ from .utils import has_tool as _has_tool
 logger = get_logger(__name__)
 
 __all__ = [
+    "build_kmer_index",
+    "search_index",
     "check_blast_installed",
     "make_database",
     "run_blast",
@@ -222,6 +224,29 @@ def _find_seed_hits(query: str, index: Dict[str, List[Tuple[str, int]]], k: int 
             count += 1
     # Sort by number of seed hits (best first)
     return sorted(hits.items(), key=lambda x: len(x[1]), reverse=True)[:50]
+
+
+def build_kmer_index(sequences, k: int = 15) -> Dict[str, List[Tuple[str, int]]]:
+    """Build the k-mer index used by :func:`search_index`.
+
+    ``sequences`` may be a mapping of sequence id to sequence, or an iterable
+    of ``(id, sequence)`` pairs.  The index maps every k-mer to the subject id
+    and offset where it occurs; windows containing ``N`` are not indexed.
+    """
+    if hasattr(sequences, "items"):
+        sequences = sequences.items()
+    return _build_kmer_index(list(sequences), k=k)
+
+
+def search_index(query: str, index, k: int = 15,
+                 max_hits: int = 200) -> List[Tuple[Tuple[str, int], List[int]]]:
+    """Return seed-hit candidates from an index built by :func:`build_kmer_index`.
+
+    Each result is ``((subject_id, diagonal_offset), [query positions])``,
+    most-seeded first.  This is the seed-discovery stage of the built-in
+    BLAST-style engine, not a full alignment report.
+    """
+    return _find_seed_hits(query, index, k=k, max_hits=max_hits)
 
 
 def _banded_align_score(seq1: str, seq2: str, start1: int, start2: int, match: int = 1, mismatch: int = -1, gap: int = -2) -> Tuple[float, int]:

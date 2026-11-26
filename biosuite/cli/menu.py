@@ -70,11 +70,11 @@ COMMAND_REGISTRY = {
     'blast': {'func': 'biosuite.cli.menu:_cli_blast', 'desc': 'BLAST sequence search', 'args': ['query', 'database']},
     'crispr': {'func': 'biosuite.core.crispr:design_guides', 'desc': 'CRISPR guide design', 'args': ['sequence'], 'report': 'biosuite.core.crispr:format_crispr_report'},
     'epitope': {'func': 'biosuite.cli.menu:_cli_epitope', 'desc': 'T-cell and B-cell epitope prediction', 'args': ['sequence']},
-    'gwas': {'func': 'biosuite.cli.menu:_cli_gwas', 'desc': 'Run GWAS analysis from a CSV/TSV of SNPs', 'args': ['datafile']},
+    'gwas': {'func': 'biosuite.cli.menu:_cli_gwas', 'desc': 'GWAS from CSV/TSV with chrom,pos,snp_id,case_alt,case_ref,ctrl_alt,ctrl_ref', 'args': ['datafile']},
     'hwe': {'func': 'biosuite.cli.menu:_cli_hardy_weinberg', 'desc': 'Hardy-Weinberg test (AA Aa aa counts)', 'args': ['AA', 'Aa', 'aa']},
-    'volcano': {'func': 'biosuite.cli.menu:_cli_volcano', 'desc': 'Volcano plot from two numeric columns', 'args': ['lfc_file', 'pval_file']},
-    'pca': {'func': 'biosuite.cli.menu:_cli_pca', 'desc': 'PCA plot of a numeric matrix', 'args': ['datafile']},
-    'manhattan': {'func': 'biosuite.cli.menu:_cli_manhattan', 'desc': 'Manhattan plot (chrom, pos, p_value)', 'args': ['datafile']},
+    'volcano': {'func': 'biosuite.cli.menu:_cli_volcano', 'desc': 'Volcano plot from two numeric files, one value per line (one header allowed)', 'args': ['lfc_file', 'pval_file']},
+    'pca': {'func': 'biosuite.cli.menu:_cli_pca', 'desc': 'PCA plot from numeric CSV/TSV columns', 'args': ['datafile']},
+    'manhattan': {'func': 'biosuite.cli.menu:_cli_manhattan', 'desc': 'Manhattan plot from CSV/TSV with chrom,pos,p_value', 'args': ['datafile']},
     'digest': {'func': 'biosuite.core.cloning:simulate_digestion', 'desc': 'Restriction digestion', 'args': ['sequence', 'enzyme'], 'report': 'biosuite.core.cloning:format_digest_report'},
     'primers': {'func': 'biosuite.core.cloning:design_primers', 'desc': 'Primer design', 'args': ['sequence'], 'report': 'biosuite.core.cloning:format_primer_report'},
     'gui': {'func': '_launch_gui', 'desc': 'Launch GUI application', 'args': []},
@@ -193,21 +193,27 @@ def _read_table(path):
 
 
 def _read_numbers(path):
-    """One number per line (or per first field), ignoring header and comment lines."""
+    """One number per line (or per first field); ignore one header and comments."""
     import numpy as np
 
     _require_file(path, "Data file")
     values = []
     skipped = 0
+    header_seen = False
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             try:
-                values.append(float(line.replace(",", " ").split()[0]))
-            except ValueError:
+                value = float(line.replace(",", " ").split()[0])
+            except (IndexError, ValueError):
+                if not values and not header_seen:
+                    header_seen = True
+                    continue
                 skipped += 1
+                continue
+            values.append(value)
     if skipped:
         print(f"Warning: skipped {skipped} line(s) that are not numbers in {path}",
               file=sys.stderr)

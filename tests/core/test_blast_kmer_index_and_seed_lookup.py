@@ -118,3 +118,24 @@ def test_only_the_fifty_best_diagonals_are_kept_for_extension():
     assert len(candidates) == 50
     assert candidates[0][0] == ("db", 0)
     assert len(candidates[0][1]) == 4, "the busiest diagonal carries the most seeds"
+
+
+# ── Public k-mer API used by the shipped notebook ────────────────────────────
+
+def test_the_public_index_builder_accepts_a_mapping():
+    """The notebook passes ``{id: sequence}``; the public wrapper normalises it."""
+    public = bl.build_kmer_index({"seq1": "ACGTACGT"}, k=4)
+    internal = bl._build_kmer_index([("seq1", "ACGTACGT")], k=4)
+    assert dict(public) == dict(internal)
+
+
+def test_the_public_index_builder_accepts_pairs():
+    public = bl.build_kmer_index([("seq1", "ACGTACGT")], k=4)
+    internal = bl._build_kmer_index([("seq1", "ACGTACGT")], k=4)
+    assert dict(public) == dict(internal)
+
+
+def test_the_public_search_index_returns_seed_candidates():
+    index = bl.build_kmer_index({"db": "ACGTACGTACGTACGT"}, k=4)
+    assert bl.search_index("ACGTACGT", index, k=4) == bl._find_seed_hits(
+        "ACGTACGT", index, k=4)

@@ -165,6 +165,15 @@ Available subcommands: `api`, `blast`, `crispr`, `digest`, `doctor`, `epitope`, 
 `hwe`, `manhattan`, `manifest`, `nw`, `pca`, `primers`, `revcomp`, `stats`, `sw`, `theme`,
 `translate`, `volcano`.
 
+Tabular command inputs:
+
+- `gwas`: CSV/TSV with `chrom`, `pos`, `snp_id`, `case_alt`, `case_ref`, `ctrl_alt` and
+  `ctrl_ref` columns (`control_alt`/`control_ref` are accepted as aliases).
+- `manhattan`: CSV/TSV with `chrom`, `pos` and `p_value` columns.
+- `volcano`: two numeric files with one value per line; a single header row is ignored, and
+  both files must contain the same number of values.
+- `pca`: CSV/TSV; numeric columns are selected automatically.
+
 ### Desktop GUI
 
 ```bash
@@ -181,7 +190,8 @@ with a plot catalogue of 40 chart types and three colour themes.
 
 ```bash
 pip install "biosuite-ultra[api]"
-python -m biosuite.api.server        # or: biosuite api --port 8000
+python -m biosuite.api.server --host 127.0.0.1 --port 8000
+# or: biosuite api --port 8000
 ```
 
 The API exposes 45 routes under `/api/v1/*`, plus an unauthenticated `/health` liveness
@@ -313,21 +323,23 @@ To report a vulnerability, see [SECURITY.md](.github/SECURITY.md).
 ## Testing and quality
 
 Every push and pull request runs the full suite on three interpreters, plus Ruff linting,
-a security-regression suite, a coverage job and a package build. The job list is in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml): `test`, `security`, `lint`, `build` and `manifest`.
+a security-regression suite, a coverage job, a package build, a packaged-manifest check and
+an end-to-end execution of every shipped notebook. The job list is in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): `test`, `security`, `lint`, `build`, `manifest` and `notebooks`.
 
-| Check | Result at the v6.5.0 CI run |
+| Check | Result at the v6.5.1 CI run |
 |---|---|
-| Tests — Python 3.10, 3.11 and 3.12 | 10,486 passed, 22 skipped, 0 failed (each) |
+| Tests — Python 3.10, 3.11 and 3.12 | 10,496 passed, 22 skipped, 0 failed (each) |
 | Statement and branch coverage of `biosuite/` | 100.00% — 22,599 statements, 7,254 branches, nothing partial |
 | Security regression suite (both `security` job lists) | 258 tests, 0 skipped, no failures |
 | Ruff (`E9,F,B` as a hard gate) | passed |
 | Package build (`build` + `twine check`) | passed |
 | Packaged manifest | byte-identical; 341 capabilities |
+| Notebook examples | all five execute end to end in CI |
 
 The 22 skips are environment-dependent: optional scientific engines/extras and checks that
 need POSIX mode bits; `pytest -rs` reports each one. CI installs Tk bindings and goatools, so
-the GUI/API totals are complete there. The figures above are the v6.5.0 CI totals.
+the GUI/API totals are complete there. The figures above are the v6.5.1 CI totals.
 
 Run the suite locally with:
 
@@ -369,7 +381,7 @@ No part of this project is validated for clinical or diagnostic use.
 
 ## Project status
 
-The current version is **6.5.0**; see [CHANGELOG.md](CHANGELOG.md) for the full list of
+The current version is **6.5.1**; see [CHANGELOG.md](CHANGELOG.md) for the full list of
 changes in this release.
 
 ---
@@ -413,7 +425,7 @@ If you use BioSuite Ultra in your research, please cite it using the metadata in
   author  = {Sahand Touri},
   title   = {BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform},
   year    = {2026},
-  version = {6.5.0},
+  version = {6.5.1},
   doi     = {10.5281/zenodo.21256296},
   url     = {https://github.com/sahandtkod-byte/BioSuite-Ultra}
 }

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosuite-ultra"
-version = "6.5.0"
+version = "6.5.1"
 description = "Integrated pure-Python bioinformatics platform: 47 analysis modules for sequence, genomics, transcriptomics and population genetics, 105 plotting functions, molecular cloning with 169 restriction enzymes, and a library/CLI/GUI/REST-API interface set"
 readme = "README.md"
 license = {text = "MIT"}
@@ -101,6 +101,7 @@ dev = [
     "pytest-xdist>=3.0",
     "httpx>=0.24",            # required by fastapi.testclient
     "ruff>=0.4",
+    "nbconvert>=7.0",        # executes the shipped notebooks in CI
 ]
 
 [project.scripts]

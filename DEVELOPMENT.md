@@ -8,8 +8,8 @@ measured from the tree — keep them accurate if you change the code.
 - **12 plotting modules** exposing **167 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
 - **11 GUI tabs**, **117 CLI menu options**, **22 direct subcommands**, **45 REST API endpoints** (under `/api/v1/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **46,703 lines** of Python across 105 modules in `biosuite/`
-- **481 test files**; the run recorded under Current Status is the authoritative figure
+- **46,809 lines** of Python across 105 modules in `biosuite/`
+- **482 test files**; the run recorded under Current Status is the authoritative figure
 
 ## Architecture
 ```
@@ -20,7 +20,7 @@ biosuite/
 ├── cli/            # menu.py — interactive CLI, 117 options; capabilities.py — manifest/doctor subcommands
 ├── notebook/       # Jupyter magics + ipywidgets (optional IPython deps, guarded)
 └── plotting/       # 12 modules, matplotlib + plotly backends
-tests/              # 481 files
+tests/              # 482 files
 benchmarks/         # pytest-benchmark suite
 examples/           # 8 tutorial scripts + 5 notebooks
 docs/               # Sphinx
@@ -58,17 +58,18 @@ pytest tests/ --cov=biosuite     # coverage
 The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY`.
 
 ## Current Status
-- Version: **6.5.0**
-- Last verified run: **10,486 passed, 22 skipped, 0 failed** on Python 3.10, 3.11 and
-  3.12 in the v6.5.0 CI run (run 45807317951), with **100.00%** statement and branch
-  coverage of `biosuite/`.
+- Version: **6.5.1**
+- Last verified run: **10,496 passed, 22 skipped, 0 failed** on Python 3.10, 3.11 and
+  3.12 in the v6.5.1 CI run, with **100.00%** statement and branch coverage of
+  `biosuite/`.
 - Coverage totals: **22,599 statements** with 0 missed and **7,254 branches** with
   0 partial.
 - The 22 skips are environment-dependent (optional scientific engines/extras and checks
   that need POSIX mode bits); they are reported by `pytest -rs` and are not failures.
 - CI runs the same suite on 3.10/3.11/3.12 with Tk bindings installed, plus lint,
-  security, package-build and packaged-manifest jobs (`.github/workflows/ci.yml`).
-  The two `security` job file lists pass **258 tests, 0 skipped, 0 failures**.
+  security, package-build and packaged-manifest jobs, and executes all five shipped
+  notebooks (`.github/workflows/ci.yml`). The two `security` job file lists pass
+  **258 tests, 0 skipped, 0 failures**.
 - Published on PyPI as `biosuite-ultra`
 - Zenodo DOI: 10.5281/zenodo.21256296
 

@@ -379,8 +379,8 @@ class TestInteractiveMode:
         assert "Goodbye" in captured.out
 
 
-def test_read_numbers_counts_the_lines_it_skips(capsys, tmp_path):
-    """A header line and a bad data line must both be skipped — and counted, so a
+def test_read_numbers_counts_the_bad_data_lines_it_skips(capsys, tmp_path):
+    """A comment is ignored silently; a bad data line is skipped and counted, so a
     volcano over N-1 genes cannot announce itself as N."""
     import numpy as np
 
@@ -393,6 +393,32 @@ def test_read_numbers_counts_the_lines_it_skips(capsys, tmp_path):
     captured = capsys.readouterr()
     assert "skipped 1 line(s)" in captured.err
     assert str(path) in captured.err
+
+
+def test_read_numbers_ignores_a_single_header_row(capsys, tmp_path):
+    """A header row is not a skipped data line and must not warn."""
+    import numpy as np
+
+    path = tmp_path / "values.txt"
+    path.write_text("log2fc\n1.5\n-2.5\n", encoding="utf-8")
+
+    values = _read_numbers(str(path))
+
+    np.testing.assert_allclose(values, [1.5, -2.5])
+    assert capsys.readouterr().err == ""
+
+
+def test_read_numbers_still_counts_bad_lines_after_a_header(capsys, tmp_path):
+    import numpy as np
+
+    path = tmp_path / "values.txt"
+    path.write_text("log2fc\n1.5\nnot a number\n2.5\n", encoding="utf-8")
+
+    values = _read_numbers(str(path))
+
+    np.testing.assert_allclose(values, [1.5, 2.5])
+    captured = capsys.readouterr()
+    assert "skipped 1 line(s)" in captured.err
 
 
 def test_debug_mode_reraises_a_command_failure(monkeypatch):
