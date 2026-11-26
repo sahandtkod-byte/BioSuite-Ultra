@@ -8,7 +8,7 @@ measured from the tree — keep them accurate if you change the code.
 - **12 plotting modules** exposing **167 functions** (105 public); the GUI plot catalogue lists **40 plot types** in 9 categories
 - **11 GUI tabs**, **117 CLI menu options**, **22 direct subcommands**, **45 REST API endpoints** (under `/api/v1/*`)
 - **169 restriction enzymes** (`RESTRICTION_ENZYMES` in `biosuite/core/utils.py`)
-- **46,809 lines** of Python across 105 modules in `biosuite/`
+- **46,784 lines** of Python across 105 modules in `biosuite/`
 - **482 test files**; the run recorded under Current Status is the authoritative figure
 
 ## Architecture
@@ -59,7 +59,7 @@ The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY
 
 ## Current Status
 - Version: **6.5.1**
-- Last verified run: **10,496 passed, 22 skipped, 0 failed** on Python 3.10, 3.11 and
+- Last verified run: **10,493 passed, 22 skipped, 0 failed** on Python 3.10, 3.11 and
   3.12 in the v6.5.1 CI run, with **100.00%** statement and branch coverage of
   `biosuite/`.
 - Coverage totals: **22,599 statements** with 0 missed and **7,254 branches** with

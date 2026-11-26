@@ -81,6 +81,7 @@ api = [
 ]
 notebook = [
     "ipython>=8.0",
+    "ipykernel>=6.0",
     "ipywidgets>=8.0",
 ]
 parallel = [

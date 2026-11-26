@@ -345,6 +345,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[api,notebook,dev,gui]"
 
+      - name: Register the Python kernel
+        run: python -m ipykernel install --user --name python3
+
       - name: Execute every shipped notebook
         run: |
           set -euo pipefail
