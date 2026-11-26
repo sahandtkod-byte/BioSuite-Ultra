@@ -327,9 +327,9 @@ a security-regression suite, a coverage job, a package build, a packaged-manifes
 an end-to-end execution of every shipped notebook. The job list is in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `test`, `security`, `lint`, `build`, `manifest` and `notebooks`.
 
-| Check | Result at the v6.5.1 CI run |
+| Check | Result at the v6.5.2 CI run |
 |---|---|
-| Tests — Python 3.10, 3.11 and 3.12 | 10,495 passed, 22 skipped, 0 failed (each) |
+| Tests — Python 3.10, 3.11 and 3.12 | 10,496 passed, 22 skipped, 0 failed (each) |
 | Statement and branch coverage of `biosuite/` | 100.00% — 22,643 statements, 7,260 branches, nothing partial |
 | Security regression suite (both `security` job lists) | 258 tests, 0 skipped, no failures |
 | Ruff (`E9,F,B` as a hard gate) | passed |
@@ -339,7 +339,7 @@ an end-to-end execution of every shipped notebook. The job list is in
 
 The 22 skips are environment-dependent: optional scientific engines/extras and checks that
 need POSIX mode bits; `pytest -rs` reports each one. CI installs Tk bindings and goatools, so
-the GUI/API totals are complete there. The figures above are the v6.5.1 CI totals.
+the GUI/API totals are complete there. The figures above are the v6.5.2 CI totals.
 
 Run the suite locally with:
 
@@ -381,7 +381,7 @@ No part of this project is validated for clinical or diagnostic use.
 
 ## Project status
 
-The current version is **6.5.1**; see [CHANGELOG.md](CHANGELOG.md) for the full list of
+The current version is **6.5.2**; see [CHANGELOG.md](CHANGELOG.md) for the full list of
 changes in this release.
 
 ---
@@ -425,7 +425,7 @@ If you use BioSuite Ultra in your research, please cite it using the metadata in
   author  = {Sahand Touri},
   title   = {BioSuite Ultra: Comprehensive Open-Source Bioinformatics Platform},
   year    = {2026},
-  version = {6.5.1},
+  version = {6.5.2},
   doi     = {10.5281/zenodo.21256296},
   url     = {https://github.com/sahandtkod-byte/BioSuite-Ultra}
 }

@@ -1,5 +1,24 @@
 # Changelog
 
+## [6.5.2] - 2026-11-26
+
+Patch release completing the 6.5.1 QA-003 fix. The 6.5.1 guard lived in
+`server.py`, but `python -m biosuite.api.server` imports the `biosuite.api`
+package before that module runs, so a missing fastapi still produced a raw
+traceback from `biosuite/api/__init__.py`. 6.5.2 moves the guard to the
+package's API-dependency imports and adds a subprocess regression test with a
+fake fastapi.
+
+### Fixed
+
+- `python -m biosuite.api.server` prints the `pip install "biosuite-ultra[api]"`
+  instruction instead of a raw `ModuleNotFoundError` when the API extra is
+  absent.
+- A subprocess test runs the real `python -m` entry point with a missing
+  fastapi and asserts the guidance is printed without a traceback.
+
+No public API, scientific-result or capability-catalog changes.
+
 ## [6.5.1] - 2026-11-26
 
 Patch release for the independent 6.5.0 QA audit. No API or scientific

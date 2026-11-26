@@ -36,7 +36,7 @@ keywords:
   - single-cell
   - scientific-computing
 license: MIT
-version: 6.5.1
+version: 6.5.2
 date-released: "2026-11-26"
 preferred-citation:
   type: software
@@ -45,6 +45,6 @@ preferred-citation:
     - family-names: Touri
       given-names: Sahand
   year: 2026
-  version: 6.5.1
+  version: 6.5.2
   doi: "10.5281/zenodo.21256296"
   url: "https://github.com/sahandtkod-byte/BioSuite-Ultra"

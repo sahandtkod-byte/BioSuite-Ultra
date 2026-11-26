@@ -25,18 +25,30 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import unquote
 
 import matplotlib
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
-from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field, field_validator, model_validator
-from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
+try:
+    from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
+    from fastapi.exceptions import RequestValidationError
+    from fastapi.middleware.cors import CORSMiddleware
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+    from fastapi.openapi.docs import get_swagger_ui_html
+    from fastapi.openapi.utils import get_openapi
+    from fastapi.responses import HTMLResponse, JSONResponse
+    from pydantic import BaseModel, Field, field_validator, model_validator
+    from slowapi import Limiter
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+    from slowapi.util import get_remote_address
+except ModuleNotFoundError as exc:
+    # ``python -m biosuite.api.server`` imports this package before server.py
+    # runs, so the guard must live here; otherwise the user sees a raw
+    # traceback from this import instead of the install instruction.
+    missing = exc.name or "an API dependency"
+    raise SystemExit(
+        "BioSuite API dependencies are not installed "
+        f"(missing: {missing}).\n"
+        "Install them with:\n"
+        "  pip install \"biosuite-ultra[api]\"\n"
+    ) from None
 
 from biosuite import __version__
 from biosuite.api.auth import (

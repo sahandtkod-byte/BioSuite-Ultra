@@ -1,5 +1,8 @@
 """The ``python -m biosuite.api.server`` command-line contract."""
+import os
+import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -90,3 +93,26 @@ def test_an_invalid_port_environment_is_rejected(monkeypatch, capsys):
 
     assert server.main([]) == 2
     assert "Invalid BIOSUITE_API_PORT" in capsys.readouterr().err
+
+
+def test_the_module_entrypoint_prints_guidance_without_fastapi(tmp_path):
+    """The real ``python -m`` path must not traceback before the guard runs."""
+    (tmp_path / "fastapi.py").write_text(
+        "raise ModuleNotFoundError(\"No module named 'fastapi'\", name='fastapi')\n",
+        encoding="utf-8")
+    repo = Path(__file__).resolve().parents[2]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join([str(tmp_path), str(repo)])
+
+    result = subprocess.run(
+        [sys.executable, "-m", "biosuite.api.server"],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert result.returncode != 0
+    assert "biosuite-ultra[api]" in result.stderr
+    assert "Traceback" not in result.stderr

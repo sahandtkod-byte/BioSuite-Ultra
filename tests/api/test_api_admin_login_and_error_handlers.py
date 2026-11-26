@@ -244,7 +244,7 @@ def test_server_main_never_starts_the_server_after_a_failed_safety_check(
 def test_the_gate_lets_a_complete_configuration_through(monkeypatch, caplog):
     from biosuite.api import server
 
-    monkeypatch.setattr(server, "validate_runtime_config", lambda: [])
+    monkeypatch.setattr(server, "_validate_runtime_config", lambda: [])
     monkeypatch.delenv("BIOSUITE_DEV_MODE", raising=False)
 
     with caplog.at_level("WARNING", logger="biosuite.api.server"):
@@ -256,7 +256,7 @@ def test_the_gate_lets_a_complete_configuration_through(monkeypatch, caplog):
 def test_the_gate_refuses_an_unsafe_configuration_outside_dev_mode(monkeypatch):
     from biosuite.api import server
 
-    monkeypatch.setattr(server, "validate_runtime_config",
+    monkeypatch.setattr(server, "_validate_runtime_config",
                         lambda: ["BIOSUITE_API_KEY is not set"])
     monkeypatch.delenv("BIOSUITE_DEV_MODE", raising=False)
 
@@ -270,9 +270,9 @@ def test_the_gate_refuses_an_unsafe_configuration_outside_dev_mode(monkeypatch):
 def test_the_gate_warns_but_starts_when_dev_mode_is_explicit(monkeypatch, caplog):
     from biosuite.api import server
 
-    monkeypatch.setattr(server, "validate_runtime_config",
+    monkeypatch.setattr(server, "_validate_runtime_config",
                         lambda: ["BIOSUITE_JWT_SECRET is not set"])
-    monkeypatch.setattr(server, "dev_mode", lambda: True)
+    monkeypatch.setattr(server, "_dev_mode", lambda: True)
 
     with caplog.at_level("WARNING", logger="biosuite.api.server"):
         server.ensure_safe_to_serve()          # warned about, not fatal

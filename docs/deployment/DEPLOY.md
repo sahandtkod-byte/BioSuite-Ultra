@@ -95,10 +95,10 @@ pip install "biosuite-ultra[full]"      # all optional features
 | `twine: command not found` | Run `pip install twine` |
 
 ## Current Version
-**v6.5.1** — see [CHANGELOG.md](../../CHANGELOG.md) for the full entry.
+**v6.5.2** — see [CHANGELOG.md](../../CHANGELOG.md) for the full entry.
 
-6.5.1 is the version in this source tree; when it is released it is published to PyPI
-(`biosuite-ultra==6.5.1`); the release process keeps the two in step.
+6.5.2 is the version in this source tree; when it is released it is published to PyPI
+(`biosuite-ultra==6.5.2`); the release process keeps the two in step.
 
 ### What's New
 - Scientific correctness fixes to pairwise alignment, ChIP-seq peak calling and coverage,

@@ -22,7 +22,6 @@ import os
 import sys
 
 from biosuite import __version__
-from biosuite.api.config import dev_mode, format_config_error, validate_runtime_config
 from biosuite.core.log import get_logger
 
 logger = get_logger(__name__)
@@ -61,17 +60,37 @@ def _load_uvicorn():
 app = _load_app()
 
 
+def _api_config():
+    # Imported lazily: importing ``biosuite.api.config`` executes the
+    # ``biosuite.api`` package __init__, which imports fastapi.  Keeping this
+    # out of the module header lets the package guard / ``_load_app`` turn a
+    # missing API extra into an actionable message instead of a raw traceback.
+    return importlib.import_module("biosuite.api.config")
+
+
+def _validate_runtime_config():
+    return _api_config().validate_runtime_config()
+
+
+def _dev_mode():
+    return _api_config().dev_mode()
+
+
+def _format_config_error(problems):
+    return _api_config().format_config_error(problems)
+
+
 def ensure_safe_to_serve() -> None:
     """Abort startup when the runtime configuration is not production-safe."""
-    problems = validate_runtime_config()
+    problems = _validate_runtime_config()
     if not problems:
         return
-    if dev_mode():
+    if _dev_mode():
         logger.warning("BIOSUITE_DEV_MODE is enabled — starting with an insecure "
                        "configuration:\n%s",
                        "\n".join(f"  - {p}" for p in problems))
         return
-    raise SystemExit(format_config_error(problems))
+    raise SystemExit(_format_config_error(problems))
 
 
 def _parse_port(value) -> int:
@@ -118,7 +137,7 @@ def main(argv=None) -> int:
     ensure_safe_to_serve()
 
     if args.reload is None:
-        reload_enabled = (dev_mode() and os.environ.get("BIOSUITE_API_RELOAD", "1")
+        reload_enabled = (_dev_mode() and os.environ.get("BIOSUITE_API_RELOAD", "1")
                           not in {"0", "false"})
     else:
         reload_enabled = args.reload
