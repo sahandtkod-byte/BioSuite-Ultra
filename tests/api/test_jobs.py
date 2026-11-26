@@ -215,3 +215,33 @@ def test_submit_job_success_path_in_the_calling_thread(monkeypatch):
     result = asyncio.run(jobs.submit_job(request))
     assert result['id'] == 'direct-job'
     assert result['state'] == 'queued'
+
+
+def test_submit_job_error_paths_in_the_calling_thread(monkeypatch):
+    """Measure the 422 and 429 branches without the TestClient portal thread."""
+    class FullExecutor:
+        def submit(self, owner, capability_id, params):
+            raise jobs.QueueFullError('full')
+
+    monkeypatch.setattr(auth, 'API_KEY', 'master-job-key')
+    app = SimpleNamespace(state=SimpleNamespace(job_executor=FullExecutor()))
+
+    def request(body):
+        async def chunks():
+            yield body
+        return SimpleNamespace(
+            stream=chunks,
+            headers={'X-API-Key': 'master-job-key'},
+            app=app,
+        )
+
+    with pytest.raises(HTTPException) as invalid:
+        asyncio.run(jobs.submit_job(
+            request(b'{"capability_id":"unknown","params":{}}')))
+    assert invalid.value.status_code == 422
+
+    with pytest.raises(HTTPException) as full:
+        asyncio.run(jobs.submit_job(request(
+            b'{"capability_id":"sequence.gc_content","params":{"sequence":"ATGC"}}')))
+    assert full.value.status_code == 429
+    assert full.value.headers == {'Retry-After': '1'}
