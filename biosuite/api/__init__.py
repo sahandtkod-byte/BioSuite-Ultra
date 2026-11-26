@@ -38,10 +38,13 @@ try:
     from slowapi.errors import RateLimitExceeded
     from slowapi.middleware import SlowAPIMiddleware
     from slowapi.util import get_remote_address
-except ModuleNotFoundError as exc:
+except ModuleNotFoundError as exc:  # pragma: no cover - subprocess-tested
     # ``python -m biosuite.api.server`` imports this package before server.py
     # runs, so the guard must live here; otherwise the user sees a raw
-    # traceback from this import instead of the install instruction.
+    # traceback from this import instead of the install instruction.  The
+    # child process cannot import the missing package, so the parent coverage
+    # process never executes this branch; the subprocess test in
+    # tests/api/test_server_entrypoint.py exercises the real behavior.
     missing = exc.name or "an API dependency"
     raise SystemExit(
         "BioSuite API dependencies are not installed "
