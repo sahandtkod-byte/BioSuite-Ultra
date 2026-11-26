@@ -133,7 +133,7 @@ markers = [
 source = ["biosuite"]
 branch = true
 # Not "*/__init__.py": biosuite/api/__init__.py *is* the FastAPI application (all
-# 38 endpoints live there), so omitting package inits hid the largest single
+# 45 routes live there), so omitting package inits hid the largest single
 # surface in the product from every coverage number this project has reported.
 omit = []
 

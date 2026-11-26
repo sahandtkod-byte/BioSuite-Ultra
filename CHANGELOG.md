@@ -1,15 +1,18 @@
 # Changelog
 
-## [6.5.0] - 2026-11-24
+## [6.5.0] - 2026-11-26
 
 Feature release covering workstreams WS1–WS9: a capability catalog with MCP
 projection, API compatibility hardening, opt-in scoped API keys, owner-isolated
 persistent async jobs with full-suite provenance recording, and an
 agent-facing contract surface (`manifest` / `doctor` CLI subcommands plus a
-packaged byte-stable manifest). Route, command, menu, module and test counts
-are unchanged by this release: 45 API routes, 22 CLI commands, 117 GUI menu
-options, 105 source modules (47 analysis), 481 test files, 100% statement and
-branch coverage of `biosuite/` (22,537 statements / 7,236 branches).
+packaged byte-stable manifest). Route, command, menu, module and test-file
+counts are unchanged by this release: 45 API routes, 22 CLI commands, 117 GUI
+menu options, 105 source modules (47 analysis), 481 test files, 100% statement
+and branch coverage of `biosuite/` (22,599 statements / 7,254 branches). The
+tagged tree carries 10,486 tests; the final two are direct async submit-route
+tests added so the coverage gate measures the route deterministically on
+Python 3.11.
 
 ### Added
 

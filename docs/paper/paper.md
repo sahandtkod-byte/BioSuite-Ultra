@@ -17,7 +17,7 @@ authors:
 affiliations:
   - name: Independent Researcher
     index: 1
-date: 9 July 2026
+date: 26 November 2026
 bibliography: paper.bib
 ---
 
@@ -38,13 +38,13 @@ tools.
 BioSuite Ultra provides three user interfaces:
 
 - A **dark-themed graphical user interface** with 11 analysis tabs
-- A **command-line interface** with over 100 analysis options
-- A **RESTful API** with 38 endpoints for programmatic integration
+- A **command-line interface** with 117 menu options and 22 direct subcommands
+- A **RESTful API** with 45 routes under `/api/v1/*` for programmatic integration
 
-The platform includes 123 plotting functions (105 public) spanning 40 plot
+The platform includes 167 plotting functions (105 public) spanning 40 plot
 types in its graphical catalogue, a molecular cloning toolkit with 169
 restriction enzymes, and a parallel processing engine. The test suite runs
-2,493 tests on Python 3.10, 3.11 and 3.12. Selected numerical routines --
+10,486 tests on Python 3.10, 3.11 and 3.12. Selected numerical routines --
 pairwise alignment, Hardy-Weinberg testing, GC content and reverse complement
 -- are checked in the test suite against independent reference
 implementations rather than against their own output.
@@ -95,7 +95,7 @@ learning (RF, SVM, SHAP), and survival analysis.
 
 ## Visualization Engine
 
-123 plotting functions (105 public) generate 40 catalogued plot types including volcano plots,
+167 plotting functions (105 public) generate 40 catalogued plot types including volcano plots,
 Manhattan plots, PCA plots, heatmaps, plasmid maps, phylogenetic trees, virtual
 gel images, network diagrams, UMAP plots, and interactive Plotly
 visualizations.

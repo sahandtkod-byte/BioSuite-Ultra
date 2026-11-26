@@ -184,7 +184,7 @@ pip install "biosuite-ultra[api]"
 python -m biosuite.api.server        # or: biosuite api --port 8000
 ```
 
-The API exposes 38 endpoints under `/api/*`, plus an unauthenticated `/health` liveness
+The API exposes 45 routes under `/api/v1/*`, plus an unauthenticated `/health` liveness
 probe. It **will not start without credentials configured** — see [Security](#security).
 
 ```bash
@@ -314,21 +314,20 @@ To report a vulnerability, see [SECURITY.md](.github/SECURITY.md).
 
 Every push and pull request runs the full suite on three interpreters, plus Ruff linting,
 a security-regression suite, a coverage job and a package build. The job list is in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml): `test`, `security`, `lint`, `build`.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): `test`, `security`, `lint`, `build` and `manifest`.
 
-| Check | Status at the last run measured in this checkout |
+| Check | Result at the v6.5.0 CI run |
 |---|---|
-| Tests — Python 3.13.3, extras installed here | 9077 passed, 17 skipped, 0 failed in 18:09 |
-| Branch coverage of `biosuite/` | 100 % — 21,716 statements, 7,022 branches, nothing partial |
-| Security regression suite (both `security` job lists) | 257 tests, 1 skipped, no failures |
-| Ruff (`E9,F,B` as a hard gate) | configured in `ci.yml`; ruff itself is not installed offline, so it was not run here |
-| Package build (`build` + `twine check`) | configured in `ci.yml`; not run from this checkout |
+| Tests — Python 3.10, 3.11 and 3.12 | 10,486 passed, 22 skipped, 0 failed (each) |
+| Statement and branch coverage of `biosuite/` | 100.00% — 22,599 statements, 7,254 branches, nothing partial |
+| Security regression suite (both `security` job lists) | 258 tests, 0 skipped, no failures |
+| Ruff (`E9,F,B` as a hard gate) | passed |
+| Package build (`build` + `twine check`) | passed |
+| Packaged manifest | byte-identical; 341 capabilities |
 
-The 17 skips are 13 optional scientific extras (scanpy, goatools, ESM/torch), 2 tests that
-need POSIX mode bits and 2 modules whose engine is absent; `pytest -rs` reports each one.
-CI installs Tk bindings so the GUI tests can run there, so its own totals differ from the
-local figure above — the workflow file states what is checked, and this table states what
-was measured here.
+The 22 skips are environment-dependent: optional scientific engines/extras and checks that
+need POSIX mode bits; `pytest -rs` reports each one. CI installs Tk bindings and goatools, so
+the GUI/API totals are complete there. The figures above are the v6.5.0 CI totals.
 
 Run the suite locally with:
 
