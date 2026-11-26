@@ -74,3 +74,19 @@ def test_a_missing_server_dependency_points_at_the_api_extra(monkeypatch):
     message = str(exc.value)
     assert "uvicorn" in message
     assert "biosuite-ultra[api]" in message
+
+
+def test_a_non_numeric_port_is_rejected(monkeypatch):
+    monkeypatch.setattr(server, "ensure_safe_to_serve", lambda: None)
+
+    with pytest.raises(SystemExit) as exc:
+        server.main(["--port", "not-a-port"])
+
+    assert exc.value.code == 2
+
+
+def test_an_invalid_port_environment_is_rejected(monkeypatch, capsys):
+    monkeypatch.setenv("BIOSUITE_API_PORT", "not-a-port")
+
+    assert server.main([]) == 2
+    assert "Invalid BIOSUITE_API_PORT" in capsys.readouterr().err

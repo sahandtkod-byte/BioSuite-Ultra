@@ -59,10 +59,10 @@ The API tests need `fastapi` + `httpx`; they read the key from `BIOSUITE_API_KEY
 
 ## Current Status
 - Version: **6.5.1**
-- Last verified run: **10,493 passed, 22 skipped, 0 failed** on Python 3.10, 3.11 and
+- Last verified run: **10,495 passed, 22 skipped, 0 failed** on Python 3.10, 3.11 and
   3.12 in the v6.5.1 CI run, with **100.00%** statement and branch coverage of
   `biosuite/`.
-- Coverage totals: **22,599 statements** with 0 missed and **7,254 branches** with
+- Coverage totals: **22,643 statements** with 0 missed and **7,260 branches** with
   0 partial.
 - The 22 skips are environment-dependent (optional scientific engines/extras and checks
   that need POSIX mode bits); they are reported by `pytest -rs` and are not failures.

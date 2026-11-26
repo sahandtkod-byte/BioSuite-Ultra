@@ -329,8 +329,8 @@ an end-to-end execution of every shipped notebook. The job list is in
 
 | Check | Result at the v6.5.1 CI run |
 |---|---|
-| Tests — Python 3.10, 3.11 and 3.12 | 10,493 passed, 22 skipped, 0 failed (each) |
-| Statement and branch coverage of `biosuite/` | 100.00% — 22,599 statements, 7,254 branches, nothing partial |
+| Tests — Python 3.10, 3.11 and 3.12 | 10,495 passed, 22 skipped, 0 failed (each) |
+| Statement and branch coverage of `biosuite/` | 100.00% — 22,643 statements, 7,260 branches, nothing partial |
 | Security regression suite (both `security` job lists) | 258 tests, 0 skipped, no failures |
 | Ruff (`E9,F,B` as a hard gate) | passed |
 | Package build (`build` + `twine check`) | passed |
