@@ -73,14 +73,6 @@ jobs:
           # build time for no additional coverage here.
           pip install "goatools>=1.3"
 
-      - name: Pin coverage on Python 3.11
-        # coverage 7.17.x misses async route bodies that run in the TestClient
-        # portal thread on 3.11 (observed as a 12-line miss in
-        # biosuite/api/jobs.py while every test passed). 7.16.2 is the
-        # version 3.10 already resolves and it measures those bodies correctly.
-        if: matrix.python-version == '3.11'
-        run: pip install "coverage==7.16.2"
-
       - name: Verify the GUI test dependencies really are importable
         run: |
           # Fail loudly here rather than as 141 confusing test errors later.

@@ -174,3 +174,44 @@ def test_stream_body_limit_before_full_consumption():
         asyncio.run(jobs.submit_job(request))
     assert exc.value.status_code == 413
     assert consumed == [1, 2]
+
+
+def test_submit_job_success_path_in_the_calling_thread(monkeypatch):
+    """Exercise the async route body without the TestClient portal thread.
+
+    TestClient runs async endpoints on its portal thread, where coverage on
+    Python 3.11 can lose the line data. Calling the route directly keeps the
+    success path measured on every supported interpreter.
+    """
+    class Store:
+        def get(self, job_id):
+            return {
+                'id': job_id,
+                'capability_id': 'sequence.gc_content',
+                'state': 'queued',
+                'created': 1.0,
+                'updated': 1.0,
+                'error': None,
+            }
+
+    class Executor:
+        store = Store()
+
+        def submit(self, owner, capability_id, params):
+            assert owner
+            assert capability_id == 'sequence.gc_content'
+            assert params == {'sequence': 'ATGC'}
+            return 'direct-job'
+
+    monkeypatch.setattr(auth, 'API_KEY', 'master-job-key')
+    app = SimpleNamespace(state=SimpleNamespace(job_executor=Executor()))
+    async def chunks():
+        yield b'{"capability_id":"sequence.gc_content","params":{"sequence":"ATGC"}}'
+    request = SimpleNamespace(
+        stream=chunks,
+        headers={'X-API-Key': 'master-job-key'},
+        app=app,
+    )
+    result = asyncio.run(jobs.submit_job(request))
+    assert result['id'] == 'direct-job'
+    assert result['state'] == 'queued'
